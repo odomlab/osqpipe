@@ -21,7 +21,7 @@ class TestConfig(TestCase):
   # Note that we will want to use this same set_up and tear_down for all
   # pipeline testing. Think about how this will all work with parallel
   # test processes! FIXME.
-  def set_up(self):
+  def setUp(self):
     copy(CLEAN_CFG, TEST_CFG)
     LOGGER.setLevel(logging.FATAL) # For verbose testing, set this to DEBUG.
 
@@ -55,7 +55,7 @@ class TestConfig(TestCase):
     opt = newcfg.getroot().find("./section[@name='Pipeline']/option[@name='aligner']")
     self.assertEqual(opt.text, 'testing')
 
-  def tear_down(self):
+  def tearDown(self):
     if os.path.exists(TEST_CFG):
       os.unlink(TEST_CFG)
 
