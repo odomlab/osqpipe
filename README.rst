@@ -1,37 +1,37 @@
-========
-Odompipe
-========
+=======
+OSQPipe
+=======
 
-This package, "odompipe", contains the code used to run the Odom lab
+This package, "osqpipe", contains the code used to run the Odom lab
 sequencing data analysis pipeline.
 
 Quick start
 -----------
 
 These instructions assume that you have set up a site-specific Django
-project in which you are going to install the odompipe app. Plese
+project in which you are going to install the osqpipe app. Plese
 refer to the Django documentation for help with this
 (https://docs.djangoproject.com - see in particular the
 tutorial). Once you have set up your project the following
 instructions will hopefully make more sense.
 
-1. Add "odompipe" to your INSTALLED_APPS setting like this::
+1. Add "osqpipe" to your INSTALLED_APPS setting like this::
 
     INSTALLED_APPS = (
         ...
-        'odompipe',
+        'osqpipe',
     )
 
-2. Include the odompipe repository URLconf in your project urls.py like this::
+2. Include the osqpipe repository URLconf in your project urls.py like this::
 
-    url(r'^repository/', include('odompipe.urls')),
+    url(r'^repository/', include('osqpipe.urls')),
 
-3. Run `python manage.py migrate` to create the odompipe models.
+3. Run `python manage.py migrate` to create the osqpipe models.
 
 4. Start the development server and visit http://127.0.0.1:8000/admin/
    to set up users etc. (you'll need the Admin app enabled).
 
-5. Visit http://127.0.0.1:8000/repository/ to access the odompipe repository database.
+5. Visit http://127.0.0.1:8000/repository/ to access the osqpipe repository database.
 
 External Prerequisites
 ----------------------
@@ -62,10 +62,10 @@ programs needed on each server are as follows:
 
 1. Primary host (config option: hostpath)::
 
-   * ssh
-   * scp
    * samtools
    * fastqc
+   * ssh
+   * scp
 
    The following are part of the kent src utilities:
 
@@ -74,24 +74,26 @@ programs needed on each server are as follows:
 
    The following are maintained by CRUK-CI::
    
-      * makeWiggle
-      * reallocateReads
-      * trimFastq
+      * demuxIllumina
       * export2fastq
+      * makeWiggle
+      * screenLinker
       * solexa2phred
       * summarizeFile
-      * screenLinker
-      * fastq2fasta
+
       * clusterExactMatchesFA
+      * fastq2fasta
+      * reallocateReads
+      * trimFastq
+      
       * bam2fq (thin wrapper for picard-tools; FIXME use those directly)
-      * demuxIllumina
 
 2. LSF cluster (config option: clusterpath)::
 
-   * split
    * bsub
    * samtools
    * bwa
+   * split
    * scp
    * gzip
 
@@ -112,11 +114,11 @@ Configuration
 
 Database configuration is handled within your site-specific project
 settings.py file as described in the Django documentation. For
-odompipe-specific settings (hostnames, various directories) you will
-need to edit the file "odompipe_config.xml". The pipeline will look
+osqpipe-specific settings (hostnames, various directories) you will
+need to edit the file "osqpipe_config.xml". The pipeline will look
 for this file in the following places, in order: current working
 directory, user's home directory, /etc, and the directory pointed to
-by the $ODOMPIPE_CONFDIR environmental variable.
+by the $OSQPIPE_CONFDIR environmental variable.
 
 FIXME needs an explanation of the various config settings, either
 here, or in "hint" attributes in the XML config itself.
