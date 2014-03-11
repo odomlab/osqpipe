@@ -1,0 +1,52 @@
+
+div.header {
+  position: absolute ! important;
+  width: 30em ! important;
+  z-index:2 ! important;
+  background-color: #eee ! important;
+  border: 3px solid #ccc ! important;
+}
+div.summary {
+  position: absolute ! important;
+  width: 16em ! important;
+  top: 5em ! important;
+  margin: 0 0 0 1em ! important;
+  z-index: 3 ! important;
+}
+div.main {
+  overflow: visible ! important;
+  width: 100% ! important;
+  position: absolute ! important;
+  left: 17em ! important;
+  top: 5em;
+  z-index: 1 ! important;
+}
+img.indented {
+  margin-left: 0em ! important;
+  height: 350px ! important;
+}
+
+body {
+  font-family: "Palatino", "Times", serif ! important;
+}
+
+table { 
+  border-collapse: collapse ! important;
+  margin-left: 0em ! important;
+  margin-top: 1em ! important;
+  margin-bottom: 1em ! important;
+}
+td { 
+  border: 1px solid #ccc ! important;
+}
+a {
+  text-decoration: none ! important;
+}
+div.module {
+  padding-top: 0 ! important;
+  padding-bottom: 0 ! important;
+  padding-left: 1em ! important;
+  padding-right: 1em ! important;
+  border: 3px solid #ccc ! important;
+  page-break-inside: avoid;
+}

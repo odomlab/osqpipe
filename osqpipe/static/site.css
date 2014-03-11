@@ -1,0 +1,284 @@
+/* Miscellaneous page styling */
+body { 
+    background-color: #ffffed;
+    color: #333;
+    font-family: "Lucida Grande", "Lucida Sans Unicode", arial, helvetica, sans-serif;
+}
+
+h1 {
+    margin-top: 2px;
+    margin-bottom: 2px;
+    font-size: 16pt;
+}
+
+h2 {
+    font-size: 14pt;
+}
+
+.footer {
+    font-size: 9pt;
+}
+
+/* Basic table structure. */
+table {
+    font-size: 10pt;
+    border-collapse: collapse;
+}
+
+th {
+    background-color: #aee;
+}
+
+td, th {
+    padding: .2em;
+    padding-right: .4em;
+    padding-left: .4em;
+    border-style: solid;
+    border-color: #ccc;
+    border-width: 1px;
+}
+
+/* IE 5.5 does not actually support "table-row-group"
+   only "table-header-group" and "table-footer-group"
+   but allegedly the following CSS renders correctly */
+tbody.on { display:table-row-group; }
+tbody.off { display:none; }
+/* background to differentiate an expanded set of table sub-rows */
+tbody.on {
+    background-color: #ddd;
+}
+
+td.blankspace {
+    background-color: #ffffed;
+    border-width: 0px;
+}
+
+.monospace {
+    font-family: courier, monaco;
+}
+
+.horizontal th {
+    text-align: right;
+}
+
+.horizontal caption {
+    padding-bottom: 10px;
+    padding-top: 4px;
+    text-align: left;
+}
+
+.searchform form {
+    margin-left: auto;
+    margin-right: auto;
+    display:table;
+}
+
+.searchform table {
+    margin: 4px;
+}
+
+.searchform input {
+    float: right;
+    margin: 4px;
+}
+
+/* expanding table rows tends to jiggle the table structure around; we
+fix column widths to address that. */
+table.fixed-widths {
+    width: 100%;
+    table-layout: fixed;
+}
+th.col_libcode {
+    width: 4em;
+}
+th.col_lanecount {
+    width: 3em;
+}
+th.col_libtype {
+    width: 6em;
+}
+th.col_experiment {
+    width: 10em;
+}
+th.col_genome {
+    width: 5em;
+}
+th.col_tissue {
+    width: 6em;
+}
+th.col_individual {
+    width: 8em;
+}
+th.col_strain {
+    width: 11em;
+}
+th.col_factor {
+    width: 7em;
+}
+th.col_filename {
+    width: 28em;
+}
+th.col_checksum {
+    width: 19em;
+}
+th.col_filetype {
+    width: 5em;
+}
+th.col_date {
+    width: 7em;
+}
+th.col_description {
+    width: 10em;
+}
+
+/* Pagination block styles */
+.pagination {
+    margin-top: 5px;
+    margin-bottom: 5px;
+    padding-left: 10px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    background-color: #eee;
+    border: 1px solid #ddd;
+}
+
+.step-links a {
+    padding: 2pt;
+    font-size: 10pt;
+}
+
+span.current-page {
+    padding: 2pt;
+    font-size: 10pt;
+}
+
+/* viewport and simple_search might be done better FIXME */
+#viewport {
+    width: 60em;
+    padding-left: 1em;
+    padding-right: 1em;
+}
+
+#titleport {
+    width: 60em;
+    padding-left: 1em;
+    padding-right: 1em;
+    overflow: hidden;
+}
+
+#titleport h1 {
+    float: left;
+}
+
+.simple_search {
+    text-align: right;
+    float: right;
+    margin-bottom: 4px;
+}
+
+.advanced_search {
+    float: right;
+    font-size: 12px;
+    color: #9b9b9b;
+    margin-top: 5px;
+    margin-bottom: 4px;
+    margin-right: 4px;
+}
+
+#breadcrumbs {
+    margin-top: 5px;
+    margin-bottom: 5px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    font-size: 12px;
+    color:#9b9b9b;
+    overflow:hidden;
+    background-color: #eee;
+    border: 1px solid #ddd;
+}
+
+#breadcrumbs li {
+    list-style-type: none;
+    float: left;
+    padding-left: 5px;
+}
+
+#breadcrumbs ul {
+    margin-top: 0px;
+    padding-left: 0em;
+}
+
+#breadcrumbs a {
+    padding-right: 5px;
+    color:#454545;
+}
+
+.toggle-control {
+    font-size: 12px;
+    margin-top: 5px;
+    color: #9b9b9b;
+    float: left;
+}
+
+.toggle-control a, .toggle-control:visited a {
+    padding-right: 0.5em;
+    color: #454545;
+}
+
+.toggle-link, .toggle-link:visited {
+    color: inherit;
+}
+
+#titleport .logout-link {
+    padding: 5px;
+    font-size: 12px;
+    color: #9b9b9b;
+    float: right;
+    overflow: hidden;
+    background: #F6C9CC;
+}
+
+.logout-link a {
+    color: #0147FA;
+    text-decoration: none;
+}
+
+.messages {
+    list-style-type: none;
+    font-size: 12px;
+}
+
+.messages .info {
+    color: green;
+}
+
+.messages .warning {
+    color: orange;
+}
+
+.messages .error {
+    color: red;
+}
+
+.project_picker {
+    float: right;
+    padding-right: 7em;
+}
+
+.project_picker select {
+    height: 20em;
+    background-color: #ffffed;
+}
+
+.project_picker label {
+    vertical-align: top;
+}
+
+.project_picker input {
+    float: right;
+}
+
+.project_picker p {
+    margin-bottom: 0em;
+    margin-top: 2em;
+}

@@ -1,0 +1,150 @@
+{% extends "repository/base.html" %}
+
+{% load humanize %}
+{% load to_class_name %}
+{% load sortby %}
+
+{% block title %} Library Listing (Project: {{project_code}}) {% endblock %}
+
+{% block content %}
+
+<style type="text/css">
+td.on {
+    background: url('{{ STATIC_URL }}arrow_down.png') no-repeat 80%;
+    padding-left: 1em;
+}
+td.off {
+    background: url('{{ STATIC_URL }}arrow_right.png') no-repeat 80%;
+    padding-left: 1em;
+}
+</style>
+<script type="text/javascript">
+function toggleElement(elem) {
+  if (elem && typeof elem.className == 'string') {
+    if (elem.className == 'off') {
+      elem.className = 'on';
+    } else {
+      elem.className = 'off';
+    }
+  }
+}
+function toggleTbody(id) {
+  if (document.getElementById) {
+    /* Toggle the actual TBody element */
+    toggleElement(document.getElementById(id));
+    /* Toggle any "control" elements, e.g. the td which opens the tbody. */
+    toggleElement(document.getElementById(id + "-control"));
+  }
+  return false;
+}
+function toggleAll(name, newClass) {
+  elems = document.getElementsByName(name);
+  for (var i in elems) {
+    if (typeof elems[i].className == 'string') {
+      elems[i].className = newClass;
+    }
+  }
+}
+</script>
+
+<div>
+{% include "repository/simple_search_form.html" %}
+  <span class="toggle-control">
+    <a href="#" onclick="return toggleAll('toggleable', 'on')">Expand All</a>
+    <a href="#" onclick="return toggleAll('toggleable', 'off')">Collapse All</a>
+  </span>
+  <span class="advanced_search">
+    <a href="{% url "library-search" project=project_code %}">Advanced search</a>
+  </span>
+</div>
+
+  {% if libraries %}
+    <table class="fixed-widths">
+      <tr>
+        <th class="col_libcode">Code</th>
+        <th class="col_lanecount">Lanes</th>
+        <th class="col_expt">Experiment</th>
+        <th class="col_libtype">Type</th>
+        <th class="col_tissue">Tissue</th>
+        <th class="col_genome">Genome</th>
+        <th class="col_individual">Individual</th>
+        <th class="col_strain">Strain</th>
+        <th class="col_factor">Factor</th>
+        <th class="col_antibody">Antibody</th>
+      </tr>
+    {% for lib in libraries %}
+      <tr>
+        <td><a href="{% url "library-detail" slug=lib.code %}">{{ lib.code }}</a></td>
+        <td class="off" id="libset{{lib.pk}}-control" {% if lib.lane_set.count > 0 %} name="toggleable"><a class="toggle-link" href="#" onclick="return toggleTbody('libset{{ lib.pk }}');" style="display:block;">{{ lib.lane_set.count }}</a>{% else %}>0{% endif %}</td>
+        <td>{{ lib.chipsample|truncatechars:10 }}</td>
+        <td>{{ lib.libtype|truncatechars:10 }}</td>
+        <td>{{ lib.tissue|truncatechars:13 }}</td>
+        <td><a class="tooltip static" href="#">{{ lib.genome }}<span class="tooltip-classic">Requested&nbsp;Genome:&nbsp;{{ lib.genome.scientific_name.split|join:"&nbsp;" }}&nbsp;({{ lib.genome.common_name.split|join:"&nbsp;" }})</span></a></td>
+        <td>{{ lib.individual|truncatechars:14 }}</td>
+        <td>{{ lib.strain }}</td>
+        <td>{{ lib.factor }}</td>
+        <td>{{ lib.antibody }}</td>
+      </tr>
+      {% if lib.lane_set.count > 0 %}
+        <tbody name="toggleable" id="libset{{lib.pk}}" class="off">
+          <tr>
+            <td class="blankspace">&nbsp;</td>
+            <th>Lane</th>
+            <th>Flowcell</th>
+            <th>GenomicsID</th>
+            <th>Reads</th>
+            <th>Genome</th>
+            <th>Aligner</th>
+            <th>Aligned %</th>
+            <th>Files</th>
+            <th>Summary/QC</th>
+          </tr>
+        {% for lane in lib.lane_set.all %}
+          <tr>
+            <td class="blankspace">&nbsp;</td>
+            <td><a href="{% url "lane-detail" pk=lane.pk %}">{{ lane.name }}</a></td>
+            <td><a class="tooltip static" href="#">{{ lane.flowcell|truncatechars:12 }}<span class="tooltip-classic">{{ lane.status.display_tag.split|join:"&nbsp;" }}</span></a></td>
+            <td>{{ lane.genomicssampleid }}</td>
+            <td><a class="tooltip static" href="#">{{ lane.total_passedpf|intcomma }}<span class="tooltip-classic">Passed&nbsp;PF</span></a></td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>{% for file in lane.lanefile_set.all|sortby:"filetype" %}
+                  {% if file.filetype|lower in linked_filetypes %}
+                    <a href="{% url "file-download" cls=file|to_class_name|lower pk=file.pk %}">{{file.filetype}}</a>
+                  {% endif %}
+                {% endfor %}
+              &nbsp;</td>
+            <td>{% if lane.qualmean %}<a href="{% url "lane-qualplot" pk=lane.pk %}">Qual</a>{% endif %}</td>
+          </tr>
+          {% for aln in lane.alignment_set.all %}
+          <tr>
+            <td class="blankspace">&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td><a class="tooltip static" href="#">{{ aln.genome }}<span class="tooltip-classic">Aligned&nbsp;Genome:&nbsp;{{ aln.genome.scientific_name.split|join:"&nbsp;" }}&nbsp;({{ aln.genome.common_name.split|join:"&nbsp;" }})</span></td>
+            <td>{% for prov in aln.provenance.all|sortby:"rank_index" %}{{ prov.program }} {% endfor %}</td>
+            <td><a class="tooltip static" href="#">{{ aln.mapped_percent|floatformat:"0" }}%<span class="tooltip-classic">All&nbsp;aligned&nbsp;reads</span></a>
+               (<a class="tooltip static" href="#">{{ aln.munique_percent|floatformat:"0" }}%<span class="tooltip-classic">Unique&nbsp;aligned&nbsp;reads</span></a>)</td>
+            <td>{% for file in aln.alnfile_set.all|sortby:"filetype" %}
+                  {% if file.filetype|lower in linked_filetypes %}
+                    <a href="{% url "file-download" cls=file|to_class_name|lower pk=file.pk %}">{{file.filetype}}</a>
+                  {% endif %}
+                {% endfor %}
+              &nbsp;</td>
+            <td>&nbsp;</td>
+          </tr>
+          {% endfor %}
+        {% endfor %}
+        </tbody>
+      {% endif %}
+    {% endfor %}
+    </table>
+    {% include "repository/list_pagination.html" %}
+  {% else %}
+    <p>No libraries found.</p>
+  {% endif %}
+
+{% endblock %}    

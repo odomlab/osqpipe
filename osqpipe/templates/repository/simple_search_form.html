@@ -1,0 +1,10 @@
+<div class="simple_search">
+<form action="" method="post">{% csrf_token %}
+  {% for field in form %}
+  <span class="form_field">
+    {{ field }}
+  </span>
+  {% endfor %}
+  <input type="submit" value="Search"/>
+</form>
+</div>

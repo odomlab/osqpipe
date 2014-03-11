@@ -1,0 +1,27 @@
+{% extends "repository/base.html" %}
+
+{% block title %} Project Listing {% endblock %}
+
+{% block content %}
+  {% if projects %}
+    <table>
+      <tr>
+        <th>Code</th>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Lab</th>
+      </tr>
+    {% for proj in projects %}
+      <tr>
+        <td><a href="../library/{{ proj.code }}/">{{ proj.code }}</a></td>
+        <td>{{ proj.name }}</td>
+        <td>{{ proj.description }}</td>
+        <td>{{ proj.lab }}</td>
+      </tr>
+    {% endfor %}
+    </table>
+    {% include "repository/list_pagination.html" %}
+  {% else %}
+    <p>No projects found.</p>
+  {% endif %}
+{% endblock %}    

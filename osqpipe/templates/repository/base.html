@@ -1,0 +1,39 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html lang="en_GB">
+<head>
+  <title>{% block header %} Repository Web Pages {% endblock %}</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel="stylesheet" type="text/css" media="all" href="{{ STATIC_URL }}site.css" />
+  <link rel="stylesheet" type="text/css" media="all" href="{{ STATIC_URL }}tooltips.css" />
+</head>
+<body>
+  <div id="titleport">
+    <h1>{% block title %} Repository Web Pages {% endblock %}</h1>
+    {% if user.is_authenticated %}
+      <div class="logout-link"><a href="{% url "auth_logout" %}">Log out {{user.username}}</a></div>
+    {% endif %}
+  </div>
+  <div id="viewport">
+
+    {% if messages %}
+    <ul class="messages">
+      {% for message in messages %}
+      <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <div id="breadcrumbs">
+      {% load sitetree %}
+      {% sitetree_breadcrumbs from "repotree" %}
+    </div>
+
+    {% block content %}{% endblock %}
+
+  </div>
+  {% block footer %}
+  <hr>
+  <p class="footer">&copy; {% now "Y" %} Odom Lab, University of Cambridge.</p>
+  {% endblock %}
+</body>
+</html>

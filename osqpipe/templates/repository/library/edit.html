@@ -1,0 +1,9 @@
+{% extends "repository/base.html" %}
+
+{% block title %} Edit Library Details {% endblock %}
+
+{% block content %}
+  <form action="." method="POST"><table>{{ form }}</table>{% csrf_token %}
+    <input type="submit" value="Go" />
+  </form>
+{% endblock %}

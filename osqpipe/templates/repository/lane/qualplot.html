@@ -1,0 +1,24 @@
+{% extends "repository/base.html" %}
+
+{% block title %} Quality Summary: Library {{ lane.library.code }},
+                  lane {{ lane.name }} {% endblock %}
+
+{% block content %}
+  {% if lane %}
+  <table>
+    <tr>
+      <td>Mean PF Quality:<br /><img src="{% url "tempfile-link" file=qualplot_file_pf %}"></td>
+      <td>Mean Overall Quality:<br /><img src="{% url "tempfile-link" file=qualplot_file_all %}"></td>
+    </tr>
+    <tr>
+      <td>Sample PF Reads:</td><td>Sample Bad Reads:</td>
+    </tr>
+    <tr>
+      <td class="monospace">{{ lane.seqsamplepf|linebreaks }}</td>
+      <td class="monospace">{{ lane.seqsamplebad|linebreaks }}</td>
+    </tr>
+  </table>
+  {% else %}
+  <p>No library lane provided.</p>
+  {% endif %}
+{% endblock %}    

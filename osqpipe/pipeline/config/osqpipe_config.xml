@@ -1,0 +1,100 @@
+<?xml version='1.0' encoding='utf-8'?>
+<config>
+  <section name="Host">
+    <option name="user">fnc-odompipe</option>
+    <option name="datahost">uk-cri-lsrv01</option>
+    <option name="group">odompipe</option>
+    <option name="defaultproject">all</option>
+  </section>
+  <section name="Cluster">
+    <option name="cluster">uk-cri-lcst01</option>
+    <option name="clusteruser">fnc-odompipe</option>
+    <option name="clusterstdoutdir">/lustre/dolab/fnc-odompipe/pipeline/stdout/</option>
+    <option name="clusterworkdir">/lustre/dolab/fnc-odompipe/pipeline/tmp/</option>
+    <option name="clusterpath">/home/fnc-odompipe/pipeline/bin:/home/fnc-odompipe/software/external/bin:/platform/lsf/7.0/linux2.6-glibc2.3-x86_64/bin/:/usr/local/bin:/usr/bin</option>
+    <option name="clustergenomedir">/lustre/dolab/fnc-odompipe/genomes</option>
+    <option name="clusterqueue">dolab</option>
+    <option name="splitbwarunlog">/home/fnc-odompipe/pipeline/log/cs_runBwaWithSplit_fnc-odompipe.log</option>
+  </section>
+<!-- Uncomment the following and set appropriately if the main compute cluster is out of action.
+  <section name="AlternativeAlignmentHost">
+    <option name="althost">magellan.cri.camres.org</option>
+    <option name="althostuser">rayner01</option>
+    <option name="althostpath">/usr/local/bin:/usr/bin/:/bin</option>
+    <option name="althostworkdir">/Users/rayner01/Scratch_Area/production_pipeline_area</option>
+    <option name="althostgenomedir">/Users/rayner01/Scratch_Area/genomes</option>
+    <option name="althostnumthreads">10</option>
+    <option name="althostsshkey">/Users/rayner01/.ssh/id_rsa_open</option>
+  </section> -->
+  <section name="Lims">
+    <option name="lims_rest_uri">http://genomicsequencing.cruk.cam.ac.uk:8080/glsintapi</option>
+  </section>
+  <section name="Path">
+    <option name="gzsuffix">.gz</option>
+    <option name="httptmpdir">/var/www/html/chipseq/tmp</option>
+    <option name="httptmpurl">/chipseq/tmp</option>
+    <option name="incoming">/data01/incoming</option>
+    <option name="repositorydir">/data01/repository</option>
+    <option name="hostpath">/home/fnc-odompipe/pipeline/bin:/home/fnc-odompipe/software/CRI/bin:/home/fnc-odompipe/software/external/bin:/sw/gentoo/bin:/sw/gentoo/usr/bin</option>
+    <option name="genomesizedir">/data01/genomes/chromosome_sizes</option>
+    <option name="tmpdir">/data01/tmp</option>
+  </section>
+  <section name="Pipeline">
+    <option name="aligner">bwa</option>
+    <option name="meminbytes">20000000000</option>
+    <option name="read_reallocator">reallocateReads</option>
+    <option name="read_sorter">samtools</option>
+    <option name="nonuniquereads">30</option>
+    <option name="reallocation_factors">
+      <value>PolIII</value>
+      <value>TFIIIC</value>
+    </option>
+    <option name="core_facility_code">CRI</option>
+    <option name="core_ready_status">core pipeline complete</option>
+  </section>
+  <section name="Sanger">
+    <option name="sanger_lims_url">http://npg.sanger.ac.uk/perl/npg/run</option>
+    <option name="sanger_http_proxy">http://localhost:3128/</option>
+    <option name="sanger_project_names"> <!-- Unused? I think we use the owners info instead. FIXME -->
+      <value>A method for automated High throughput ChIPseq</value>
+      <value>High resolution analysis of the mammalian regulatory landscape</value>
+    </option>
+    <option name="sanger_instruments">
+      <value>HiSeq</value>
+      <value>GAII</value>
+    </option>
+    <option name="sanger_facility_code">SAN</option>
+    <!-- Sanger status flags may run through this ready status to "qc
+         complete". Currently unused, but this may change. -->
+    <option name="sanger_ready_status">run archived</option>
+    <option name="sanger_project_owners">
+      <value>do3</value> <!-- This is Duncan's login ID at Sanger. -->
+    </option>
+  </section>
+  <section name="Email">
+    <option name="smtp_server">smtp.cri.camres.org</option>
+    <option name="smtp_sender">fnc-odompipe@uk-cri-lsrv01.cri.camres.org</option>
+  </section>
+  <section name="ControlledVocabs"> <!-- Site-specific addenda -->
+    <option name="genome_synonyms">
+      <option name="Amex">ame</option>
+      <option name="Cfam">cfa</option>
+      <option name="Cjac">cja</option>
+      <option name="Ggal">gga</option>
+      <option name="Ggor">ggo</option>
+      <option name="Hsap">hsa</option>
+      <option name="Mcas">mca</option>
+      <option name="Mdom">mdo</option>
+      <option name="Mmul">mml</option>
+      <option name="Mmus">mmu</option>
+      <option name="Mspr">msp</option>
+      <option name="Ocun">ocu</option>
+      <option name="Pham">pha</option>
+      <option name="Ppyg">ppy</option>
+      <option name="Ptro">ptr</option>
+      <option name="Rnor">rno</option>
+      <option name="Xtro">xtr</option>
+    </option>
+  </section>
+</config>
+

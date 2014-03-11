@@ -1,0 +1,84 @@
+{% extends "repository/base.html" %}
+
+{% load sortby %}
+
+{% load humanize %}
+
+{% block title %} Library {{ lane.library.code }},
+                  lane {{ lane.name }} {% endblock %}
+
+{% block content %}
+  {% if lane %}
+  <h2></h2>
+  
+  <table class="horizontal">
+    <tr><th>Status: </th><td style="color: {{ lane.status.colour }}; background-color: black;"><b><span>{{ lane.status }}</span></b></td></tr>
+    <tr><th>Facility: </th><td>{{ lane.facility.name }}</td></tr>
+    <tr><th>Flowcell: </th><td>{{ lane.flowcell }}</td></tr>
+    <tr><th>Flowlane: </th><td>{{ lane.flowlane }}</td></tr>
+    <tr><th>Genomics ID: </th><td>{{ lane.genomicssampleid }}</td></tr>
+    <tr><th>Machine: </th><td>{{ lane.machine }}</td></tr>
+    <tr><th>Genomics Run No.: </th><td>{{ lane.runnumber }}</td></tr>
+    <tr><th>Run Date: </th><td>{{ lane.rundate }}</td></tr>
+    <tr><th>Reads Passed PF: </th><td>{{ lane.total_passedpf|intcomma }}</td></tr>
+    <tr><th>Single or Paired-End: </th><td>{{ lane.paired|yesno:"PE,SE" }}</td></tr>
+    <tr><th>Read Length: </th><td>{{ lane.readlength }}</td></tr>
+    <tr><th>LIMS summary: </th>
+      <td>{% if lane.summaryurl %}
+       <a href="{{lane.summaryurl}}">{{lane.machine}}_{{lane.flowcell}}_s_{{lane.flowlane}}</a>
+          {% endif %}</td></tr>
+    <tr><th>Quality Summary: </th><td>{% if lane.qualmean %}<a href="{% url "lane-qualplot" pk=lane.pk %}">quality plots</a>{% endif %}</td></tr>
+    <tr><th>Notes: </th><td>{{ lane.notes_formatted|linebreaks }}</td></tr>
+    <tr><th>Failed: </th><td>{{ lane.failed|yesno }}</td></tr>
+    <tr><th>Published: </th><td>{{ lane.is_published|yesno }}{% if lane.is_published %}:<br/>&nbsp;{{ lane.public_records|join:"<br/>&nbsp;" }}{% endif %}</td></tr>
+  </table>
+
+    {% with files=lane.lanefile_set.all|sortby:"filetype.name" %}
+      {% include "repository/file_table.html" %}
+    {% endwith %}
+
+  <h2>Lane Quality Assessment</h2>
+    {% if lane.laneqc_set.count > 0 %}
+      {% for qc in lane.laneqc_set.all %}
+      <h3>{% for prov in qc.provenance.all|sortby:"rank_index" %}{{ prov.program }}{% if prov.parameters %} {{ prov.parameters }}{% endif %}; {% endfor %}</h3>
+        {% if qc.qc_values.count > 0 %}
+          <table class="horizontal">
+            <caption>Summary:</caption>
+          {% for val in qc.qc_values.all|sortby:"name" %}<tr><th>{{ val.name }}: </th><td>{{ val.value }}</td></tr>{% endfor %}
+          </table>
+        {% endif %}
+        {% with files=qc.qcfile_set.all|sortby:"filetype.name" %}
+          {% include "repository/file_table.html" %}
+        {% endwith %}
+      {% endfor %}
+    {% else %}
+      No QC files available yet.
+    {% endif %}
+
+  <h2>Alignments</h2>
+
+    {% for aln in lane.alignment_set.all|sortby:"genome" %}
+    <table class="horizontal">
+      <tr><th>Aligned Genome: </th>      <td>{% with gen=aln.genome %}
+        {{ gen }} ({{ gen.scientific_name }}; {{ gen.common_name }}; version: {{ gen.version }})
+        {% endwith %}</td></tr>
+      <tr><th>Program: </th><td>
+          {% for prov in aln.provenance.all|sortby:"rank_index" %}{{ prov.program }}{% if prov.parameters %} {{ prov.parameters }}{% endif %}; {% endfor %}</td></tr>
+      <tr><th>Head Trim: </th><td>{{ aln.headtrim|yesno }}</td></tr>
+      <tr><th>Tail Trim: </th><td>{{ aln.tailtrim|yesno }}</td></tr>
+      <tr><th>Mapped Reads: </th><td>{{ aln.mapped|intcomma }}
+          ({{ aln.mapped_percent|floatformat:"0" }}%)</td></tr>
+      <tr><th>Unique Mapped Reads: </th><td>{{ aln.munique|intcomma }}
+          ({{ aln.munique_percent|floatformat:"0" }}%)</td></tr>
+    </table>
+
+    {% with files=aln.alnfile_set.all|sortby:"filetype.name" %}
+      {% include "repository/file_table.html" %}
+    {% endwith %}
+    
+    {% endfor %}
+
+  {% else %}
+  <p>No library lane provided.</p>
+  {% endif %}
+{% endblock %}    

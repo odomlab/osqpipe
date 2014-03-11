@@ -1,0 +1,35 @@
+/* The following from http://sixrevisions.com/css/css-only-tooltips/ */
+.tooltip {
+    position: relative;
+}
+.static { /* I.e. tooltips which aren't decorating actual links */
+    text-decoration: none;
+    cursor: help;
+    outline: none;
+    border-bottom: 1px dotted #aaa; color: #333;
+}
+.tooltip span {
+    margin-left: -999em;
+    position: absolute;
+}
+.tooltip:hover span {
+    border-radius: 5px 5px; -moz-border-radius: 5px; -webkit-border-radius: 5px; 
+    box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.1); -webkit-box-shadow: 5px 5px rgba(0, 0, 0, 0.1); -moz-box-shadow: 5px 5px rgba(0, 0, 0, 0.1);
+    font-family: Calibri, Tahoma, Geneva, sans-serif;
+    position: absolute; left: 1em; top: 2em; z-index: 99;
+    margin-left: 0;
+}
+.tooltip:hover img {
+    border: 0; margin: -10px 0 0 -55px;
+    float: left; position: absolute;
+}
+.tooltip:hover em {
+    font-family: Candara, Tahoma, Geneva, sans-serif; font-size: 1.2em; font-weight: bold;
+    display: block; padding: 0.2em 0 0.6em 0;
+}
+.tooltip-classic {
+    padding: 0.8em 1em;
+    background: #FFFFAA;
+    border: 1px solid #FFAD33;
+}
+* html a:hover { background: transparent; }
