@@ -71,7 +71,9 @@ class Config(object):
 
     if not inst:
 
-      inst = super(Config, cls).__new__(cls, *args, **kwargs)
+      # Passing *args, **kwargs to object.__new__() is apparently
+      # deprecated, so we don't.
+      inst = super(Config, cls).__new__(cls)
 
       # Store instance with a weak reference to allow object destruction
       cls._instance = weakref.ref(inst)
