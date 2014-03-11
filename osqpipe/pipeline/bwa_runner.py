@@ -319,7 +319,7 @@ class ClusterJobSubmitter(RemoteJobRunner):
     # Must call this *after* setting the remote host info.
     super(ClusterJobSubmitter, self).__init__(*args, **kwargs)
 
-  def submit_remote_command(self, cmd, mem=2000, *args, **kwargs):
+  def submit_remote_command(self, cmd, mem=2000, auto_requeue=True, *args, **kwargs):
     '''Submit a job to run on the cluster. Uses bsub to enter jobs
     into the LSF queuing system.'''
 
@@ -334,12 +334,17 @@ class ClusterJobSubmitter(RemoteJobRunner):
     if type(cmd) in (str, unicode):
       cmd = [cmd]
 
+    # Note that if this gets stuck in an infinite loop you will need
+    # to use "bkill -r" to kill the job on LSF.
+    qval = '-Q "all ~0"' if auto_requeue else ''
+      
     cmd = (("PYTHONPATH=%s bsub -R 'rusage[mem=%d]' -r"
-           + " -o %s/%%J.stdout -e %s/%%J.stderr \"%s\"")
+           + " -o %s/%%J.stdout -e %s/%%J.stderr %s \"%s\"")
            % (python_path,
               mem,
               self.conf.clusterstdoutdir,
               self.conf.clusterstdoutdir,
+              qval,
               " ".join(cmd)))
 
     super(ClusterJobSubmitter, self).\
@@ -474,11 +479,11 @@ class DesktopJobSubmitter(RemoteJobRunner):
     # Must call this *after* setting the remote host info.
     super(DesktopJobSubmitter, self).__init__(*args, **kwargs)
 
-  def submit_remote_command(self, cmd, mem=None, *args, **kwargs):
+  def submit_remote_command(self, cmd, *args, **kwargs):
     '''Submit a command to run on the designated host desktop
-    machine. Note that the mem argument is not yet supported in this
-    case, but must be included in the method signature for API
-    consistency.'''
+    machine. Including *args and **kwargs allows us to ignore
+    parameters which would otherwise be passed to
+    ClusterJobSubmitter.submit_remote_command().'''
 
     if type(cmd) in (str, unicode):
       cmd = [cmd]
