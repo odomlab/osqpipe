@@ -228,7 +228,7 @@ class Library(models.Model):
   bad          = models.BooleanField(default=False)
   projects     = models.ManyToManyField(Project, db_table='library_project', related_name='libraries')
   libtype      = models.ForeignKey(Libtype, on_delete=models.PROTECT)
-  description  = models.TextField(null=True, blank=True)
+  description  = models.TextField(null=True, blank=True) # I think this can be deprecated FIXME.
   barcode      = models.CharField(max_length=32, null=True, blank=True)
   linkerset    = models.ForeignKey(Linkerset, on_delete=models.PROTECT, null=True, blank=True)
   chipsample   = models.CharField(max_length=255, null=True, blank=True)
@@ -236,6 +236,23 @@ class Library(models.Model):
   adapter      = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True)
 
   objects      = LibraryManager()
+
+  @property
+  def filename_tag(self):
+    """
+    On-the-fly replacement for the old library description field, with
+    the library code included for completeness.
+    """
+    fac = self.factor.name   if self.factor     else 'unk'
+    ant = self.antibody.name if self.antibody   else 'unk'
+    ind = self.individual    if self.individual else ''
+    sta = self.strain.name   if self.strain     else ''
+
+    tis = self.tissue.name
+    gen = self.genome.code
+
+    return("%s_%s_%s_%s_%s%s%s"
+           % (self.code, fac, tis, ant, gen, sta, ind))
 
   def __unicode__(self):
     return self.code

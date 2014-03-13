@@ -265,18 +265,16 @@ class GenericFileProcessor(object):
         (_libcode, _flowcell, _flowlane, flowpair)\
             = parse_incoming_fastq_name(fname)
         if self.paired:
-          newfn = "%s_%s_%s%02dp%s%s" % (self.library.code,
-                                         self.library.description,
-                                         facility,
-                                         self.lane.lanenum,
-                                         flowpair,
-                                         self.extension)
-        else:
-          newfn = "%s_%s_%s%02d%s" % (self.library.code,
-                                      self.library.description,
+          newfn = "%s_%s%02dp%s%s" % (self.library.filename_tag,
                                       facility,
                                       self.lane.lanenum,
+                                      flowpair,
                                       self.extension)
+        else:
+          newfn = "%s_%s%02d%s" % (self.library.filename_tag,
+                                   facility,
+                                   self.lane.lanenum,
+                                   self.extension)
 
         # Just replace spaces for now as e.g. UCSC upload fails in
         # these cases. Also forward slashes.

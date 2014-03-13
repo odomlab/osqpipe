@@ -51,7 +51,8 @@ Optional modules:
    * BeautifulSoup4
    * lxml
    * pexpect
-   * histogram, fastq, some other CRI modules by Gord (?)
+   * pysam (reallocateReads)
+   * histogram, sequence, fasta, fastq, iset, some other CRI modules by Gord (?)
 
 Secondly, this pipeline relies on many external programs to perform
 its tasks. Most of the data management tasks are performed on the
@@ -67,7 +68,7 @@ programs needed on each server are as follows:
    * ssh
    * scp
 
-   The following are part of the kent src utilities:
+   The following are part of the kent src utilities::
 
       * bedGraphToBigWig
       * fetchChromSizes
