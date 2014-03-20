@@ -309,12 +309,12 @@ class ClusterJobSubmitter(RemoteJobRunner):
 
   '''Class to run jobs via LSF/bsub on the cluster.'''
 
-  def __init__(self, *args, **kwargs):
+  def __init__(self, remote_wdir=None, *args, **kwargs):
 
     self.conf        = Config()
     self.remote_host = self.conf.cluster
     self.remote_user = self.conf.clusteruser
-    self.remote_wdir = self.conf.clusterworkdir
+    self.remote_wdir = self.conf.clusterworkdir if remote_wdir is None else remote_wdir
 
     # Must call this *after* setting the remote host info.
     super(ClusterJobSubmitter, self).__init__(*args, **kwargs)
@@ -492,11 +492,11 @@ class DesktopJobSubmitter(RemoteJobRunner):
     # the file(s) and scp the result back to us. Note the use of
     # 'nohup' here. Also 'nice', since we're probably using someone's
     # desktop computer. Command is split into two parts for clarity:
-    cmd = ("nohup nice -n 20 sh -c '(%s" % " ".join(cmd))
+    cmd = ("nohup nice -n 20 sh -c '( (%s" % " ".join(cmd))
 
     # Closing out the nohup subshell. See this thread for discussion:
     # http://stackoverflow.com/a/29172
-    cmd += (")' >> %s 2>&1 < /dev/null &"
+    cmd += (") &)' >> %s 2>&1 < /dev/null"
             % os.path.join(self.remote_wdir, 'remote_worker.log'))
 
     super(DesktopJobSubmitter, self).\
