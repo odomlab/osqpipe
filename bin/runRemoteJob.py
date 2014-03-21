@@ -33,7 +33,7 @@ def run_job(cmd, files, append=False, mem=2000, testmode=False):
   runner.transfer_data(files)
 
   LOGGER.info("Running command...")
-  runner.submit_remote_command(cmd, mem=mem)
+  runner.submit_command(cmd, mem=mem)
 
 if __name__ == '__main__':
 

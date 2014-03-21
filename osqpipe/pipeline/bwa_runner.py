@@ -15,6 +15,7 @@ import grp
 import glob
 from pipes import quote
 from shutil import move
+from tempfile import gettempdir
 
 from utilities import call_subprocess, bash_quote, \
     is_zipped, set_file_permissions
@@ -58,98 +59,179 @@ def paired_sanity_check(filenames, is_paired):
     raise ValueError(
       "Alignment must be passed either one or two filenames.")
 
-
 ##############################################################################
-class BwaRunner(object):
+##############################################################################
 
-  '''Parent class handling various functions required by scripts
-  running BWA across multiple parallel alignments (and merging their
-  output) on the cluster.'''
+class SimpleCommand(object):
+  '''
+  Simple class used as a default command-string builder.
+  '''
+  __slots__ = ('conf')
 
-  __slots__ = ('conf', 'bwa_prog', 'samtools_prog',
-               'merge_prog', 'logfile', 'debug')
-
-  def __init__(self, debug=True):
+  def __init__(self):
 
     self.conf = Config()
 
-    # These are now identified by passing in self.conf.clusterpath to
-    # the remote command.
-    self.bwa_prog      = 'bwa'
-    self.samtools_prog = 'samtools'
-    self.merge_prog    = 'cs_runBwaWithSplit_Merge.py'
-    self.logfile       = self.conf.splitbwarunlog
-    self.debug         = debug
+  def build(self, cmd, *args, **kwargs):
+    
+    if type(cmd) in (str, unicode):
+      cmd = [cmd]
 
-  def _configure_logging(self, name, logger=LOGGER):
-    """Configures the logs to be saved in self.logfile"""
+    return " ".join(cmd)
 
-    if self.debug:
-      logger.setLevel(logging.DEBUG) # log everything on debug level
-    else:
-      logger.setLevel(logging.INFO)
+class NohupCommand(SimpleCommand):
+  '''
+  Class used to wrap a command in a nohup nice invocation for
+  execution on a remote desktop.
+  '''
+  def build(self, cmd, remote_wdir, *args, **kwargs):
 
-    # specify the format of the log file
-    logfmt = "[%%(asctime)s] %s %%(levelname)s : %%(message)s" % (name,)
-    fmt = logging.Formatter(logfmt)
+    cmd = super(NohupCommand, self).build(cmd, *args, **kwargs)
 
-    # Push stderr to logs; Note that any required StreamHandlers will
-    # have been added in the child class.
-    hdlr = logging.FileHandler(self.logfile)
-    hdlr.setFormatter(fmt)
-    hdlr.setLevel(min(logger.getEffectiveLevel(), logging.WARN))
-    logger.addHandler(hdlr)
+    # Now we set off a process on the target server which will align
+    # the file(s) and scp the result back to us. Note the use of
+    # 'nohup' here. Also 'nice', since we're probably using someone's
+    # desktop computer. Command is split into two parts for clarity:
+    cmd = ("nohup nice -n 20 sh -c '( (%s" % cmd)
 
-  @staticmethod
-  def set_file_permissions(group, path):
-    """Sets group for path"""
-    gid = grp.getgrnam(group).gr_gid
-    os.chown(path, -1, gid)
-    os.chmod(path,
-             stat.S_IRUSR|stat.S_IWUSR|stat.S_IRGRP|stat.S_IWGRP|stat.S_IROTH)
+    # Closing out the nohup subshell. See this thread for discussion:
+    # http://stackoverflow.com/a/29172
+    cmd += (") &)' >> %s 2>&1 < /dev/null"
+            % os.path.join(remote_wdir, 'remote_worker.log'))
 
+    return cmd
+
+class BsubCommand(SimpleCommand):
+  '''
+  Class used to build a bsub-wrapped command.
+  '''
+  def build(self, cmd, mem=2000, queue=None, jobname=None,
+            auto_requeue=True, depend_jobs=None, *args, **kwargs):
+    # Pass the PYTHONPATH to the cluster process. This allows us to
+    # isolate e.g. a testing instance of the code from production.
+    # Note that we can't do this as easily for PATH itself because
+    # bsub itself is in a custom location on the cluster.
+    python_path = os.environ['PYTHONPATH']
+    if not python_path:
+      python_path = ''
+
+    cmd = super(BsubCommand, self).build(cmd, *args, **kwargs)
+
+    # Note that if this gets stuck in an infinite loop you will need
+    # to use "bkill -r" to kill the job on LSF.
+    qval = '-Q "all ~0"' if auto_requeue else ''
+
+    cmd = (("PYTHONPATH=%s bsub -R 'rusage[mem=%d]' -r"
+           + " -o %s/%%J.stdout -e %s/%%J.stderr %s")
+           % (python_path,
+              mem,
+              self.conf.clusterstdoutdir,
+              self.conf.clusterstdoutdir,
+              qval))
+
+    if queue is not None:
+      cmd += ' -q %s' % queue
+
+    if jobname is not None:
+      cmd += ' -J %s' % jobname
+
+    if depend_jobs is not None:
+      depend = "&&".join([ "ended(%d)" % (x,) for x in depend_jobs ])
+      cmd += ' -w "%s"' % depend
+
+    cmd += ' "%s"' % " ".join(cmd)
+
+    return cmd    
 
 ##############################################################################
+##############################################################################
 
-class RemoteJobRunner(object):
+class JobRunner(object):
+  '''
+  Instantiable base class used as a core definition of how the various
+  job submitter classes are organised. Each JobRunner subclass has a
+  command_builder attribute which is used to create the final command
+  string that is executed. The default behaviour of this class is to
+  simply run the command using call_subprocess on the current
+  host. Various subclasses have been created for extending this to
+  execute the command on a remote host, or on an LSF cluster. Note
+  that to submit to a local LSF head node, one might use this::
 
-  '''Abstract parent class holding some common methods used by classes
-  controlling alignment job submission to the cluster and to other
-  computing resources.'''
+  jr = JobRunner(command_builder=BsubCommand())
+  jr.submit_command(cmd, mem=10000, queue='dolab')
 
-  __slots__ = ('test_mode', 'finaldir', 'genome', 'config')
+  See the ClusterJobSubmitter class for how this has been extended to
+  submitting to a remote LSF head node.
+  '''
+  __slots__ = ('test_mode', 'config', 'command_builder')
 
-  remote_host = None
-  remote_user = None
-  remote_wdir = None
-
-  def __init__(self, test_mode=False, *args, **kwargs):
-
-    # A little programming-by-contract, as it were.
-    if not all( x in self.__dict__.keys()
-                for x in ('remote_host', 'remote_user', 'remote_wdir')):
-      raise StandardError("Remote host information not provided.")
-
+  def __init__(self, test_mode=False, command_builder=None, *args, **kwargs):
     self.test_mode = test_mode
-    if test_mode:  # FIXME bear in mind this clobbers logging for
-                  # BwaRunner above.
+    if test_mode:
       LOGGER.setLevel(logging.DEBUG)
     else:
       LOGGER.setLevel(logging.INFO)
 
     self.config = Config()
 
-  def run_remote_command(self, cmd, wdir=None, path=None):
-    '''Method used to run a command *directly* on the remote host. No
+    self.command_builder = SimpleCommand() \
+        if command_builder is None else command_builder
+
+  def run_command(self, cmd, tmpdir=None, path=None, *args, **kwargs):
+
+    cmd = self.command_builder.build(cmd, *args, **kwargs)
+
+    if path is None:
+      path = self.config.hostpath
+
+    if tmpdir is None:
+      tmpdir = gettempdir()
+
+    LOGGER.info(cmd)
+    if not self.test_mode:
+      return call_subprocess(cmd, shell=True, path=path, tmpdir=tmpdir)
+    return None
+
+  def submit_command(self, *args, **kwargs):
+    '''
+    Submit a remote command to whatever queuing or backgrounding
+    mechanism the host server supports. Typically this method should
+    be used for the big jobs, and run_command for trivial,
+    order-sensitive things like checking for the existence of a genome
+    on the server, or uncompressing remote files.
+    '''
+    return self.run_command(*args, **kwargs)
+
+class RemoteJobRunner(JobRunner):
+  '''
+  Abstract base class holding some common methods used by classes
+  controlling alignment job submission to the cluster and to other
+  computing resources.
+  '''
+  remote_host = None
+  remote_user = None
+  remote_wdir = None
+
+  def __init__(self, *args, **kwargs):
+
+    # A little programming-by-contract, as it were.
+    if not all( x in self.__dict__.keys()
+                for x in ('remote_host', 'remote_user', 'remote_wdir')):
+      raise StandardError("Remote host information not provided.")
+    super(RemoteJobRunner, self).__init__(*args, **kwargs)
+
+  def run_command(self, cmd, wdir=None, path=None, *args, **kwargs):
+    '''
+    Method used to run a command *directly* on the remote host. No
     attempt will be made to use any kind of queuing or backgrounding
     mechanism.
 
     The command call is wrapped in an ssh connection. This command will
     also automatically change to the configured remote working
-    directory before executing the command.'''
-
-    if type(cmd) in (str, unicode):
-      cmd = [cmd]
+    directory before executing the command.
+    '''
+    cmd = self.command_builder.build(cmd, *args, **kwargs)
+    
     if wdir is None:
       wdir = self.remote_wdir
 
@@ -171,18 +253,10 @@ class RemoteJobRunner(object):
       return call_subprocess(cmd, shell=True, path=self.config.hostpath)
     return None
 
-  def submit_remote_command(self, *args, **kwargs):
-    '''Submit a remote command to whatever queuing or backgrounding
-    mechanism the host server supports. Typically this method should
-    be used for the big jobs, and run_remote_command for trivial,
-    order-sensitive things like checking for the existence of a genome
-    on the server, or uncompressing remote files.'''
-    return self.run_remote_command(*args, **kwargs)
-
   def remote_copy_files(self, filenames, destnames=None):
-
-    '''Copy a set of files across to the remote working directory.'''
-
+    '''
+    Copy a set of files across to the remote working directory.
+    '''
     if destnames is None:
       destnames = filenames
     if len(filenames) != len(destnames):
@@ -216,16 +290,17 @@ class RemoteJobRunner(object):
 
     # Assumes that gzip is in the executable path on the remote server.
     cmd = " ".join(('gzip -f -d', quote(destfile)))
-    self.run_remote_command(cmd)
+    self.run_command(cmd)
 
     # Remove the .gz extension.
     return os.path.splitext(fname)[0]
 
   def transfer_data(self, filenames, destnames=None):
-    '''Convenience method to copy data files across to the server,
+    '''
+    Convenience method to copy data files across to the server,
     uncompress if necessary, and return the fixed destination
-    filenames.'''
-
+    filenames.
+    '''
     if destnames is None:
       destnames = filenames
 
@@ -247,12 +322,120 @@ class RemoteJobRunner(object):
     return uncomp_names
 
   def submit(self, *args, **kwargs):
-    '''Stub method identifying this as an abstract base class. This is
+    '''
+    Stub method identifying this as an abstract base class. This is
     typically the primary method which defines the command to be run,
     and which calls self.transfer_data() and
-    self.submit_remote_command().'''
+    self.submit_command().
+    '''
     raise NotImplementedError(
       "Attempted to submit remote job via an abstract base class.")
+
+##############################################################################
+
+class ClusterJobSubmitter(RemoteJobRunner):
+
+  '''Class to run jobs via LSF/bsub on the cluster.'''
+
+  def __init__(self, remote_wdir=None, *args, **kwargs):
+
+    self.conf        = Config()
+    self.remote_host = self.conf.cluster
+    self.remote_user = self.conf.clusteruser
+    self.remote_wdir = self.conf.clusterworkdir if remote_wdir is None else remote_wdir
+
+    # Must call this *after* setting the remote host info.
+    super(ClusterJobSubmitter, self).__init__(command_builder=BsubCommand(),
+                                              *args, **kwargs)
+
+  def submit_command(self, cmd, *args, **kwargs):
+    '''
+    Submit a job to run on the cluster. Uses bsub to enter jobs into
+    the LSF queuing system. Extra arguments are passed to
+    BsubCommand.build(). The return value is the integer LSF job ID.
+    '''
+    pout = super(ClusterJobSubmitter, self).\
+        submit_command(cmd,
+                       path=self.conf.clusterpath,
+                       *args, **kwargs)
+
+    jobid_pattern = re.compile(r"Job\s+<(\d+)>\s+is\s+submitted\s+to")
+    for line in pout:
+      matchobj = jobid_pattern.search(line)
+      if matchobj:
+        return int(matchobj.group(1))
+
+    raise ValueError("Unable to parse bsub output for job ID.")
+
+##############################################################################
+
+class DesktopJobSubmitter(RemoteJobRunner):
+  '''
+  Class to run jobs on an alternative alignment host (typically a
+  desktop computer with multiple cores). The job is run under nohup
+  and nice -20, and a log file is created in the working directory on
+  the remote host. The return value is a STDOUT filehandle.
+  '''
+  def __init__(self, *args, **kwargs):
+
+    self.conf        = Config()
+    self.remote_host = self.conf.althost
+    self.remote_user = self.conf.althostuser
+    self.remote_wdir = self.conf.althostworkdir
+
+    # Must call this *after* setting the remote host info.
+    super(DesktopJobSubmitter, self).__init__(command_builder=NohupCommand(),
+                                              *args, **kwargs)
+
+  def submit_command(self, cmd, *args, **kwargs):
+    '''
+    Submit a command to run on the designated host desktop
+    machine.
+    '''
+    return super(DesktopJobSubmitter, self).\
+        submit_command(cmd,
+                       path=self.conf.althostpath,
+                       remote_wdir=self.remote_wdir,
+                       *args, **kwargs)
+
+##############################################################################
+##############################################################################
+
+class AlignmentJobRunner(object):
+  '''
+  An abstract class from which all alignment job runners inherit. All
+  subclasses must instantiate a JobRunner class in the 'job' slot
+  prior to calling the base __init__ method.
+  '''
+  __slots__ = ('finaldir', 'genome', 'job', 'conf')
+
+  job = None
+  
+  def __init__(self, genome, finaldir='.', *args, **kwargs):
+
+    # A little programming-by-contract, as it were.
+    if not all( x in self.__dict__.keys()
+                for x in ('job')):
+      raise StandardError("JobRunner instance not set.")
+
+    self.conf = Config()
+
+    # Support relative paths as input.
+    self.finaldir = os.path.realpath(finaldir)
+
+    # Check if genome exists.
+    LOGGER.info("Checking if specified genome file exists.")
+    cmd = ("if [ -f %s ]; then echo yes; else echo no; fi" % genome)
+    LOGGER.debug(cmd)
+
+    if not self.job.test_mode:
+      cmdstdoutfile = self.job.run_command(cmd)
+      first_line = cmdstdoutfile.readline()
+      first_line = first_line.rstrip('\n')
+      if first_line != 'yes':
+        raise ValueError("Genome %s unacessible or missing." % genome)
+
+    self.genome = genome
 
   @classmethod
   def genome_path(cls, genome, indexdir, genomedir):
@@ -275,86 +458,7 @@ class RemoteJobRunner(object):
 
 ##############################################################################
 
-class AlignmentJobRunner(RemoteJobRunner):
-
-  '''This is effectively a mixin which provides some
-  alignment-job-specific functionality.'''
-
-  def __init__(self, genome, finaldir='.', *args, **kwargs):
-
-    # Sets self.test_mode; checks that remote_* dict values have been set.
-    super(AlignmentJobRunner, self).__init__(*args, **kwargs)
-
-    # Support relative paths as input.
-    self.finaldir = os.path.realpath(finaldir)
-
-    # Check if genome exists.
-    LOGGER.info("Checking if specified genome file exists.")
-    cmd = ("if [ -f %s ]; then echo yes; else echo no; fi" % genome)
-    LOGGER.debug(cmd)
-
-    if not self.test_mode:
-      cmdstdoutfile = super(AlignmentJobRunner, self).run_remote_command(cmd)
-      first_line = cmdstdoutfile.readline()
-      first_line = first_line.rstrip('\n')
-      if first_line != 'yes':
-        raise ValueError("Genome %s@%s:%s unacessible or missing."
-                         % (self.remote_user, self.remote_host, genome))
-
-    self.genome = genome
-
-##############################################################################
-
-class ClusterJobSubmitter(RemoteJobRunner):
-
-  '''Class to run jobs via LSF/bsub on the cluster.'''
-
-  def __init__(self, remote_wdir=None, *args, **kwargs):
-
-    self.conf        = Config()
-    self.remote_host = self.conf.cluster
-    self.remote_user = self.conf.clusteruser
-    self.remote_wdir = self.conf.clusterworkdir if remote_wdir is None else remote_wdir
-
-    # Must call this *after* setting the remote host info.
-    super(ClusterJobSubmitter, self).__init__(*args, **kwargs)
-
-  def submit_remote_command(self, cmd, mem=2000, auto_requeue=True, *args, **kwargs):
-    '''Submit a job to run on the cluster. Uses bsub to enter jobs
-    into the LSF queuing system.'''
-
-    # Pass the PYTHONPATH to the cluster process. This allows us to
-    # isolate e.g. a testing instance of the code from production.
-    # Note that we can't do this as easily for PATH itself because
-    # bsub itself is in a custom location on the cluster.
-    python_path = os.environ['PYTHONPATH']
-    if not python_path:
-      python_path = ''
-
-    if type(cmd) in (str, unicode):
-      cmd = [cmd]
-
-    # Note that if this gets stuck in an infinite loop you will need
-    # to use "bkill -r" to kill the job on LSF.
-    qval = '-Q "all ~0"' if auto_requeue else ''
-      
-    cmd = (("PYTHONPATH=%s bsub -R 'rusage[mem=%d]' -r"
-           + " -o %s/%%J.stdout -e %s/%%J.stderr %s \"%s\"")
-           % (python_path,
-              mem,
-              self.conf.clusterstdoutdir,
-              self.conf.clusterstdoutdir,
-              qval,
-              " ".join(cmd)))
-
-    super(ClusterJobSubmitter, self).\
-        submit_remote_command(cmd,
-                              path=self.conf.clusterpath,
-                              *args, **kwargs)
-
-##############################################################################
-
-class BwaClusterJobSubmitter(ClusterJobSubmitter, AlignmentJobRunner):
+class BwaClusterJobSubmitter(AlignmentJobRunner):
 
   '''Class representing the submission of a bwa job to the
   cluster. This class in fact uploads the fastq file, gunzips it if
@@ -362,6 +466,10 @@ class BwaClusterJobSubmitter(ClusterJobSubmitter, AlignmentJobRunner):
   chunks and run the alignments as secondary jobs, also spawning one
   last job which waits for the first to complete before merging the
   output and copying it back to the source server.'''
+
+  def __init__(self, *args, **kwargs):
+    self.job = ClusterJobSubmitter(*args, **kwargs)
+    super(BwaClusterJobSubmitter, self).__init__(*args, **kwargs)
 
   def submit(self, filenames,
              is_paired=False, destnames=None, cleanup=True,
@@ -374,7 +482,7 @@ class BwaClusterJobSubmitter(ClusterJobSubmitter, AlignmentJobRunner):
     paired_sanity_check(filenames, is_paired)
 
     # First, copy the files across and uncompress on the server.
-    destnames = self.transfer_data(filenames, destnames)
+    destnames = self.job.transfer_data(filenames, destnames)
 
     # Next, create flag for cleanup
     if cleanup:
@@ -394,16 +502,13 @@ class BwaClusterJobSubmitter(ClusterJobSubmitter, AlignmentJobRunner):
       fnlist = " ".join([ quote(x) for x in destnames ])
       ## FIXME think about ways this could be improved.
       ## In the submitted command:
-      ##   --stdoutdir is where cs_runBwaWithSplit.py tells bsub to write
-      ##                 output from the individual alignment processes.
       ##   --rcp       is where cs_runBwaWithSplit_Merge.py eventually copies
       ##                 the reassembled bam file (via scp).
-      cmd = ("%s --loglevel %d %s %s --stdoutdir %s --rcp %s:%s %s %s"
+      cmd = ("%s --loglevel %d %s %s --rcp %s:%s %s %s"
              % ('cs_runBwaWithSplit.py',
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
                 noccflag,
-                self.conf.clusterstdoutdir,
                 self.conf.datahost,
                 self.finaldir,
                 self.genome,
@@ -412,26 +517,25 @@ class BwaClusterJobSubmitter(ClusterJobSubmitter, AlignmentJobRunner):
     else:
       LOGGER.debug("Running bwa on single-end sequencing input.")
       fnlist = quote(destnames[0])
-      cmd = ("%s --loglevel %d %s %s --stdoutdir %s --rcp %s:%s %s %s"
+      cmd = ("%s --loglevel %d %s %s --rcp %s:%s %s %s"
              % ('cs_runBwaWithSplit.py',
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
                 noccflag,
-                self.conf.clusterstdoutdir,
                 self.conf.datahost,
                 self.finaldir,
                 self.genome,
                 fnlist))
 
-    self.submit_remote_command(cmd)
+    self.job.submit_command(cmd)
 
   @classmethod
   def build_genome_index_path(cls, genome, *args, **kwargs):
 
+    conf = Config()
+
     from progsum import ProgramSummary
     from ..models import Program
-
-    conf = Config()
 
     # Get information about default aligner, check that the program is
     # in path and try to predict its version.
@@ -462,51 +566,7 @@ class BwaClusterJobSubmitter(ClusterJobSubmitter, AlignmentJobRunner):
 
 ##############################################################################
 
-class DesktopJobSubmitter(RemoteJobRunner):
-
-  '''Class to run jobs on an alternative alignment host (typically a
-  desktop computer with multiple cores). The job is run under nohup
-  and nice -20, and a log file is created in the working directory on
-  the remote host.'''
-
-  def __init__(self, *args, **kwargs):
-
-    self.conf        = Config()
-    self.remote_host = self.conf.althost
-    self.remote_user = self.conf.althostuser
-    self.remote_wdir = self.conf.althostworkdir
-
-    # Must call this *after* setting the remote host info.
-    super(DesktopJobSubmitter, self).__init__(*args, **kwargs)
-
-  def submit_remote_command(self, cmd, *args, **kwargs):
-    '''Submit a command to run on the designated host desktop
-    machine. Including *args and **kwargs allows us to ignore
-    parameters which would otherwise be passed to
-    ClusterJobSubmitter.submit_remote_command().'''
-
-    if type(cmd) in (str, unicode):
-      cmd = [cmd]
-
-    # Now we set off a process on the target server which will align
-    # the file(s) and scp the result back to us. Note the use of
-    # 'nohup' here. Also 'nice', since we're probably using someone's
-    # desktop computer. Command is split into two parts for clarity:
-    cmd = ("nohup nice -n 20 sh -c '( (%s" % " ".join(cmd))
-
-    # Closing out the nohup subshell. See this thread for discussion:
-    # http://stackoverflow.com/a/29172
-    cmd += (") &)' >> %s 2>&1 < /dev/null"
-            % os.path.join(self.remote_wdir, 'remote_worker.log'))
-
-    super(DesktopJobSubmitter, self).\
-        submit_remote_command(cmd,
-                              path=self.conf.althostpath,
-                              *args, **kwargs)
-
-##############################################################################
-
-class BwaDesktopJobSubmitter(DesktopJobSubmitter, AlignmentJobRunner):
+class BwaDesktopJobSubmitter(AlignmentJobRunner):
 
   '''An alternative means of submitting an alignment job to a remote
   server. This was originally conceived as a way of working round
@@ -515,6 +575,7 @@ class BwaDesktopJobSubmitter(DesktopJobSubmitter, AlignmentJobRunner):
   in parallel mode.'''
 
   def __init__(self, num_threads=1, *args, **kwargs):
+    self.job = DesktopJobSubmitter(*args, **kwargs)
     super(BwaDesktopJobSubmitter, self).__init__(*args, **kwargs)
     self.num_threads = num_threads
 
@@ -528,7 +589,7 @@ class BwaDesktopJobSubmitter(DesktopJobSubmitter, AlignmentJobRunner):
     paired_sanity_check(filenames, is_paired)
 
     # First, copy the files across and uncompress on the server.
-    destnames = self.transfer_data(filenames, destnames)
+    destnames = self.job.transfer_data(filenames, destnames)
 
     outfnbase = make_bam_name(destnames[0])
     outfnfull = outfnbase + '.bam'
@@ -621,7 +682,7 @@ class BwaDesktopJobSubmitter(DesktopJobSubmitter, AlignmentJobRunner):
     if cleanup:
       cmd += (" && rm %s" % " ".join(tempfiles))
 
-    self.submit_remote_command(cmd)
+    self.job.submit_command(cmd)
 
   @classmethod
   def build_genome_index_path(cls, genome, *args, **kwargs):
@@ -658,6 +719,57 @@ class BwaDesktopJobSubmitter(DesktopJobSubmitter, AlignmentJobRunner):
     return gpath
 
 ##############################################################################
+##############################################################################
+
+class BwaRunner(object):
+
+  '''Parent class handling various functions required by scripts
+  running BWA across multiple parallel alignments (and merging their
+  output) on the cluster.'''
+
+  __slots__ = ('conf', 'bwa_prog', 'samtools_prog',
+               'merge_prog', 'logfile', 'debug')
+
+  def __init__(self, debug=True):
+
+    self.conf = Config()
+
+    # These are now identified by passing in self.conf.clusterpath to
+    # the remote command.
+    self.bwa_prog      = 'bwa'
+    self.samtools_prog = 'samtools'
+    self.merge_prog    = 'cs_runBwaWithSplit_Merge.py'
+    self.logfile       = self.conf.splitbwarunlog
+    self.debug         = debug
+
+  def _configure_logging(self, name, logger=LOGGER):
+    """Configures the logs to be saved in self.logfile"""
+
+    if self.debug:
+      logger.setLevel(logging.DEBUG) # log everything on debug level
+    else:
+      logger.setLevel(logging.INFO)
+
+    # specify the format of the log file
+    logfmt = "[%%(asctime)s] %s %%(levelname)s : %%(message)s" % (name,)
+    fmt = logging.Formatter(logfmt)
+
+    # Push stderr to logs; Note that any required StreamHandlers will
+    # have been added in the child class.
+    hdlr = logging.FileHandler(self.logfile)
+    hdlr.setFormatter(fmt)
+    hdlr.setLevel(min(logger.getEffectiveLevel(), logging.WARN))
+    logger.addHandler(hdlr)
+
+  @staticmethod
+  def set_file_permissions(group, path):
+    """Sets group for path"""
+    gid = grp.getgrnam(group).gr_gid
+    os.chown(path, -1, gid)
+    os.chmod(path,
+             stat.S_IRUSR|stat.S_IWUSR|stat.S_IRGRP|stat.S_IWGRP|stat.S_IROTH)
+
+##############################################################################
 
 class SplitBwaRunner(BwaRunner):
 
@@ -670,8 +782,8 @@ class SplitBwaRunner(BwaRunner):
   # is already used in the superclass.
 
   def __init__(self, cleanup=False, loglevel=logging.WARNING, reads=1000000,
-                stdoutdir=None, group=None, nocc=None, **kwargs):
-    super(SplitBwaRunner, self).__init__(**kwargs)
+                group=None, nocc=None, *args, **kwargs):
+    super(SplitBwaRunner, self).__init__(*args, **kwargs)
     self.cleanup = cleanup
     self.reads   = reads
     self.group   = group
@@ -683,13 +795,7 @@ class SplitBwaRunner(BwaRunner):
     else:
       self.nocc = ''
 
-    if stdoutdir:
-      self.stdoutname = os.path.join(stdoutdir,"%J.stdout")
-      self.stderrname = os.path.join(stdoutdir,"%J.stderr")
-    else:
-      self.stdoutname = os.devnull
-      self.stderrname = os.devnull
-
+    self.bsub=JobRunner(command_builder=BsubCommand())
     # Each of these is called from within a python process which has
     # itself had PATH set appropriately.
     self.commands = {
@@ -700,10 +806,6 @@ class SplitBwaRunner(BwaRunner):
       'BWA_PE2'     : "%s sampe %s %s %s %s %s %s | %s view -b -S -u - > %s",
       'MERGE'       : "%s --loglevel %d %s %s %s %s",
       'MERGE_RCP'   : "%s --loglevel %d %s %s --rcp %s %s %s",
-      'BSUB'        : "PYTHONPATH=%s bsub -q %s -R 'rusage[mem=10000]'"
-                             + " -J %s -r -o %s -e %s",
-      'BSUB_DEPEND' : "PYTHONPATH=%s bsub -q %s -R 'rusage[mem=10000]'"
-                             + " -J %s -r -o %s -e %s -w \"%s\"",
       }
 
   def split_fq(self, fastq_fn):
@@ -732,35 +834,15 @@ class SplitBwaRunner(BwaRunner):
       LOGGER.info("Unlinking fq file '%s'", fastq_fn)
     return fq_files
 
-  def _submit_lsfjob(self, command, jobname, depend):
+  def _submit_lsfjob(self, command, jobname, depend=None):
     """ Executes command in LSF cluster """
 
-    # Note we assume that command has been appropriately quoted prior
-    # to calling this function.
-    bjob_cmd = ''
-    python_path = os.environ['PYTHONPATH']
-    if not python_path:
-      python_path = ''
-    if depend:
-      bjob_cmd = self.commands['BSUB_DEPEND'] % (python_path,
-                                                 self.conf.clusterqueue,
-                                                 jobname, self.stdoutname,
-                                                 self.stderrname, depend)
-    else:
-      bjob_cmd = self.commands['BSUB'] % (python_path,
-                                          self.conf.clusterqueue,
-                                          jobname, self.stdoutname,
-                                          self.stderrname)
-    cmd_to_run = "%s \'%s\'" % (bjob_cmd, command)
-    pout = call_subprocess(cmd_to_run, shell=True,
-                          tmpdir=self.conf.clusterworkdir,
-                          path=self.conf.clusterpath)
-    jobid_pattern = re.compile(r"Job\s+<(\d+)>\s+is\s+submitted\s+to")
-    for line in pout:
-      matchobj = jobid_pattern.search(line)
-      if matchobj:
-        return int(matchobj.group(1))
-    return ''
+    jobid = self.bsub.submit_command(command, jobname=jobname,
+                                     depend_jobs=depend, mem=10000,
+                                     path=self.conf.clusterpath,
+                                     tmpdir=self.conf.clusterworkdir,
+                                     queue=self.conf.clusterqueue)
+    return '' if jobid is None else jobid
 
   def run_bwas(self, genome, paired, fq_files, fq_files2):
     """Submits bwa alignment jobs for list of fq files to LSF cluster"""
@@ -795,16 +877,15 @@ class SplitBwaRunner(BwaRunner):
                               self.samtools_prog, out)
 
         LOGGER.info("starting bwa step1 on '%s'", fqname)
-        jobid_sai1 = self._submit_lsfjob(cmd, jobname1, "")
+        jobid_sai1 = self._submit_lsfjob(cmd, jobname1)
         LOGGER.debug("got job id '%s'", jobid_sai1)
         LOGGER.info("starting bwa step1 on '%s'", fq_files2[current])
-        jobid_sai2 = self._submit_lsfjob(cmd2, jobname2, "")
+        jobid_sai2 = self._submit_lsfjob(cmd2, jobname2)
         LOGGER.debug("got job id '%s'", jobid_sai2)
 
         if jobid_sai2 and jobid_sai2:
-          depend = "ended(%d)&&ended(%d)" % (jobid_sai1, jobid_sai2)
           LOGGER.info("preparing bwa step2 on '%s'", fqname)
-          jobid_bam = self._submit_lsfjob(cmd3, jobname_bam, depend)
+          jobid_bam = self._submit_lsfjob(cmd3, jobname_bam, (jobid_sai1, jobid_sai2))
           LOGGER.debug("got job id '%s'", jobid_sai2)
           job_ids.append(jobid_bam)
         else:
@@ -819,7 +900,7 @@ class SplitBwaRunner(BwaRunner):
                             self.samtools_prog, out)
         LOGGER.info("starting bwa on '%s'", fqname)
         LOGGER.debug(cmd)
-        jobid_bam = self._submit_lsfjob(cmd, jobname_bam, "")
+        jobid_bam = self._submit_lsfjob(cmd, jobname_bam)
         LOGGER.debug("got job id '%s'", jobid_bam)
         job_ids.append(jobid_bam)
       current += 1
@@ -874,8 +955,7 @@ class SplitBwaRunner(BwaRunner):
     (job_ids, bam_files) = self.run_bwas(genome, paired, fq_files, fq_files2)
     bam_fn = make_bam_name(files[0])
 
-    depend = "&&".join([ "ended(%d)" % (x,) for x in job_ids ])
-    self.queue_merge(bam_files, depend, bam_fn, rcp_target)
+    self.queue_merge(bam_files, job_ids, bam_fn, rcp_target)
 
 ##############################################################################
 
@@ -885,8 +965,8 @@ class MergeBwaRunner(BwaRunner):
   file.'''
 
   def __init__(self, cleanup=False, loglevel=logging.WARNING,
-               group=None, **kwargs):
-    super(MergeBwaRunner, self).__init__(**kwargs)
+               group=None, *args, **kwargs):
+    super(MergeBwaRunner, self).__init__(*args, **kwargs)
     self.cleanup = cleanup
     self.group   = group
     self._configure_logging(self.__class__.__name__, LOGGER)

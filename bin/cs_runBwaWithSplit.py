@@ -49,9 +49,6 @@ if __name__ == '__main__':
   PARSER.add_argument('--rcp', type=str, dest='rcp',
                       help='Remote file copy (rcp) target.')
 
-  PARSER.add_argument('--stdoutdir', type=str, dest='stdoutdir',
-                      help='The stdout directory.')
-
   PARSER.add_argument('--group', type=str, dest='group',
                       help='The user group for the files.')
 
@@ -73,7 +70,6 @@ if __name__ == '__main__':
                         cleanup    = ARGS.cleanup,
                         loglevel   = ARGS.loglevel,
                         reads      = ARGS.reads,
-                        stdoutdir  = ARGS.stdoutdir,
                         group      = ARGS.group,
                         nocc       = ARGS.nocc)
 
