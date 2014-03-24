@@ -106,7 +106,7 @@ class BsubCommand(SimpleCommand):
   Class used to build a bsub-wrapped command.
   '''
   def build(self, cmd, mem=2000, queue=None, jobname=None,
-            auto_requeue=True, depend_jobs=None, *args, **kwargs):
+            auto_requeue=False, depend_jobs=None, *args, **kwargs):
     # Pass the PYTHONPATH to the cluster process. This allows us to
     # isolate e.g. a testing instance of the code from production.
     # Note that we can't do this as easily for PATH itself because
@@ -121,7 +121,7 @@ class BsubCommand(SimpleCommand):
     # to use "bkill -r" to kill the job on LSF.
     qval = '-Q "all ~0"' if auto_requeue else ''
 
-    cmd = (("PYTHONPATH=%s bsub -R 'rusage[mem=%d]' -r"
+    bsubcmd = (("PYTHONPATH=%s bsub -R 'rusage[mem=%d]' -r"
            + " -o %s/%%J.stdout -e %s/%%J.stderr %s")
            % (python_path,
               mem,
@@ -130,18 +130,18 @@ class BsubCommand(SimpleCommand):
               qval))
 
     if queue is not None:
-      cmd += ' -q %s' % queue
+      bsubcmd += ' -q %s' % queue
 
     if jobname is not None:
-      cmd += ' -J %s' % jobname
+      bsubcmd += ' -J %s' % jobname
 
     if depend_jobs is not None:
       depend = "&&".join([ "ended(%d)" % (x,) for x in depend_jobs ])
-      cmd += ' -w "%s"' % depend
+      bsubcmd += ' -w "%s"' % depend
 
-    cmd += ' "%s"' % " ".join(cmd)
+    bsubcmd += ' "%s"' % cmd
 
-    return cmd    
+    return bsubcmd    
 
 ##############################################################################
 ##############################################################################
@@ -247,7 +247,7 @@ class RemoteJobRunner(JobRunner):
               self.remote_host,
               wdir,
               pathdef,
-              " ".join(cmd)))
+              cmd))
     LOGGER.info(cmd)
     if not self.test_mode:
       return call_subprocess(cmd, shell=True, path=self.config.hostpath)
@@ -527,7 +527,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
                 self.genome,
                 fnlist))
 
-    self.job.submit_command(cmd)
+    self.job.submit_command(cmd, *args, **kwargs)
 
   @classmethod
   def build_genome_index_path(cls, genome, *args, **kwargs):
