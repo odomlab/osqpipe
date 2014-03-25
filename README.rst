@@ -97,6 +97,7 @@ programs needed on each server are as follows:
    * split
    * scp
    * gzip
+   * sh (i.e., bash)
 
 3. Multicore alignment host (config option: althostpath)::
 
@@ -106,6 +107,7 @@ programs needed on each server are as follows:
    * scp
    * gzip
    * rm  (FIXME review this also??)
+   * sh (i.e., bash), nice, nohup
 
 Note that the presence of a bash shell is assumed on both the LSF
 cluster and the multicore alignment host.

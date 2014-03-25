@@ -118,7 +118,10 @@ class BsubCommand(SimpleCommand):
     cmd = super(BsubCommand, self).build(cmd, *args, **kwargs)
 
     # Note that if this gets stuck in an infinite loop you will need
-    # to use "bkill -r" to kill the job on LSF.
+    # to use "bkill -r" to kill the job on LSF. N.B. exit code 139 is
+    # a core dump. But so are several other exit codes; add 128 to all
+    # the unix signals which result in a dump ("man 7 signal") for a
+    # full listing.
     qval = '-Q "all ~0"' if auto_requeue else ''
 
     bsubcmd = (("PYTHONPATH=%s bsub -R 'rusage[mem=%d]' -r"
@@ -139,7 +142,8 @@ class BsubCommand(SimpleCommand):
       depend = "&&".join([ "ended(%d)" % (x,) for x in depend_jobs ])
       bsubcmd += ' -w "%s"' % depend
 
-    bsubcmd += ' "%s"' % cmd
+    # No quotes here; to group things in a pipe, use subshell? FIXME
+    bsubcmd += " sh -c '(%s)'" % cmd
 
     return bsubcmd    
 
