@@ -142,8 +142,16 @@ class BsubCommand(SimpleCommand):
       depend = "&&".join([ "ended(%d)" % (x,) for x in depend_jobs ])
       bsubcmd += ' -w "%s"' % depend
 
-    # No quotes here; to group things in a pipe, use subshell? FIXME
-    bsubcmd += " sh -c '(%s)'" % cmd
+    # To group things in a pipe (allowing e.g. use of '&&'), we use a
+    # subshell. Note that we quote the sh -c string once, and
+    # everything within that string twice. Commands can be of the following form:
+    #
+    # "ssh blah@blah.org 'echo stuff | target.txt'"
+    # r"ssh blah@blah.org \"echo stuff | target.txt\""
+    #
+    # I.e., one needs to be careful of python's rather idiosyncratic
+    # string quoting rules, and use the r"" form where necessary.
+    bsubcmd += r' sh -c \"(%s)\"' % re.sub(r'"', r'\\\"', cmd)
 
     return bsubcmd    
 
