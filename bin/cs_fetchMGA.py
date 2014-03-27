@@ -63,7 +63,6 @@ def process_cmdline(argv):
 
 if __name__ == '__main__':
 
-  REMOVETMPFILES = 1
   (FLOWCELL, FLOWLANE, DESTINATION, NAMEPREFIX) = process_cmdline(sys.argv)
   fetch_mga(FLOWCELL, FLOWLANE, DESTINATION,
-           NAMEPREFIX, REMOVETMPFILES)
+           NAMEPREFIX)

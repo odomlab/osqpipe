@@ -16,10 +16,11 @@ from subprocess import CalledProcessError
 from shutil import move
 from tempfile import NamedTemporaryFile
 
-from osqpipe.pipeline.utilities import call_subprocess,\
-    set_file_permissions, rezip_file
+from osqpipe.pipeline.utilities import call_subprocess, \
+    set_file_permissions, rezip_file, parse_repository_filename
 from osqpipe.pipeline.config import Config
-from osqpipe.models import Filetype, Genome, Library, Status
+from osqpipe.models import Filetype, Genome, Library, \
+    Status, Lane
 
 from osqpipe.pipeline.samtools import BamToBedConverter
 from osqpipe.pipeline.alignment import AlignmentHandler
@@ -54,7 +55,7 @@ class AlignProcessingManager(object):
       LOGGER.setLevel(logging.INFO)
     self.conf = Config()
 
-  def _reallocate_reads(self, inFN):
+  def _reallocate_reads(self, in_fn):
     '''
     Run the reallocateReads script, overwriting the input file with a
     new bam file in which non-unique reads are reallocated according
@@ -62,15 +63,15 @@ class AlignProcessingManager(object):
     statistically speaking.
     '''
     # Re-distribute non-unique reads.
-    tmpfile = os.path.join(self.conf.tmpdir, "%s_cs_processAlignmentBwa.tmp" % inFN)
+    tmpfile = os.path.join(self.conf.tmpdir, "%s_cs_processAlignmentBwa.tmp" % in_fn)
     LOGGER.info("Re-allocating non-unique reads to a temporary file %s.", tmpfile)
-    cmd = (self.conf.read_reallocator, inFN, tmpfile)
+    cmd = (self.conf.read_reallocator, in_fn, tmpfile)
     LOGGER.debug(cmd)
     call_subprocess(cmd, path=self.conf.hostpath)
 
     # Re-sort output bam
-    LOGGER.info("Sorting temporary file %s back to %s.", tmpfile, inFN)
-    cmd = (self.conf.read_sorter, 'sort', '-m', self.conf.meminbytes, tmpfile, splitext(inFN)[0])
+    LOGGER.info("Sorting temporary file %s back to %s.", tmpfile, in_fn)
+    cmd = (self.conf.read_sorter, 'sort', '-m', self.conf.meminbytes, tmpfile, splitext(in_fn)[0])
     LOGGER.debug(cmd)
     call_subprocess(cmd, path=self.conf.hostpath)
 
@@ -107,19 +108,47 @@ class AlignProcessingManager(object):
       LOGGER.debug("Retrieved cached chromosome sizes file %s", fnchrlen)
     return (fnchrlen, False)
 
-  def run(self, inFN, genome, reallocate):
+  def check_bam_vs_lane_fastq(self, bam):
+    '''
+    Quick check that the number of reads in the bam file being saved
+    is identical to the number of (passed PF) reads in the input fastq
+    file.
+    '''
+    (code, facility, lanenum, _pipeline) = parse_repository_filename(bam)
+    try:
+      lane = Lane.objects.get(library__code=code,
+                              facility__code=facility,
+                              lanenum=lanenum)
+    except Lane.DoesNotExist, err:
+      LOGGER.error("Unexpected lane in filename, not found in repository.")
+      sys.exit("Unable to find lane in repository")
+
+    LOGGER.info("Checking number of reads in bam file.")
+    samtools = os.path.join(self.conf.externalbin, self.conf.read_sorter)
+    cmd  = (samtools, 'flagstat', bam)
+    pout = call_subprocess(cmd)
+    numreads = int(pout.readline().split()[0])
+    expected = lane.passedpf
+    if lane.paired:
+      expected *= 2
+    if numreads != expected:
+      raise ValueError("Number of reads in bam file does not match reads in "
+                       + ("fastq file: %d (bam) vs %d (fastq)"
+                          % (numreads, expected)))
+    
+  def run(self, in_fn, genome, reallocate):
 
     '''Given a bam file name, run the file conversions and store all
     files in the repository (input bam file included).'''
 
     bedtype = Filetype.objects.get(code='bed')
 
-    base = splitext(inFN)[0]
+    base = splitext(in_fn)[0]
 
     try:
-      lib = Library.objects.search_by_filename(inFN)
+      lib = Library.objects.search_by_filename(in_fn)
     except Library.DoesNotExist, err:
-      LOGGER.error("Unable to determine library from filename %s" % (inFN,))
+      LOGGER.error("Unable to determine library from filename %s" % (in_fn,))
       sys.exit("Unexpected file naming convention.")
       
     if genome is None:
@@ -127,8 +156,10 @@ class AlignProcessingManager(object):
 
     # The actual database loading code is currently set to raise an
     # error in such cases. An earlier warning would be nice, though.
-    if not re.search(genome, inFN):
+    if not re.search(genome, in_fn):
       LOGGER.warning("Filename does not match expected genome (%s) and so database loading may fail." % genome)
+
+    self.check_bam_vs_lane_fastq(in_fn)
 
     # Set aligner, later passed as argument to AlignmentHandler.
     aligner = self.conf.aligner
@@ -143,7 +174,7 @@ class AlignProcessingManager(object):
           and lib.factor is not None \
           and lib.factor.name in self.conf.reallocation_factors:
 
-      self._reallocate_reads(inFN)
+      self._reallocate_reads(in_fn)
 
       # Set the aligner value for later.
       aligner = [ self.conf.aligner, self.conf.read_reallocator, self.conf.read_sorter ]
@@ -154,17 +185,17 @@ class AlignProcessingManager(object):
     (chrom_sizes, chr_istmp) = self.get_genome_size_file(genome)
 
     # make bed file(s)
-    bedFN = base + bedtype.suffix
+    bed_fn = base + bedtype.suffix
     beds  = []
     bamToBed = BamToBedConverter(tc1         = genome == 'tc1',
                                  chrom_sizes = chrom_sizes)
-    for outBed in bamToBed.convert(inFN, bedFN):
+    for outBed in bamToBed.convert(in_fn, bed_fn):
       beds.append(outBed)
 
     # make wiggle files
     wigs = []
-    for bedFN in beds:
-      cmd = ('makeWiggle', '-t', '3', bedFN, splitext(bedFN)[0])
+    for bed_fn in beds:
+      cmd = ('makeWiggle', '-t', '3', bed_fn, splitext(bed_fn)[0])
       LOGGER.debug(" ".join(cmd))
       pout = call_subprocess(cmd, path=self.conf.hostpath)
       for line in pout:
@@ -174,8 +205,8 @@ class AlignProcessingManager(object):
     # make bedgraph file(s)
     LOGGER.info("Creating bedgraph files...")
     bedgraphs = []
-    for bedFN in beds:
-      cmd = ('makeWiggle', '-t', '3', '-B', '-1', bedFN, splitext(bedFN)[0])
+    for bed_fn in beds:
+      cmd = ('makeWiggle', '-t', '3', '-B', '-1', bed_fn, splitext(bed_fn)[0])
       LOGGER.debug(cmd)
       pout = call_subprocess(cmd, path=self.conf.hostpath)
       for line in pout:
@@ -185,9 +216,9 @@ class AlignProcessingManager(object):
     # make bigWig file(s)
     LOGGER.info("Creating bigWig files...")
     bigwigs = []
-    for bgrFN in bedgraphs:
-      bwfile = splitext(bgrFN)[0] + '.bw'
-      cmd = ('bedGraphToBigWig', bgrFN, chrom_sizes, bwfile, self)
+    for bgr_fn in bedgraphs:
+      bwfile = splitext(bgr_fn)[0] + '.bw'
+      cmd = ('bedGraphToBigWig', bgr_fn, chrom_sizes, bwfile, self)
       LOGGER.debug(cmd)
       try:  # This can fail, e.g. for very small input files.
         call_subprocess(cmd, path=self.conf.hostpath)
@@ -201,7 +232,7 @@ class AlignProcessingManager(object):
 
     # Set group ownership and permissions appropriately
     grp = self.conf.group
-    set_file_permissions(grp, inFN)
+    set_file_permissions(grp, in_fn)
     for bed in beds:
       set_file_permissions(grp, bed)
     for wig in wigs:
@@ -240,18 +271,18 @@ class AlignProcessingManager(object):
     # transaction) and that takes time.
     hnd     = AlignmentHandler(prog=aligner, params=params, genome=genome)
     fstatus = Status.objects.get(code='complete', authority=None)
-    lane    = hnd.add(bedgz + bgrgz + wigsgz + bigwigs + [inFN],
+    lane    = hnd.add(bedgz + bgrgz + wigsgz + bigwigs + [in_fn],
                       final_status=fstatus)
 
     # Occasionally we process a bam file we're confident is completely
     # transferred but where we've forgotten to create a bam.done file. Such
     # omissions shouldn't crash the script.
-    doneFN = inFN + ".done"
-    if os.path.exists(doneFN):
-      LOGGER.debug("rm -f %s" % (doneFN,))
-      os.unlink(doneFN)
+    done_fn = in_fn + ".done"
+    if os.path.exists(done_fn):
+      LOGGER.debug("rm -f %s" % (done_fn,))
+      os.unlink(done_fn)
     else:
-      LOGGER.warn("File not found for scheduled deletion: %s", doneFN)
+      LOGGER.warn("File not found for scheduled deletion: %s", done_fn)
 
 #######################################
 

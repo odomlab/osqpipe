@@ -67,8 +67,8 @@ if __name__ == '__main__':
                         loglevel   = ARGS.loglevel,
                         group      = ARGS.group)
 
-  BSUB.run(inputFNs   = ARGS.infiles,
-           outputFN   = ARGS.outfile,
+  BSUB.run(input_fns  = ARGS.infiles,
+           output_fn  = ARGS.outfile,
            rcp_target = ARGS.rcp)
 
   

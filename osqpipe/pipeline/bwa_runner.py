@@ -122,7 +122,7 @@ class BsubCommand(SimpleCommand):
     # a core dump. But so are several other exit codes; add 128 to all
     # the unix signals which result in a dump ("man 7 signal") for a
     # full listing.
-    qval = '-Q "all ~0"' if auto_requeue else ''
+    qval = "-Q 'all ~0'" if auto_requeue else ''
 
     bsubcmd = (("PYTHONPATH=%s bsub -R 'rusage[mem=%d]' -r"
            + " -o %s/%%J.stdout -e %s/%%J.stderr %s")
@@ -140,7 +140,7 @@ class BsubCommand(SimpleCommand):
 
     if depend_jobs is not None:
       depend = "&&".join([ "ended(%d)" % (x,) for x in depend_jobs ])
-      bsubcmd += ' -w "%s"' % depend
+      bsubcmd += " -w '%s'" % depend
 
     # To group things in a pipe (allowing e.g. use of '&&'), we use a
     # subshell. Note that we quote the sh -c string once, and
