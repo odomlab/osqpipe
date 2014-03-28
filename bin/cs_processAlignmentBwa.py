@@ -108,7 +108,7 @@ class AlignProcessingManager(object):
       LOGGER.debug("Retrieved cached chromosome sizes file %s", fnchrlen)
     return (fnchrlen, False)
 
-  def check_bam_vs_lane_fastq(self, bam):
+  def check_bam_vs_lane_fastq(self, bam, relaxed=False):
     '''
     Quick check that the number of reads in the bam file being saved
     is identical to the number of (passed PF) reads in the input fastq
@@ -123,7 +123,7 @@ class AlignProcessingManager(object):
       LOGGER.error("Unexpected lane in filename, not found in repository.")
       sys.exit("Unable to find lane in repository")
 
-    LOGGER.info("Checking number of reads in bam file.")
+    LOGGER.info("Checking number of reads in bam file %s", bam)
     samtools = os.path.join(self.conf.externalbin, self.conf.read_sorter)
     cmd  = (samtools, 'flagstat', bam)
     pout = call_subprocess(cmd)
@@ -132,11 +132,14 @@ class AlignProcessingManager(object):
     if lane.paired:
       expected *= 2
     if numreads != expected:
-      raise ValueError("Number of reads in bam file does not match reads in "
-                       + ("fastq file: %d (bam) vs %d (fastq)"
-                          % (numreads, expected)))
+      message = ("Number of reads in bam file is differs from that in "
+                 + "fastq file: %d (bam) vs %d (fastq)")
+      if relaxed:
+        LOGGER.warning(message, numreads, expected)
+      else:
+        raise ValueError(message % (numreads, expected))
     
-  def run(self, in_fn, genome, reallocate):
+  def run(self, in_fn, genome, reallocate, relaxed=False):
 
     '''Given a bam file name, run the file conversions and store all
     files in the repository (input bam file included).'''
@@ -159,7 +162,7 @@ class AlignProcessingManager(object):
     if not re.search(genome, in_fn):
       LOGGER.warning("Filename does not match expected genome (%s) and so database loading may fail." % genome)
 
-    self.check_bam_vs_lane_fastq(in_fn)
+    self.check_bam_vs_lane_fastq(in_fn, relaxed)
 
     # Set aligner, later passed as argument to AlignmentHandler.
     aligner = self.conf.aligner
@@ -305,8 +308,12 @@ if __name__ == '__main__':
   PARSER.add_argument('-r', '--reallocate', dest='reallocate', action='store_true', required=False,
                       help='Re-allocates non-unique reads.')
 
+  PARSER.add_argument('--relaxed', dest='relaxed', action='store_true', required=False,
+                      help='Ignore validation errors (e.g., mismatches'
+                      + ' between numbers of reads in bam and fastq files.')
+
   ARGS = PARSER.parse_args()
 
   APM = AlignProcessingManager(debug=ARGS.debug)
 
-  APM.run(ARGS.file, ARGS.genome, ARGS.reallocate)
+  APM.run(ARGS.file, ARGS.genome, ARGS.reallocate, ARGS.relaxed)
