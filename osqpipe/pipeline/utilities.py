@@ -137,7 +137,10 @@ def checksum_file(fname):
   return md5
 
 def parse_repository_filename(fname):
-  '''Retrieve key information from a given filename.'''
+  '''
+  Retrieve key information from a given filename.
+  '''
+  fname   = os.path.basename(fname)
   fnparts = os.path.splitext(fname)
   if fnparts[1] == DBCONF.gzsuffix:
     fname = fnparts[0]

@@ -850,7 +850,7 @@ class SplitBwaRunner(BwaRunner):
     """ Executes command in LSF cluster """
 
     jobid = self.bsub.submit_command(command, jobname=jobname,
-                                     depend_jobs=depend, mem=10000,
+                                     depend_jobs=depend, mem=8000,
                                      path=self.conf.clusterpath,
                                      tmpdir=self.conf.clusterworkdir,
                                      queue=self.conf.clusterqueue)
