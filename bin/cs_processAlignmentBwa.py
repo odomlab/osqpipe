@@ -211,10 +211,13 @@ class AlignProcessingManager(object):
     for bed_fn in beds:
       cmd = ('makeWiggle', '-t', '3', '-B', '-1', bed_fn, splitext(bed_fn)[0])
       LOGGER.debug(cmd)
-      pout = call_subprocess(cmd, path=self.conf.hostpath)
-      for line in pout:
-        bedgraphs.append(line.strip())
-      pout.close()
+      try:  # Occasionally fails for poorer-quality genomes.
+        pout = call_subprocess(cmd, path=self.conf.hostpath)
+        for line in pout:
+          bedgraphs.append(line.strip())
+        pout.close()
+      except CalledProcessError, err:
+        LOGGER.warn("Unable to create bedGraph file: %s", err)
 
     # make bigWig file(s)
     LOGGER.info("Creating bigWig files...")
