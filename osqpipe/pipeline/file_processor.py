@@ -277,8 +277,8 @@ class GenericFileProcessor(object):
                                    self.extension)
 
         # Just replace spaces for now as e.g. UCSC upload fails in
-        # these cases. Also forward slashes.
-        sanity_re = re.compile(r'([ \/]+)')
+        # these cases. Also forward slashes. And parentheses/semicolons.
+        sanity_re = re.compile(r'([ \/\(\);]+)')
         newfn     = sanity_re.sub('_', newfn)
 
         LOGGER.debug("mv %s %s", fname, newfn)
@@ -718,6 +718,7 @@ class MiRFastqFileProc(GenericFileProcessor):
     self.tempfiles.append(linker_fn)
     outfile = os.path.splitext(fname)[0] + '_scr.fq'
     cmd = ('screenLinker', '-r', '-f', linker_fn, fname, outfile)
+    LOGGER.info("Running screenLinker on %s", fname)
     LOGGER.debug(" ".join(cmd))
     if not self.test_mode:
       call_subprocess(cmd, path=CONFIG.hostpath)

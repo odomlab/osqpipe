@@ -191,12 +191,21 @@ class LimsLane(object):
     '''
     # Introspect to find cached FASTQ file location URIs.
     files = self.files.get('FASTQ', [])
+    demux = []
+    for (libcode, filelist) in self.samples.iteritems():
+      for dfile in filelist:
+        if dfile.filetype == 'FASTQ':
+          demux.append(dfile)
 
     # Generate a directory URL from the file url
     if len(files) > 0:
       file_url = files[0].uri
       url      = re.sub(r'primary/[^\/]+', '', file_url)
       LOGGER.debug("Generated Summary URL: %s", url)
+    elif len(demux) > 0:
+      file_url = demux[0].uri
+      url      = re.sub('fastq/[^\/]+', '', file_url)
+      LOGGER.debug("Generated Summary URL from demuxed file: %s", url)
     else:
       url = ""
 

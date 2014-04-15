@@ -224,7 +224,7 @@ class AlignProcessingManager(object):
     bigwigs = []
     for bgr_fn in bedgraphs:
       bwfile = splitext(bgr_fn)[0] + '.bw'
-      cmd = ('bedGraphToBigWig', bgr_fn, chrom_sizes, bwfile, self)
+      cmd = ('bedGraphToBigWig', bgr_fn, chrom_sizes, bwfile)
       LOGGER.debug(cmd)
       try:  # This can fail, e.g. for very small input files.
         call_subprocess(cmd, path=self.conf.hostpath)
