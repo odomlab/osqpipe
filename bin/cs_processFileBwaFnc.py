@@ -6,10 +6,11 @@
 the repository, using bwa.'''
 
 import sys
-from osqpipe.pipeline.file_processor import FileProcessingManager
 
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging()
+
+from osqpipe.pipeline.file_processor import FileProcessingManager
 
 ###############################################################################
 

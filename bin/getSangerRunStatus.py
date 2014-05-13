@@ -34,14 +34,16 @@ from urlparse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from datetime import datetime
 from lxml import etree as ET
-from osqpipe.models import Lane, Facility, Library, Status
 from django.db import transaction
-from osqpipe.pipeline.config import Config
-from osqpipe.pipeline.smtp import email_admins
+
 import logging
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging()
 LOGGER.setLevel(logging.INFO)
+
+from osqpipe.models import Lane, Facility, Library, Status
+from osqpipe.pipeline.config import Config
+from osqpipe.pipeline.smtp import email_admins
 
 # Script-specific globals; no real need to put these in the main config.
 CACHE_FILE = os.path.join(os.path.expanduser('~'), '.sanger_run_status_latest')

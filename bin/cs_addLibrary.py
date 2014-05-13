@@ -5,12 +5,12 @@
 '''Given a set of metadata on the command-line, create a new row in
 the library repository table.'''
 
-from osqpipe.pipeline.library import LibraryHandler
-
-from osqpipe.pipeline.config import Config
-
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging()
+
+from osqpipe.pipeline.library import LibraryHandler
+from osqpipe.pipeline.config import Config
+
 CONFIG = Config()
 
 ######################################################################

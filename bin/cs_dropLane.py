@@ -8,10 +8,10 @@ facility and lane number. Note that files are unaffected.'''
 import sys
 import logging
 
-from osqpipe.models import Lane, Library, Alignment
-
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging()
+
+from osqpipe.models import Lane, Library, Alignment
 
 TEST_MODE = False
 

@@ -19,11 +19,12 @@ import glob # module for listing filenames with wildcards
 from pipes import quote
 import time
 from logging import WARNING
-from osqpipe.pipeline.bwa_runner import SplitBwaRunner
 
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging()
     
+from osqpipe.pipeline.bwa_runner import SplitBwaRunner
+
 ##################  M A I N   P R O G R A M  ######################
 
 if __name__ == '__main__':

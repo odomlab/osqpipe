@@ -13,12 +13,12 @@ from pipes import quote
 
 from django.db import transaction
 
+from osqpipe.pipeline.setup_logs import configure_logging
+LOGGER = configure_logging()
+
 from osqpipe.pipeline.utilities import call_subprocess, checksum_file
 from osqpipe.models import Filetype, Library, Lane, Alignment, Alnfile, Facility
 from osqpipe.pipeline.config import Config
-
-from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
 
 BED2BGR = "makeWiggle -B -1 %s %s"
 

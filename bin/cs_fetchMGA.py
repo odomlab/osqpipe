@@ -19,10 +19,10 @@ __credits__ = "Exploits cs_* libraries implemented by Gordon Brown."
 import sys
 import getopt
 
-from osqpipe.pipeline.fetch_mga import fetch_mga
-
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging()
+
+from osqpipe.pipeline.fetch_mga import fetch_mga
 
 TEST_MODE = False
 

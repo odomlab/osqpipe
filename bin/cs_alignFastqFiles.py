@@ -5,9 +5,10 @@
 '''Script to run the alignment of a given fastq file or files against
 a genome registered in the repository.'''
 
-from osqpipe.pipeline.fastq_aligner import FastqBwaAligner
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging()
+
+from osqpipe.pipeline.fastq_aligner import FastqBwaAligner
 
 if __name__ == '__main__':
 

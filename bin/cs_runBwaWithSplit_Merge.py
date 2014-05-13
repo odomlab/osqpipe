@@ -16,10 +16,11 @@ import os
 import os.path
 import re
 from logging import WARNING
-from osqpipe.pipeline.bwa_runner import MergeBwaRunner
 
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging()
+
+from osqpipe.pipeline.bwa_runner import MergeBwaRunner
 
 ################################################################################
 

@@ -12,6 +12,9 @@ import os.path
 import logging
 import getopt
 
+from osqpipe.pipeline.setup_logs import configure_logging
+LOGGER = configure_logging()
+
 from osqpipe.models import Project, Library, Lane, Alignment, Filetype, Facility
 from django.db import transaction
 
@@ -21,9 +24,6 @@ CONFIG   = Config()
 FILE_TYPE = None
 DUMP_LANE = False
 TEST_MODE = False
-
-from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
 
 ###############################################################################
 

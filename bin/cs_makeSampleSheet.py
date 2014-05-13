@@ -10,12 +10,12 @@ adapter sequences.'''
 
 from logging import INFO
 
+from osqpipe.pipeline.setup_logs import configure_logging
+LOGGER = configure_logging()
+
 from osqpipe.pipeline.utilities import build_incoming_fastq_name
 
 from osqpipe.models import Library
-
-from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
 
 class DemuxSheetMaker(object):
 

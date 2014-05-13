@@ -6,6 +6,11 @@
 each part of the pipeline in turn, handling any errors which may
 arise.'''
 
+from django.db import transaction
+
+from osqpipe.pipeline.setup_logs import configure_logging
+LOGGER = configure_logging()
+
 from osqpipe.pipeline.upstream_lims import Lims
 from osqpipe.pipeline.lims_watcher import LimsWatcher
 from osqpipe.pipeline.flowcell import FlowCellQuery, FlowCellProcess
@@ -13,7 +18,6 @@ from osqpipe.pipeline.file_processor import FileProcessingManager
 from osqpipe.pipeline.utilities import parse_incoming_fastq_name
 from osqpipe.pipeline.smtp import email_admins, send_email
 from osqpipe.models import Facility, Status, Lane
-from django.db import transaction
 
 from osqpipe.pipeline.config import Config
 CONFIG = Config()

@@ -11,18 +11,15 @@
 import os
 import logging
 import re
+from xlrd import open_workbook
+
+from osqpipe.pipeline.setup_logs import configure_logging
+LOGGER = configure_logging()
 
 from osqpipe.pipeline.config import Config
 from osqpipe.models import Library
 
 from osqpipe.pipeline.library import LibraryHandler
-
-from xlrd import open_workbook
-
-# import fuzzy # Double Metaphone and the like.
-
-from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
 
 class InventoryImporter(object):
 

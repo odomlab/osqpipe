@@ -5,11 +5,11 @@
 '''Script to query a given flowcell ID for lanes of interest, download
 the sequencing data (i.e. fastq file) and demultiplex if necessary.'''
 
-# All script code moved into our main pipeline library namespace.
-from osqpipe.pipeline.flowcell import FlowCellProcess
-
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging()
+
+# All script code moved into our main pipeline library namespace.
+from osqpipe.pipeline.flowcell import FlowCellProcess
 
 ###############################################################################
 

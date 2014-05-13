@@ -16,6 +16,9 @@ from subprocess import CalledProcessError
 from shutil import move
 from tempfile import NamedTemporaryFile
 
+from osqpipe.pipeline.setup_logs import configure_logging
+LOGGER = configure_logging()
+
 from osqpipe.pipeline.utilities import call_subprocess, \
     set_file_permissions, rezip_file, parse_repository_filename
 from osqpipe.pipeline.config import Config
@@ -24,9 +27,6 @@ from osqpipe.models import Filetype, Genome, Library, \
 
 from osqpipe.pipeline.samtools import BamToBedConverter
 from osqpipe.pipeline.alignment import AlignmentHandler
-
-from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
 
 ###############################################################################
 #

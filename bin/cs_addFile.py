@@ -8,11 +8,11 @@ import logging
 import os.path
 from datetime import date
 
-from osqpipe.pipeline.utilities import parse_repository_filename, checksum_file
-from osqpipe.models import Filetype, Lane, Lanefile, Facility
-
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging()
+
+from osqpipe.pipeline.utilities import parse_repository_filename, checksum_file
+from osqpipe.models import Filetype, Lane, Lanefile, Facility
 
 ###########################################################
 

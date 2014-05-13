@@ -25,6 +25,9 @@ import re
 import argparse
 from datetime import date
 
+from osqpipe.pipeline.setup_logs import configure_logging
+LOGGER = configure_logging()
+
 from osqpipe.models import Lane, Lanefile, Alnfile
 from osqpipe.pipeline.config import Config
 
