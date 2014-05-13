@@ -1038,7 +1038,11 @@ class MergeBwaRunner(BwaRunner):
         (fq1base, fq1ext) = os.path.splitext(fq1)
         base_pattern = re.compile(r'^(.*\d\d)(p\d)$')
         matchobj = base_pattern.match(fq1base)
-        # if paired end pattern found, remove pe fastq and sai files
+
+        # If paired end pattern found, remove pe fastq and sai files.
+        # FIXME this currently fails (leaving unwanted files lying
+        # around) if the paired files don't conform to our usual
+        # naming scheme. Is there a better way?
         if matchobj:
           sext = matchobj.group(2)
           if sext == 'p1':

@@ -73,17 +73,19 @@ programs needed on each server are as follows:
       * bedGraphToBigWig
       * fetchChromSizes
 
+   The following are part of the Kraken suite::
+
+      * reaper
+      * tally
+
    The following are maintained by CRUK-CI::
    
       * demuxIllumina
       * export2fastq
       * makeWiggle
-      * screenLinker
       * solexa2phred
       * summarizeFile
 
-      * clusterExactMatchesFA
-      * fastq2fasta
       * reallocateReads
       * trimFastq
       

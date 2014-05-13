@@ -75,17 +75,6 @@ def parse_sanger_metadata(fnamemeta):
             sys.exit("File content error. Multiple do numbers found!")
   return (metadata, code)
 
-def make_linker_file(links):
-  '''
-  Create a linker file for use with the screenLinker binary.
-  '''
-  (fdnum, link_fn) = mkstemp(suffix='.fa', prefix='linker')
-  link_fd = os.fdopen(fdnum, 'w')
-  link_fd.write(">fiveprime\n%s\n>threeprime\n%s\n"
-                % (links.fivep, links.threep))
-  link_fd.close()
-  return link_fn
-
 def get_fastq_readlength(fobj):
   '''
   Figure out the read length from the passed models.LaneFile object.
@@ -112,8 +101,9 @@ class GenericFileProcessor(object):
 
   '''Base class for all FileProcessor classes.'''
 
-  def __init__(self, options, fname, fname2, paired, facility,
-               notes = None, test_mode=False):
+  def __init__(self, fname, fname2, paired, facility,
+               options=None, notes=None, test_mode=False,
+               libcode=None, flowcell=None, flowlane=None):
     self.test_mode = test_mode
     self.incoming = fname
     self.paired = paired
@@ -124,12 +114,23 @@ class GenericFileProcessor(object):
       self.files.append(fname2)
     self.tempfiles = []
     self.outfiles = []
-    self.options = options
     self.notes = notes
     self.library = None
 
-    (self.libcode, self.flowcell, self.flowlane, _flowpair)\
+    if options is None:
+      options = {}
+    self.options = options
+
+    try:
+      (self.libcode, self.flowcell, self.flowlane, _flowpair)\
         = parse_incoming_fastq_name(self.basename, ext='')
+    except StandardError, _err:
+      if libcode is None or flowcell is None or flowlane is None:
+        raise StandardError(
+          "%s; consider supplying lane identifying metadata manually." % _err)
+      self.libcode  = libcode
+      self.flowcell = flowcell
+      self.flowlane = flowlane
 
     try:
       self.library = Library.objects.get(code=self.libcode)
@@ -708,42 +709,85 @@ class MiRFastqFileProc(GenericFileProcessor):
   '''
   Processor for miRNA-Seq fastq files.
   '''
+  def _derive_fastq_basename(self, fname):
+    '''
+    Get the base name of the passed in filename, also accounting for
+    .gz extensions.
+    '''
+    parts   = os.path.splitext(fname)
+
+    # On the rare occasion we pass an already gzipped files to these
+    # methods we'd like things to work as we expect.
+    if parts[1].lower() == '.gz':
+      parts = os.path.splitext(parts[0])
+      
+    return(os.path.basename(parts[0]))
+  
   def trim_linkers(self, fname):
     '''
     Remove linker sequences from the fastq file.
     '''
     # With the TruSeq kit we use, this should never be the case.
     assert self.library.linkerset is not None
-    linker_fn = make_linker_file(self.library.linkerset)
-    self.tempfiles.append(linker_fn)
-    outfile = os.path.splitext(fname)[0] + '_scr.fq'
-    cmd = ('screenLinker', '-r', '-f', linker_fn, fname, outfile)
-    LOGGER.info("Running screenLinker on %s", fname)
+    
+    base    = self._derive_fastq_basename(fname)
+    outfile = base + '_scr.fa'
+
+    # Read lengths of 50bp combined with an expected small RNA length
+    # of 20bp and a cut-down 3' adapter sequence of 25bp implies we
+    # would need a -3p-prefix offset of at least 5.
+    cmd = ('reaper',
+
+           # Input formats and adapter sequences:
+           '-i', fname, '-geom', 'no-bc',
+           '-3pa',  self.library.linkerset.threep[:25], # reaper bug workaround.
+           '-tabu', self.library.linkerset.fivep,
+           '-basename', base,
+
+           # Match requirement parameters:
+           '-3p-global', '14/2/1/5', # len/edit/gap/offset; default is 14/2/1/0
+
+           # Supposedly the false-positive stripping of real data when
+           # using the following option is far less of a problem than
+           # biasing all our 3' ends to retain any adapter sequence.
+           '-3p-head-to-tail', '1', # Remove perfect matches of at least 1nt.
+
+           # Other, less potentially controversial QC parameters:
+           '-nnn-check', '3/5', '-clean-length', '16',
+           '--bcq-early',
+
+           # Output format:
+           '--nozip', '--noqc',
+           '-format-clean', '>i%I_l%L_t%T%n%C%n')
+    
+    LOGGER.info("Running reaper on %s", fname)
     LOGGER.debug(" ".join(cmd))
     if not self.test_mode:
       call_subprocess(cmd, path=CONFIG.hostpath)
+    os.rename("%s.lane.clean" % base, outfile)
+    self.tempfiles.append("%s.lint" % base)
     return outfile
 
-  def fastq2fasta(self, fname):
+  def cluster_exact_matches(self, fname, base=None):
     '''
-    Convert fastq to fasta format.
+    Run the tally binary to count exact matches and store reads with
+    counts in the output fasta file.
     '''
-    fa_fn = os.path.splitext(fname)[0] + ".fa"
-    cmd = ('fastq2fasta', fname, fa_fn)
-    LOGGER.debug(" ".join(cmd))
-    if not self.test_mode:
-      call_subprocess(cmd, path=CONFIG.hostpath)
-    return fa_fn
-
-  def cluster_exact_matches(self, fname, base):
-    '''
-    Run the clusterExactMatchesFA binary.
-    '''
+    if base is None:
+      base = self._derive_fastq_basename(fname)
+      
     clust_fn = base + ".fa"
-    cmd = ('clusterExactMatchesFA', fname, clust_fn)
+
+    # tally seems to want to compress the outputs even when we don't
+    # want it to. FIXME at some point (note that using '-' to indicate
+    # STDOUT is also an undocumented tally feature, as far as I can
+    # tell). FIXME we may want to remove %L and %T; see whether
+    # Nenad's analysis pipeline uses either of them downstream.
+    cmd = ('tally -o - -tri 35 -format ">smRNA_%I:count_%C length=%L;trinuc=%T%n%R%n" --fasta-in'
+           + ' -i %s | gzip -dc > %s' % (fname, clust_fn))
     LOGGER.debug(" ".join(cmd))
     if not self.test_mode:
-      call_subprocess(cmd, path=CONFIG.hostpath)
+      call_subprocess(cmd, path=CONFIG.hostpath, shell=True)
     return clust_fn
 
   def post_process(self):
@@ -762,11 +806,10 @@ class MiRFastqFileProc(GenericFileProcessor):
       self.outfiles.append(fname)
       self.strip_bar_code(fname)
       screened_fn = self.trim_linkers(fname)
-      fasta_fn = self.fastq2fasta(screened_fn)
-      cluster_fn = self.cluster_exact_matches(fasta_fn,
-                                             os.path.splitext(fname)[0])
+      cluster_fn = self.cluster_exact_matches(screened_fn,
+                                              self._derive_fastq_basename(fname))
       self.outfiles.append(cluster_fn)
-      self.tempfiles.extend([fasta_fn, screened_fn])
+      self.tempfiles.append(screened_fn)
     return Status.objects.get(code='complete', authority=None)
 
 ###############################################################################
@@ -802,11 +845,10 @@ class MiRExportFileProc(MiRFastqFileProc):
       self.outfiles.append(fastq_fn)
       self.strip_bar_code(fastq_fn)
       screened_fn = self.trim_linkers(fastq_fn)
-      fasta_fn = self.fastq2fasta(screened_fn)
-      cluster_fn = self.cluster_exact_matches(fasta_fn,
+      cluster_fn = self.cluster_exact_matches(screened_fn,
                                              os.path.splitext(fname)[0])
       self.outfiles.append(cluster_fn)
-      self.tempfiles.extend([screened_fn, fasta_fn, fname])
+      self.tempfiles.extend([screened_fn, fname])
     return Status.objects.get(code='complete', authority=None)
 
 ###############################################################################
@@ -828,11 +870,10 @@ class MiRQseqFileProc(MiRExportFileProc):
       self.outfiles.append(fastq_fn)
       self.strip_bar_code(fastq_fn)
       screened_fn = self.trim_linkers(fastq_fn)
-      fasta_fn = self.fastq2fasta(screened_fn)
       cluster_fn = \
-          self.cluster_exact_matches(fasta_fn, os.path.splitext(fname)[0])
+          self.cluster_exact_matches(screened_fn, os.path.splitext(fname)[0])
       self.outfiles.append(cluster_fn)
-      self.tempfiles.extend([screened_fn, fasta_fn, fname])
+      self.tempfiles.extend([screened_fn, fname])
     return Status.objects.get(code='complete', authority=None)
 
 ###############################################################################

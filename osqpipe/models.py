@@ -78,7 +78,7 @@ class Program(models.Model):
     ordering = ['program', 'version']
 
 class Genome(ControlledVocab):
-  code         = models.CharField(max_length=20, unique=True)
+  code         = models.CharField(max_length=32, unique=True)
   common_name  = models.CharField(max_length=255, db_column='commonname')
   scientific_name = models.CharField(max_length=255, db_column='sciname')
   blastdb      = models.CharField(max_length=255, null=True, blank=True)
