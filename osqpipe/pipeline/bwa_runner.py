@@ -106,7 +106,7 @@ class BsubCommand(SimpleCommand):
   Class used to build a bsub-wrapped command.
   '''
   def build(self, cmd, mem=2000, queue=None, jobname=None,
-            auto_requeue=False, depend_jobs=None, *args, **kwargs):
+            auto_requeue=False, depend_jobs=None, sleep=0, *args, **kwargs):
     # Pass the PYTHONPATH to the cluster process. This allows us to
     # isolate e.g. a testing instance of the code from production.
     # Note that we can't do this as easily for PATH itself because
@@ -142,6 +142,9 @@ class BsubCommand(SimpleCommand):
       depend = "&&".join([ "ended(%d)" % (x,) for x in depend_jobs ])
       bsubcmd += " -w '%s'" % depend
 
+    if sleep > 0:
+      cmd = ('sleep %d && ' % sleep) + cmd
+
     # To group things in a pipe (allowing e.g. use of '&&'), we use a
     # subshell. Note that we quote the sh -c string once, and
     # everything within that string twice. Commands can be of the following form:
@@ -170,7 +173,7 @@ class JobRunner(object):
   that to submit to a local LSF head node, one might use this::
 
   jr = JobRunner(command_builder=BsubCommand())
-  jr.submit_command(cmd, mem=10000, queue='dolab')
+  jr.submit_command(cmd, mem=8000, queue='dolab')
 
   See the ClusterJobSubmitter class for how this has been extended to
   submitting to a remote LSF head node.
@@ -846,14 +849,15 @@ class SplitBwaRunner(BwaRunner):
       LOGGER.info("Unlinking fq file '%s'", fastq_fn)
     return fq_files
 
-  def _submit_lsfjob(self, command, jobname, depend=None):
+  def _submit_lsfjob(self, command, jobname, depend=None, sleep=0):
     """ Executes command in LSF cluster """
 
     jobid = self.bsub.submit_command(command, jobname=jobname,
                                      depend_jobs=depend, mem=8000,
                                      path=self.conf.clusterpath,
                                      tmpdir=self.conf.clusterworkdir,
-                                     queue=self.conf.clusterqueue)
+                                     queue=self.conf.clusterqueue,
+                                     sleep=sleep)
     return '' if jobid is None else jobid
 
   def run_bwas(self, genome, paired, fq_files, fq_files2):
@@ -889,15 +893,16 @@ class SplitBwaRunner(BwaRunner):
                               self.samtools_prog, out)
 
         LOGGER.info("starting bwa step1 on '%s'", fqname)
-        jobid_sai1 = self._submit_lsfjob(cmd, jobname1)
+        jobid_sai1 = self._submit_lsfjob(cmd, jobname1, sleep=current)
         LOGGER.debug("got job id '%s'", jobid_sai1)
         LOGGER.info("starting bwa step1 on '%s'", fq_files2[current])
-        jobid_sai2 = self._submit_lsfjob(cmd2, jobname2)
+        jobid_sai2 = self._submit_lsfjob(cmd2, jobname2, sleep=current)
         LOGGER.debug("got job id '%s'", jobid_sai2)
 
         if jobid_sai2 and jobid_sai2:
           LOGGER.info("preparing bwa step2 on '%s'", fqname)
-          jobid_bam = self._submit_lsfjob(cmd3, jobname_bam, (jobid_sai1, jobid_sai2))
+          jobid_bam = self._submit_lsfjob(cmd3, jobname_bam,
+                                          (jobid_sai1, jobid_sai2), sleep=current)
           LOGGER.debug("got job id '%s'", jobid_sai2)
           job_ids.append(jobid_bam)
         else:
@@ -912,7 +917,7 @@ class SplitBwaRunner(BwaRunner):
                             self.samtools_prog, out)
         LOGGER.info("starting bwa on '%s'", fqname)
         LOGGER.debug(cmd)
-        jobid_bam = self._submit_lsfjob(cmd, jobname_bam)
+        jobid_bam = self._submit_lsfjob(cmd, jobname_bam, sleep=current)
         LOGGER.debug("got job id '%s'", jobid_bam)
         job_ids.append(jobid_bam)
       current += 1

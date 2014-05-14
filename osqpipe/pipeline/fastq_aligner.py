@@ -170,7 +170,7 @@ class FastqBwaAligner(FastqAligner):
                     genome=genome_path,
                     finaldir=self.finaldir,
                     num_threads=num_threads)
-    bsub.submit(filenames=filepaths,
+    bsub.submit(filenames=filepaths, auto_requeue=False,
                 destnames=destnames,
                 is_paired=paired, cleanup=cleanup, nocc=nocc)
 

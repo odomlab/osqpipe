@@ -113,7 +113,7 @@ class AlignmentHandler(object):
     # against the wrong genome. This remains fallible since some
     # genome codes are quite short and might occur in a filename by
     # chance.
-    if not re.search(self.genome, bed):
+    if not re.search(self.genome, bed, re.I): # Note do not merge this re.I change into repackaging branch (it is unnecessary).
       raise ValueError("Genome code not found in bed file name."
                      + " Loading against the wrong genome (%s)?" % self.genome)
 

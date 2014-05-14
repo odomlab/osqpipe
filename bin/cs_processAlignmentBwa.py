@@ -78,6 +78,37 @@ class AlignProcessingManager(object):
     # Remove tmp file
     LOGGER.info("Removing temporary file %s.", tmpfile)
     os.unlink(tmpfile)
+
+  def check_bam_vs_lane_fastq(self, bam, relaxed=False):
+    '''
+    Quick check that the number of reads in the bam file being saved
+    is identical to the number of (passed PF) reads in the input fastq
+    file.
+    '''
+    (code, facility, lanenum, _pipeline) = cs_util.parseNameNew(os.path.basename(bam))
+    try:
+      lane = Lane.objects.get(library__code=code,
+                              facility__code=facility,
+                              lanenum=lanenum)
+    except Lane.DoesNotExist, err:
+      LOGGER.error("Unexpected lane information in filename, not found in repository.")
+      sys.exit("Unable to find lane in repository")
+
+    LOGGER.info("Checking number of reads in bam file %s", bam)
+    samtools = os.path.join(self.conf.externalbin, self.conf.read_sorter)
+    cmd = (samtools, 'flagstat', bam)
+    pout = cs_util.callSubprocess(cmd)
+    numreads = int(pout.readline().split()[0])
+    expected = lane.passedpf
+    if lane.paired:
+      expected *= 2
+    if numreads != expected:
+      message = ("Number of reads in bam file is differs from that in "
+                 + "fastq file: %d (bam) vs %d (fastq)")
+      if relaxed:
+        LOGGER.warning(message, numreads, expected)
+      else:
+        raise ValueError(message % (numreads, expected))
     
   def get_genome_size_file(self, genome):
     '''
