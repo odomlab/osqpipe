@@ -128,7 +128,7 @@ class ProgramSummary(object):
     server depending on wheth ssh_host is set or not.
     '''
     vstrings = ["--version", "-v", " 2>&1 | grep \'[V|v]ersion\'"]
-    vpattern = re.compile(r"v?\d+[0-9.]+")
+    vpattern = re.compile(r"v?((?:\d+[._-])*\d+)")
 
     if ssh_host is None:
       program = os.path.join(self.path, self.program)
@@ -143,16 +143,24 @@ class ProgramSummary(object):
     # Try to tease out program version using each of the methods in
     # list until version can be identified.
     for vstring in vstrings:
+      version = None
       proc = subprocess.Popen(program + " " + vstring, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE, shell=True)
       (out, err) = proc.communicate()
       vmatch = vpattern.search(out)
       if vmatch:
-        version = vmatch.group(0)
-        return version
-      vmatch = vpattern.search(err)
-      if vmatch:
-        version = vmatch.group(0)
+        version = vmatch.group(1)
+      else:
+        vmatch = vpattern.search(err)
+        if vmatch:
+          version = vmatch.group(1)
+      if version is not None:
+        if re.search(r'\.', version):
+          # Pull out trailing -\d+ if the version contains periods. This
+          # is in part to allow tally/reaper version strings ("13-274"
+          # => "13-274") while not overcomplicating bwa/samtools
+          # version strings ("0.1.19-44428cd" => "0.1.19")
+          version = re.sub(r'-\d+$', '', version)
         return version
     return None
 
