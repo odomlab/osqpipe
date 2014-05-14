@@ -40,6 +40,6 @@ if __name__ == '__main__':
 
   ARGS = PARSER.parse_args()
 
-  QUERY = FlowCellQuery(flowCell=ARGS.flowCell,
-                        flowLane=ARGS.flowLane,
+  QUERY = FlowCellQuery(flowcell_id=ARGS.flowCell,
+                        flow_lane=ARGS.flowLane,
                         verbose=ARGS.verbose)

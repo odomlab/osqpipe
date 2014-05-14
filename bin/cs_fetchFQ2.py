@@ -35,5 +35,5 @@ if __name__ == '__main__':
 
   ARGS = PARSER.parse_args()
 
-  FETCHER = FQFileFetcher(destination=ARGS.destination, testMode=ARGS.testMode)
+  FETCHER = FQFileFetcher(destination=ARGS.destination, test_mode=ARGS.testMode)
   FETCHER.fetch(ARGS.flowCell, ARGS.flowLane)

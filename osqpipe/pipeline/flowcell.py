@@ -225,7 +225,7 @@ class FlowCellQuery(object):
   __slots__ = ('verbose', 'lims_fc', 'lib_status', 'lane_library',
                'lane_demuxed', 'lims')
 
-  def __init__(self, flowcell_id, flowLane=None, verbose=False, lims=None):
+  def __init__(self, flowcell_id, flow_lane=None, verbose=False, lims=None):
     LOGGER.setLevel(logging.INFO)
     self.verbose = verbose
 
@@ -245,15 +245,15 @@ class FlowCellQuery(object):
       LOGGER.error("Remote LIMS access broken... cannot continue.")
       sys.exit("LIMS not running.")
     self.lims = lims
-    self.lims_fc    = self._run_query(flowcell_id, flowLane)
+    self.lims_fc    = self._run_query(flowcell_id, flow_lane)
 
   def check_lane(self, lane, lims_fc):
     '''Retrieve lane, flowcell and library information from the
     repository database.'''
     if lane.lane not in self.lane_library:
       self.lane_library[lane.lane] = set()
-    #  user_code = lane.userSampleId.lower().replace("-", "").replace(" ", "_")
-    codes = demux_code(lane.userSampleId)
+    #  user_code = lane.user_sample_id.lower().replace("-", "").replace(" ", "_")
+    codes = demux_code(lane.user_sample_id)
     for code in codes:
       try:
         user_code = LibraryNameMap.objects.get(limsname=code).libname

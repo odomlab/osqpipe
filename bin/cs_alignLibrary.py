@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
   # Using a subclass to define the external program will allow us to
   # tailor this to other aligners in future.
-  BWA = FastqBwaAligner(testMode=ARGS.testMode)
+  BWA = FastqBwaAligner(test_mode=ARGS.testMode)
   
   BWA.align(library = ARGS.library,
             facility = ARGS.facility,

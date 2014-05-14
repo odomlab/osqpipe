@@ -41,9 +41,9 @@ if __name__ == '__main__':
 
   ARGS = PARSER.parse_args()
 
-  PROC = FlowCellProcess(testMode=ARGS.testMode,
-                         checkForLibInDB=ARGS.checkForLibInDB,
-                         forcePrimary=ARGS.forcePrimary)
+  PROC = FlowCellProcess(test_mode        = ARGS.testMode,
+                         db_library_check = ARGS.checkForLibInDB,
+                         force_primary    = ARGS.forcePrimary)
 
   PROC.run(ARGS.flowCell, ARGS.flowLane)
 
