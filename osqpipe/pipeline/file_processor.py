@@ -488,7 +488,7 @@ class GenericFileProcessor(object):
     Delete all temporary files.
     '''
     for fname in self.tempfiles:
-      LOGGER.info("rm %s", fname)
+      LOGGER.info("Deleting temporary file %s", fname)
       if not self.test_mode:
         os.unlink(fname)
 
@@ -785,6 +785,7 @@ class MiRFastqFileProc(GenericFileProcessor):
     # Nenad's analysis pipeline uses either of them downstream.
     cmd = ('tally -o - -tri 35 -format ">smRNA_%I:count_%C length=%L;trinuc=%T%n%R%n" --fasta-in'
            + ' -i %s | gzip -dc > %s' % (fname, clust_fn))
+    LOGGER.info("Running tally on %s", fname)
     LOGGER.debug(" ".join(cmd))
     if not self.test_mode:
       call_subprocess(cmd, path=CONFIG.hostpath, shell=True)
