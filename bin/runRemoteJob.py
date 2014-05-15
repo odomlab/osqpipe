@@ -23,9 +23,9 @@ def run_job(cmd, files, append=False, mem=2000, testmode=False):
   try:
     host = config.althost
     assert(host != '')
-    runner = DesktopJobSubmitter(testMode=testmode)
+    runner = DesktopJobSubmitter(test_mode=testmode)
   except Exception:
-    runner = ClusterJobSubmitter(testMode=testmode)
+    runner = ClusterJobSubmitter(test_mode=testmode)
 
   if append:
     cmd = " ".join([cmd] + files)

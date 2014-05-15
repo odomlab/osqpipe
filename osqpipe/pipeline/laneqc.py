@@ -54,9 +54,9 @@ class LaneQCReport(object):
     # This is a little vulnerable to correct version parsing by
     # progsum.
     try:
-      (self._dbprog, _created) = Program.objects.get(program = progdata.program,
-                                                     version = progdata.version,
-                                                     current = True)
+      self._dbprog = Program.objects.get(program = progdata.program,
+                                         version = progdata.version,
+                                         current = True)
     except Program.DoesNotExist, _err:
       raise StandardError(("Unable to find current %s program (version %s)"
                            + " record in the repository")

@@ -68,7 +68,7 @@ class LimsWatcher(object):
 
           # Lane contains a sample we've submitted.
           self.user_emails.add(limslane.user_email)
-          lanelibs = [ x.strip() for x in limslane.userSampleId.split(',') ]
+          lanelibs = [ x.strip() for x in limslane.user_sample_id.split(',') ]
           for libcode in lanelibs:
             try:
 

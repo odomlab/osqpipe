@@ -199,7 +199,7 @@ class FQFileFetcher(object):
     if self.test_mode:
       lims_fc.dump()
     lims_lane = lims_fc.get_lane(flowlane)
-    libname = lims_lane.userSampleId
+    libname = lims_lane.user_sample_id
     try:
       lib = Library.objects.search_by_name(libname)
       libname = lib.code

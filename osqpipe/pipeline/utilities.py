@@ -59,7 +59,7 @@ def is_zipped(fname):
       LOGGER.warn("Uncompressed file masquerading as gzipped: %s", fname)
     return False
 
-def unzip_file(fname, dest=None):
+def unzip_file(fname, dest=None, delete=True):
   '''
   Unzip a file. If a destination filename is not supplied, we strip
   the suffix from the gzipped file, raising an error if the filename
@@ -89,11 +89,14 @@ def unzip_file(fname, dest=None):
       for line in gz_fd:
         out_fd.write(line)
 
+  if delete:
+    os.unlink(fname)
+
   return dest
 
-def rezip_file(fname, dest=None):
+def rezip_file(fname, dest=None, delete=True):
   '''
-  Compress a file using gzip. I
+  Compress a file using gzip.
   '''
   if is_zipped(fname):
     raise ValueError("Trying to rezip an already-zipped file: %s" % (fname,))
@@ -114,6 +117,9 @@ def rezip_file(fname, dest=None):
     with open(fname, 'rb') as in_fd:
       for line in in_fd:
         gz_fd.write(line)
+
+  if delete:
+    os.unlink(fname)
 
   return dest
 

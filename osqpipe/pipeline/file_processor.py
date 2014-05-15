@@ -515,8 +515,8 @@ class GenericFileProcessor(object):
       try:
         with LaneFastQCReport(lane=self.lane, path=CONFIG.hostpath) as qcrep:
           qcrep.insert_into_repository()
-      except Exception, _err:
-        LOGGER.warning("FastQC report generation failed.")
+      except Exception, err:
+        LOGGER.warning("FastQC report generation failed: %s", err)
 
       # One last save to make sure (this will e.g. update the
       # readlength attribute).
@@ -567,7 +567,7 @@ class ChIPQseqFileProc(GenericFileProcessor):
       nocc = CONFIG.nonuniquereads
 
     # FIXME we need to remove 'incoming' as hardcoded here.
-    aligner = FastqBwaAligner(testMode=self.test_mode,
+    aligner = FastqBwaAligner(test_mode=self.test_mode,
                               finaldir=os.path.join(CONFIG.repositorydir,
                                                     'incoming'))
     aligner.align_standalone(filepaths=tfiles,
