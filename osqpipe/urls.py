@@ -60,8 +60,8 @@ urlpatterns = patterns(
 
   # Our login and logout urls are managed within this application but
   # use the django.contrib.auth backend.
-  url(r'^login$',  'login', name='auth_login'),
-  url(r'^logout$', 'logout', {'next_page': reverse_lazy('repo-home')}, name='auth_logout'),
+  url(r'^login$',  'django.contrib.auth.views.login', name='auth_login'),
+  url(r'^logout$', 'django.contrib.auth.views.logout', {'next_page': reverse_lazy('repo-home')}, name='auth_logout'),
   url(r'^denied/?$',
       TemplateView.as_view(
       template_name='repository/denied.html'),
