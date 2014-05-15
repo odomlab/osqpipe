@@ -104,8 +104,9 @@ class FastqAligner(object):
 
       if len(files) == 0:
         LOGGER.warning(
-          "No fastq files found in database for lane %d (%s). Skipping.",
-          lane.lane, library)
+          "No fastq files found in database for lane %s (%s). Skipping.",
+          lane, library)
+        return
       elif len(files) > 2:  # up to 2 (for paired-end reads).
         raise ValueError("More than two fastq files found in database"
                          + " for lane %d (%s)." % (lane.lane, library))
