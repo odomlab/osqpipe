@@ -567,7 +567,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
       ## In the submitted command:
       ##   --rcp       is where cs_runBwaWithSplit_Merge.py eventually copies
       ##                 the reassembled bam file (via scp).
-      cmd = ("%s --loglevel %d %s %s --rcp %s:%s %s %s"
+      cmd = ("python `which %s` --loglevel %d %s %s --rcp %s:%s %s %s"
              % ('cs_runBwaWithSplit.py',
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
@@ -580,7 +580,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     else:
       LOGGER.debug("Running bwa on single-end sequencing input.")
       fnlist = quote(destnames[0])
-      cmd = ("%s --loglevel %d %s %s --rcp %s:%s %s %s"
+      cmd = ("python `which %s` --loglevel %d %s %s --rcp %s:%s %s %s"
              % ('cs_runBwaWithSplit.py',
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
@@ -867,8 +867,8 @@ class SplitBwaRunner(BwaRunner):
                                 + " | %s view -b -S -u - > %s",
       'BWA_PE1'     : "%s aln %s %s > %s",
       'BWA_PE2'     : "%s sampe %s %s %s %s %s %s | %s view -b -S -u - > %s",
-      'MERGE'       : "%s --loglevel %d %s %s %s %s",
-      'MERGE_RCP'   : "%s --loglevel %d %s %s --rcp %s %s %s",
+      'MERGE'       : "python `which %s` --loglevel %d %s %s %s %s",
+      'MERGE_RCP'   : "python `which %s` --loglevel %d %s %s --rcp %s %s %s",
       }
 
   def split_fq(self, fastq_fn):

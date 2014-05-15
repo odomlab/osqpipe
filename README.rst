@@ -63,6 +63,7 @@ programs needed on each server are as follows:
 
 1. Primary host (config option: hostpath)::
 
+   * python
    * samtools
    * fastqc
    * ssh
@@ -93,6 +94,7 @@ programs needed on each server are as follows:
 
 2. LSF cluster (config option: clusterpath)::
 
+   * python
    * bsub
    * samtools
    * bwa
@@ -103,6 +105,7 @@ programs needed on each server are as follows:
 
 3. Multicore alignment host (config option: althostpath)::
 
+   * python
    * samtools
    * bwa
    * ssh
