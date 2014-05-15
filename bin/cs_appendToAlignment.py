@@ -28,32 +28,43 @@ def _save_file_to_database(fname, aln, chksum):
   database to save a file to a given Alignment.
   '''
   filetype = Filetype.objects.guess_type(fname)
+  LOGGER.debug("Found filetype: %s", filetype)
   basefn = os.path.split(fname)[1]
-  LOGGER.debug("basefn: '%s'" % (basefn))
+  LOGGER.debug("basefn: '%s'", basefn)
   fnparts = os.path.splitext(basefn)
   if fnparts[1] == CONFIG.gzsuffix:
     basefn = fnparts[0]
-  LOGGER.debug("basefn: '%s'" % (basefn))
+  LOGGER.debug("basefn: '%s'", basefn)
   afile = Alnfile.objects.create(filename=basefn,
                                  checksum=chksum, filetype=filetype,
                                  description='', alignment=aln)
 
   # Move files to permanent locations.
   destname = afile.repository_file_path
-  LOGGER.debug("mv %s %s" % (fname, destname))
+  LOGGER.debug("Moving %s to %s", fname, destname)
   move(fname, destname)
 
-  LOGGER.info("Added '%s' to '%s'" % (fname, aln.lane.library.code))
+  LOGGER.info("Added '%s' to '%s'", fname, aln.lane.library.code)
 
-def append(fname):
-  '''Given a filename, figure out where it belongs and load it into
-  the repository.'''
-  LOGGER.info(fname)
-  (code, facility, lanenum, _pipeline) = parse_repository_filename(fname)
+def append(fname, library=None, facility=None, lanenum=None, genome=None):
+  '''
+  Given a filename, figure out where it belongs and load it into
+  the repository. Additional hints may be provided.
+  '''
+  LOGGER.info("Processing %s", fname)
+
+  argcheck = [ x is not None for x in (library, facility, lanenum) ]
+  if any(argcheck):
+    if not all(argcheck):
+      raise ValueError("Either use filename on its own, or all of"
+                       + " the following: library, facility, lanenum.")
+  else:
+    (library, facility, lanenum, _pipeline) = parse_repository_filename(fname)
+
   try:
-    library = Library.objects.get(code=code)
+    library = Library.objects.get(code=library)
   except Library.DoesNotExist, err:
-    raise StandardError("No library found with code %s" % (code,))
+    raise StandardError("No library found with code %s" % (library,))
   facobj = Facility.objects.get(code=facility)
   lanelist = library.lane_set.filter(facility=facobj, lanenum=lanenum)
   if lanelist.count() == 0:
@@ -63,9 +74,14 @@ def append(fname):
                  fname, ", ".join([x.id for x in lanelist]))
   else:
     lane = lanelist[0]
-    alns = lane.alignment_set.all()
+
+    if genome is None:
+      alns = lane.alignment_set.all()
+    else:
+      alns = lane.alignment_set.filter(genome__code=genome)
+
     if alns.count() > 1:
-      LOGGER.error("Too many alignments for lane '%s'" % (lane.id))
+      LOGGER.error("Too many alignments for lane '%s'; consider supplying a genome code.", lane.id)
     else:
       aln = alns[0]
 
@@ -79,4 +95,30 @@ def append(fname):
 if __name__ == '__main__':
 
   LOGGER.setLevel(logging.INFO)
-  append(sys.argv[1])
+
+  from argparse import ArgumentParser
+
+  PARSER = ArgumentParser(
+    description='Append a file to an alignment already existing in the'
+    + ' repository. Hints may be provided as to which alignment should'
+    + ' be used; otherwise the script will attempt to guess based on'
+    + ' the filename.')
+
+  PARSER.add_argument('-f', '--file', dest='file', type=str, required=True,
+                      help='The name of the file to append.')
+  PARSER.add_argument('-l', '--library', dest='library', type=str, required=False,
+                      help='The name of the library.')
+  PARSER.add_argument('-p', '--facility', dest='facility', type=str, required=False,
+                      help='The facility code (e.g., CRI, SAN).')
+  PARSER.add_argument('-n', '--lanenum', dest='lanenum', type=int, required=False,
+                      help='The lane number.')
+  PARSER.add_argument('-g', '--genome', dest='genome', type=str, required=False,
+                      help='The genome used in the alignment.')
+
+  ARGS = PARSER.parse_args()
+
+  append(fname    = ARGS.file,
+         library  = ARGS.library,
+         facility = ARGS.facility,
+         lanenum  = ARGS.lanenum,
+         genome   = ARGS.genome)

@@ -42,9 +42,17 @@ def is_zipped(fname):
   '''
   suff = os.path.splitext(fname)[1]
   if open(fname).read(2) == '\x1f\x8b': # gzipped file magic number.
+
+    # Some files are effectively zipped but don't have a .gz
+    # suffix. We model them in the repository as uncompressed, hence
+    # we return False here. The main file type this affects is bam.
+    if suff in ('.bam',):
+      return False
+
     if suff != DBCONF.gzsuffix:
       LOGGER.warn("Gzipped file detected without %s suffix: %s",
                   DBCONF.gzsuffix, fname)
+
     return True
   else:
     if suff == DBCONF.gzsuffix:
