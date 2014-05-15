@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
   ARGS = PARSER.parse_args()
 
-  BWA = FastqBwaAligner(testMode=ARGS.testMode)
+  BWA = FastqBwaAligner(test_mode=ARGS.testMode)
   
   BWA.align_standalone(filepaths=ARGS.files,
                        genome  = ARGS.genome,

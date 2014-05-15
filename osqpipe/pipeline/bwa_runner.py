@@ -115,6 +115,10 @@ class BsubCommand(SimpleCommand):
     if not python_path:
       python_path = ''
 
+    osqpipe_confdir = os.environ['OSQPIPE_CONFDIR']
+    if not osqpipe_confdir:
+      osqpipe_confdir = ''
+
     cmd = super(BsubCommand, self).build(cmd, *args, **kwargs)
 
     # Note that if this gets stuck in an infinite loop you will need
@@ -124,9 +128,10 @@ class BsubCommand(SimpleCommand):
     # full listing.
     qval = "-Q 'all ~0'" if auto_requeue else ''
 
-    bsubcmd = (("PYTHONPATH=%s bsub -R 'rusage[mem=%d]' -r"
+    bsubcmd = (("PYTHONPATH=%s OSQPIPE_CONFDIR=%s bsub -R 'rusage[mem=%d]' -r"
            + " -o %s/%%J.stdout -e %s/%%J.stderr %s")
            % (python_path,
+              osqpipe_confdir,
               mem,
               self.conf.clusterstdoutdir,
               self.conf.clusterstdoutdir,
@@ -154,7 +159,7 @@ class BsubCommand(SimpleCommand):
     #
     # I.e., one needs to be careful of python's rather idiosyncratic
     # string quoting rules, and use the r"" form where necessary.
-    bsubcmd += r' sh -c \"(%s)\"' % re.sub(r'"', r'\\\"', cmd)
+    bsubcmd += r' sh -c "(%s)"' % re.sub(r'"', r'\"', cmd)
 
     return bsubcmd    
 
@@ -217,6 +222,34 @@ class JobRunner(object):
     '''
     return self.run_command(*args, **kwargs)
 
+class JobSubmitter(JobRunner):
+
+  '''Class to run jobs via LSF/bsub on the local host (i.e., when running on the cluster).'''
+
+  def __init__(self, remote_wdir=None, *args, **kwargs):
+    self.conf = Config()
+    super(JobSubmitter, self).__init__(command_builder=BsubCommand(),
+                                       *args, **kwargs)
+
+  def submit_command(self, cmd, *args, **kwargs):
+    '''
+    Submit a job to run on the cluster. Uses bsub to enter jobs into
+    the LSF queuing system. Extra arguments are passed to
+    BsubCommand.build(). The return value is the integer LSF job ID.
+    '''
+    pout = super(JobSubmitter, self).\
+        submit_command(cmd,
+                       *args, **kwargs)
+
+    # FIXME this could be farmed out to utilities?
+    jobid_pattern = re.compile(r"Job\s+<(\d+)>\s+is\s+submitted\s+to")
+    for line in pout:
+      matchobj = jobid_pattern.search(line)
+      if matchobj:
+        return int(matchobj.group(1))
+
+    raise ValueError("Unable to parse bsub output for job ID.")
+
 class RemoteJobRunner(JobRunner):
   '''
   Abstract base class holding some common methods used by classes
@@ -262,7 +295,7 @@ class RemoteJobRunner(JobRunner):
               self.remote_host,
               wdir,
               pathdef,
-              cmd))
+              re.sub(r'"', r'\"', cmd)))
     LOGGER.info(cmd)
     if not self.test_mode:
       return call_subprocess(cmd, shell=True, path=self.config.hostpath)
@@ -382,6 +415,21 @@ class ClusterJobSubmitter(RemoteJobRunner):
 
     raise ValueError("Unable to parse bsub output for job ID.")
 
+class ClusterJobRunner(RemoteJobRunner):
+
+  '''Class to run jobs via simple SSH on the cluster.'''
+
+  def __init__(self, remote_wdir=None, *args, **kwargs):
+
+    self.conf        = Config()
+    self.remote_host = self.conf.cluster
+    self.remote_user = self.conf.clusteruser
+    self.remote_wdir = self.conf.clusterworkdir if remote_wdir is None else remote_wdir
+
+    # Must call this *after* setting the remote host info.
+    super(ClusterJobRunner, self).__init__(command_builder=SimpleCommand(),
+                                           *args, **kwargs)
+
 ##############################################################################
 
 class DesktopJobSubmitter(RemoteJobRunner):
@@ -429,9 +477,8 @@ class AlignmentJobRunner(object):
   def __init__(self, genome, finaldir='.', *args, **kwargs):
 
     # A little programming-by-contract, as it were.
-    if not all( x in self.__dict__.keys()
-                for x in ('job')):
-      raise StandardError("JobRunner instance not set.")
+#    if not all( hasattr(self, x) for x in ('job')):
+#      raise StandardError("JobRunner instance not set.")
 
     self.conf = Config()
 
@@ -444,7 +491,8 @@ class AlignmentJobRunner(object):
     LOGGER.debug(cmd)
 
     if not self.job.test_mode:
-      cmdstdoutfile = self.job.run_command(cmd)
+      runjob = ClusterJobRunner(test_mode=self.job.test_mode)
+      cmdstdoutfile = runjob.run_command(cmd)
       first_line = cmdstdoutfile.readline()
       first_line = first_line.rstrip('\n')
       if first_line != 'yes':
@@ -810,7 +858,7 @@ class SplitBwaRunner(BwaRunner):
     else:
       self.nocc = ''
 
-    self.bsub=JobRunner(command_builder=BsubCommand())
+    self.bsub=JobSubmitter()
     # Each of these is called from within a python process which has
     # itself had PATH set appropriately.
     self.commands = {

@@ -11,7 +11,7 @@
     <option name="clusteruser">fnc-odompipe</option>
     <option name="clusterstdoutdir">/lustre/dolab/fnc-odompipe/pipeline/stdout/</option>
     <option name="clusterworkdir">/lustre/dolab/fnc-odompipe/pipeline/tmp/</option>
-    <option name="clusterpath">/home/fnc-odompipe/pipeline/bin:/home/fnc-odompipe/software/external/bin:/platform/lsf/7.0/linux2.6-glibc2.3-x86_64/bin/:/usr/local/bin:/usr/bin</option>
+    <option name="clusterpath">/home/fnc-odompipe/production/bin:/home/fnc-odompipe/software/external/bin:/platform/lsf/7.0/linux2.6-glibc2.3-x86_64/bin/:/usr/local/bin:/usr/bin:/bin</option>
     <option name="clustergenomedir">/lustre/dolab/fnc-odompipe/genomes</option>
     <option name="clusterqueue">dolab</option>
     <option name="splitbwarunlog">/home/fnc-odompipe/pipeline/log/cs_runBwaWithSplit_fnc-odompipe.log</option>
@@ -35,7 +35,7 @@
     <option name="httptmpurl">/chipseq/tmp</option>
     <option name="incoming">/data01/incoming</option>
     <option name="repositorydir">/data01/repository</option>
-    <option name="hostpath">/home/fnc-odompipe/pipeline/bin:/home/fnc-odompipe/software/CRI/bin:/home/fnc-odompipe/software/external/bin:/sw/gentoo/bin:/sw/gentoo/usr/bin</option>
+    <option name="hostpath">/home/fnc-odompipe/production/bin:/home/fnc-odompipe/software/CRI/bin:/home/fnc-odompipe/software/external/bin:/sw/gentoo/bin:/sw/gentoo/usr/bin</option>
     <option name="genomesizedir">/data01/genomes/chromosome_sizes</option>
     <option name="tmpdir">/data01/tmp</option>
   </section>
