@@ -16,6 +16,7 @@ import glob
 from pipes import quote
 from shutil import move
 from tempfile import gettempdir
+from distutils import spawn
 
 from utilities import call_subprocess, bash_quote, \
     is_zipped, set_file_permissions
@@ -567,8 +568,8 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
       ## In the submitted command:
       ##   --rcp       is where cs_runBwaWithSplit_Merge.py eventually copies
       ##                 the reassembled bam file (via scp).
-      cmd = ("python `which %s` --loglevel %d %s %s --rcp %s:%s %s %s"
-             % ('cs_runBwaWithSplit.py',
+      cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s"
+             % (spawn.find_executable('cs_runBwaWithSplit.py'),
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
                 noccflag,
@@ -580,8 +581,8 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     else:
       LOGGER.debug("Running bwa on single-end sequencing input.")
       fnlist = quote(destnames[0])
-      cmd = ("python `which %s` --loglevel %d %s %s --rcp %s:%s %s %s"
-             % ('cs_runBwaWithSplit.py',
+      cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s"
+             % (spawn.find_executable('cs_runBwaWithSplit.py'),
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
                 noccflag,
@@ -801,7 +802,7 @@ class BwaRunner(object):
     # the remote command.
     self.bwa_prog      = 'bwa'
     self.samtools_prog = 'samtools'
-    self.merge_prog    = 'cs_runBwaWithSplit_Merge.py'
+    self.merge_prog    = spawn.find_executable('cs_runBwaWithSplit_Merge.py')
     self.logfile       = self.conf.splitbwarunlog
     self.debug         = debug
 
@@ -867,8 +868,8 @@ class SplitBwaRunner(BwaRunner):
                                 + " | %s view -b -S -u - > %s",
       'BWA_PE1'     : "%s aln %s %s > %s",
       'BWA_PE2'     : "%s sampe %s %s %s %s %s %s | %s view -b -S -u - > %s",
-      'MERGE'       : "python `which %s` --loglevel %d %s %s %s %s",
-      'MERGE_RCP'   : "python `which %s` --loglevel %d %s %s --rcp %s %s %s",
+      'MERGE'       : "python %s --loglevel %d %s %s %s %s",
+      'MERGE_RCP'   : "python %s --loglevel %d %s %s --rcp %s %s %s",
       }
 
   def split_fq(self, fastq_fn):
