@@ -124,9 +124,8 @@ class AlignProcessingManager(object):
       sys.exit("Unable to find lane in repository")
 
     LOGGER.info("Checking number of reads in bam file %s", bam)
-    samtools = os.path.join(self.conf.externalbin, self.conf.read_sorter)
-    cmd  = (samtools, 'flagstat', bam)
-    pout = call_subprocess(cmd)
+    cmd  = (self.conf.read_sorter, 'flagstat', bam)
+    pout = call_subprocess(cmd, path=self.conf.hostpath)
     numreads = int(pout.readline().split()[0])
     expected = lane.passedpf
     if lane.paired:
