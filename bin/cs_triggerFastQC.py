@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
-"""Creates FastQC repor for either a stand alone fastq file(s) or for a file from Odom repository for repository."""
+"""
+Creates FastQC report for either a stand alone fastq file(s) or for a
+file from Odom repository for repository.
+"""
 __author__ = "Margus Lukk"
 __date__ = "09 Nov 2012"
 __version__ = "0.1"
@@ -30,6 +33,7 @@ LOGGER = configure_logging()
 
 from osqpipe.models import Lane, Lanefile, Alnfile
 from osqpipe.pipeline.config import Config
+from osqpipe.pipeline.laneqc import LaneFastQCReport
 
 def compute_fast_qc(fns, target, fastqc, java, threads=2):
 
@@ -43,32 +47,6 @@ def compute_fast_qc(fns, target, fastqc, java, threads=2):
     cmd = cmd + " %s" % (fn)
   print "%s" % cmd
   os.system(cmd)
-
-def get_file_from_repository(conf, code, facility, lanenum, ftype):
-
-  """Fetches files of a type from repository given code, facility and lane number. Returns list of files. NB! Note that function doed not currently work for QC files"""
-
-  fns = []
-
-  # loads file suffixes to file types information from Filetype table.
-  try:
-    lane = Lane.objects.get(library__code=code,
-                            facility__code=facility,
-                            lanenum=lanenum)
-  except Lane.DoesNotExist, err:
-    sys.exit("Failed to load lane '%s_%s%02d'.  Quitting." % (code, facility, lanenum))
-
-  fns = Lanefile.objects.filter(lane=lane, filetype__code=ftype)
-  fns = [ x for x in fns if os.path.exists(x.repository_file_path) ]
-  
-  # if file of type not found among lane files, search from alnfiles
-  if not fns:
-
-    fns = Alnfile.objects.filter(alignment__lane=lane,
-                                 filetype__code=ftype)
-    fns = [ x for x in fns if os.path.exists(x.repository_file_path) ]
-    
-  return fns
 
 def check_files_or_dirs(list, message, type="file"):
 
@@ -88,53 +66,24 @@ def check_files_or_dirs(list, message, type="file"):
         log = log + "%s not accessible or found! %s\n" % (e, message)
   return ("", log)
 
-
-def unzipped_name(fn):
-  """Returns fn without .gz suffix"""
-  if os.path.splitext(fn)[1] == ".gz":
-    fn = fn[0:-3]
-  return fn
-
-def compute_fast_qcforRepository(code, facility, replicate, dir, fastqc, java):
+def compute_fast_qcforRepository(code, facility, replicate):
   
-  """Computes FastQC report given the file in repository for repository, or if dir is defined not for repository but to dir"""  
-  ftype = 'fq'
-
+  """
+  Computes and stores a FastQC report for a lane in the
+  repository. This function will raise an exception if the lane
+  already has a fastqc report. Note that this code links into the
+  standard pipeline report generator and so will correctly produce
+  PDFs as well as the regular report files.
+  """
   conf = Config()
 
-  fns = get_file_from_repository(conf, code, facility, replicate, ftype)
-  if fns:
-    ## Check if fastqc report has already been computed
-    nofastqc = []
-    for fn in fns:
-      # get year from fastq file dir - not elegant! NOTE - NOW BROKEN by the repo reorg. FIXME.
-      year = date.today().year
-      matchObj = re.match('.*/(\d\d\d\d)/.*', fn, re.M|re.I)
-      if matchObj:
-        year = "%s" % matchObj.group(1)
-      # check if report target dir exists
-      if not dir:
-        dir = os.path.join(conf.repositorydir, 'qcfile', "%s"%year, code)
-      if not os.path.exists(dir):
-        os.makedirs(dir)
-      if not os.path.exists(dir):
-        print "Failed to create FastQC files destination directory \"%s\". Quiting." % dir
-        sys.exit(1)
-      # check if FastQC report in target dir already exists
-      unzippedfn = unzipped_name(fn)
-      unzippedfn = os.path.basename(unzippedfn)
-      qcfile = os.path.join(dir, unzippedfn + "_fastqc")
-      if not os.path.exists(qcfile):
-        nofastqc.append(fn)
-      else:
-        print "FastQC report in %s. Exiting." % (qcfile)
-    ## Compute report if not disk.
-    if nofastqc:
-      compute_fast_qc(nofastqc, dir, fastqc, java)
-    ## Insert computed fastqc files back to repository
+  lane = Lane.objects.get(library__code=code, facility__code=facility, lanenum=replicate)
+
+  if lane.laneqc_set.filter(provenance__program__program='fastqc').count() == 0:
+    with LaneFastQCReport(lane=lane, path=conf.hostpath) as qcrep:
+      qcrep.insert_into_repository()
   else:
-    print "Failed to find files for Code=%s,  Facility=%s, Replicate=%s" % (code, facility, replicate)
-    # sys.exit(1)
+    raise StandardError("Lane already has a FastQC report.")
 
 ################## M A I N ########################
 
@@ -193,7 +142,7 @@ elif args.batch:
         if cols[0] and cols[1] and cols[2]:
           os.system("date")
           print "Processing \"%s\" \"%s\" \"%s\"..." % (cols[0], cols[1], cols[2])
-          compute_fast_qcforRepository(cols[0], cols[1], cols[2], "", fastqc, java)
+          compute_fast_qcforRepository(cols[0], cols[1], cols[2])
           os.system("date")
         else:
           print "Failed to parse line \"%s\". Skipping." % line
@@ -203,7 +152,7 @@ elif args.batch:
     print "\nFile \"%s\" not accessible or missing! Quitting." % args.batch         
 else:
   if args.code and args.facility and args.replicate:
-    compute_fast_qcforRepository(args.code, args.facility, args.replicate, "", fastqc, java)
+    compute_fast_qcforRepository(args.code, args.facility, args.replicate)
   else:
     print "\nUse either --input for a fastq file or specify values for all of the following: --code/--facility/--replicate; but not both.\n"
     parser.print_help()
