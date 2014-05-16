@@ -53,7 +53,7 @@ class AlignmentHandler(object):
   __slots__ = ('params', 'prog', 'genome', 'headtrim', 'tailtrim', 'conf')
 
   def __init__(self, genome, prog, params='', headtrim=0, tailtrim=0):
-    LOGGER.setLevel(logging.DEBUG)
+    LOGGER.setLevel(logging.INFO)
 
     # Program and parameters can be a list, but they must agree on
     # their type. We allow an empty default params string for the sake
