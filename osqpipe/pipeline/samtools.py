@@ -13,6 +13,17 @@ from setup_logs import configure_logging
 CONFIG = Config()
 LOGGER = configure_logging('samtools')
 
+def count_bam_reads(bam):
+  '''
+  Quick function to count the total number of reads in a bam file.
+  '''
+  LOGGER.info("Checking number of reads in bam file %s", bam)
+  cmd  = (CONFIG.read_sorter, 'flagstat', bam)
+  pout = call_subprocess(cmd, path=CONFIG.hostpath)
+  numreads = int(pout.readline().split()[0])
+
+  return numreads
+
 class BamToBedConverter(object):
 
   '''Class holding code which uses samtools to convert from bam to bed

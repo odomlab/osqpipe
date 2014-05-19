@@ -18,6 +18,7 @@ from utilities import is_zipped, parse_repository_filename, \
     checksum_file, rezip_file
 from ..models import Filetype, Lane, Alignment, Alnfile, Facility, \
     Genome, Program, DataProvenance
+from samtools import count_bam_reads
 from config import Config
 
 from progsum import ProgramSummary
@@ -133,7 +134,7 @@ class AlignmentHandler(object):
       gen = Genome.objects.get(code=self.genome)
 
       # We don't save this yet because we're not currently within a
-      # transaction.
+      # transaction. Also note that total_reads is not yet set.
       aln = Alignment(lane       = lane,
                       genome     = gen,
                       mapped     = mapped,
@@ -196,6 +197,17 @@ class AlignmentHandler(object):
     else:
       return beds[0]
 
+  @staticmethod
+  def identify_bam_file(files):
+    '''From a list of filenames, pick the first bam file we see and
+    return it.'''
+    bam_re = re.compile('.bam$', re.IGNORECASE)
+    bams = [ x for x in files if bam_re.search(x) ]
+    if len(bams) == 0:
+      return None
+    else:
+      return bams[0]
+
   @transaction.commit_on_success
   def _save_to_repository(self, files, chksums, aln, final_status=None):
     '''
@@ -246,7 +258,7 @@ class AlignmentHandler(object):
       aln.lane.status = final_status
       aln.lane.save()
 
-  def add(self, files, final_status=None):
+  def add(self, files, final_status=None, total_reads=None):
 
     '''
     Process a list of filenames (files must exist on disk). The
@@ -263,6 +275,17 @@ class AlignmentHandler(object):
     # Find the appropriate alignment. Note that aln is not yet saved
     # in the database.
     (aln, lane) = self.aln_from_bedfile(bed)
+
+    # Update the alignment with the total number of reads in the
+    # supplied bam file. This is mainly to support e.g. smallRNA-seq
+    # where the number of reads in the alignment is far smaller than
+    # the number in the fastq file.
+    if total_reads is None:
+      bam = self.identify_bam_file(files)
+      if not bam:
+        raise ValueError("Unable to identify bam file in input.")
+      total_reads = count_bam_reads(bam)
+    aln.total_reads = total_reads
 
     # Do some heavy lifting *outside* of our database transaction, to
     # avoid locking the db for extended periods.

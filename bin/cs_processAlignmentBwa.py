@@ -25,7 +25,7 @@ from osqpipe.pipeline.config import Config
 from osqpipe.models import Filetype, Genome, Library, \
     Status, Lane
 
-from osqpipe.pipeline.samtools import BamToBedConverter
+from osqpipe.pipeline.samtools import BamToBedConverter, count_bam_reads
 from osqpipe.pipeline.alignment import AlignmentHandler
 
 ###############################################################################
@@ -112,7 +112,7 @@ class AlignProcessingManager(object):
     '''
     Quick check that the number of reads in the bam file being saved
     is identical to the number of (passed PF) reads in the input fastq
-    file.
+    file. Returns the number of reads in the bam file.
     '''
     (code, facility, lanenum, _pipeline) = parse_repository_filename(bam)
     try:
@@ -123,10 +123,7 @@ class AlignProcessingManager(object):
       LOGGER.error("Unexpected lane in filename, not found in repository.")
       sys.exit("Unable to find lane in repository")
 
-    LOGGER.info("Checking number of reads in bam file %s", bam)
-    cmd  = (self.conf.read_sorter, 'flagstat', bam)
-    pout = call_subprocess(cmd, path=self.conf.hostpath)
-    numreads = int(pout.readline().split()[0])
+    numreads = count_bam_reads(bam)
     expected = lane.passedpf
     if lane.paired:
       expected *= 2
@@ -137,6 +134,58 @@ class AlignProcessingManager(object):
         LOGGER.warning(message, numreads, expected)
       else:
         raise ValueError(message % (numreads, expected))
+
+    return numreads
+
+  def generate_wig_files(self, beds):
+    '''
+    Uses makeWiggle to generate wiggle files.
+    '''
+    wigs = []
+    for bed_fn in beds:
+      cmd = ('makeWiggle', '-t', '3', bed_fn, splitext(bed_fn)[0])
+      LOGGER.debug(" ".join(cmd))
+      pout = call_subprocess(cmd, path=self.conf.hostpath)
+      for line in pout:
+        wigs.append(line.strip())
+      pout.close()
+    return wigs
+
+  def generate_bedgraph_files(self, beds):
+    '''
+    Uses makeWiggle to generate bedgraph files.
+    '''
+    # make bedgraph file(s)
+    LOGGER.info("Creating bedgraph files...")
+    bedgraphs = []
+    for bed_fn in beds:
+      cmd = ('makeWiggle', '-t', '3', '-B', '-1', bed_fn, splitext(bed_fn)[0])
+      LOGGER.debug(cmd)
+      try:  # Occasionally fails for poorer-quality genomes.
+        pout = call_subprocess(cmd, path=self.conf.hostpath)
+        for line in pout:
+          bedgraphs.append(line.strip())
+        pout.close()
+      except CalledProcessError, err:
+        LOGGER.warn("Unable to create bedGraph file: %s", err)
+    return bedgraphs
+
+  def generate_bigwig_files(self, bedgraphs, chrom_sizes):
+    '''
+    Uses bedGraphToBigWig to make bigWig file(s).
+    '''
+    LOGGER.info("Creating bigWig files...")
+    bigwigs = []
+    for bgr_fn in bedgraphs:
+      bwfile = splitext(bgr_fn)[0] + '.bw'
+      cmd = ('bedGraphToBigWig', bgr_fn, chrom_sizes, bwfile)
+      LOGGER.debug(cmd)
+      try:  # This can fail, e.g. for very small input files.
+        call_subprocess(cmd, path=self.conf.hostpath)
+        bigwigs.append(bwfile)
+      except CalledProcessError, err:
+        LOGGER.warn("Unable to create bigWig file: %s", err)
+    return bigwigs
     
   def run(self, in_fn, genome, reallocate, relaxed=False):
 
@@ -161,7 +210,7 @@ class AlignProcessingManager(object):
     if not re.search(genome, in_fn):
       LOGGER.warning("Filename does not match expected genome (%s) and so database loading may fail." % genome)
 
-    self.check_bam_vs_lane_fastq(in_fn, relaxed)
+    numreads = self.check_bam_vs_lane_fastq(in_fn, relaxed)
 
     # Set aligner, later passed as argument to AlignmentHandler.
     aligner = self.conf.aligner
@@ -188,48 +237,20 @@ class AlignProcessingManager(object):
 
     # make bed file(s)
     bed_fn = base + bedtype.suffix
-    beds  = []
+    beds      = []
+    wigs      = []
+    bedgraphs = []
+    bigwigs   = []
     bamToBed = BamToBedConverter(tc1         = genome == 'tc1',
                                  chrom_sizes = chrom_sizes)
     for outBed in bamToBed.convert(in_fn, bed_fn):
       beds.append(outBed)
 
-    # make wiggle files
-    wigs = []
-    for bed_fn in beds:
-      cmd = ('makeWiggle', '-t', '3', bed_fn, splitext(bed_fn)[0])
-      LOGGER.debug(" ".join(cmd))
-      pout = call_subprocess(cmd, path=self.conf.hostpath)
-      for line in pout:
-        wigs.append(line.strip())
-      pout.close()
-
-    # make bedgraph file(s)
-    LOGGER.info("Creating bedgraph files...")
-    bedgraphs = []
-    for bed_fn in beds:
-      cmd = ('makeWiggle', '-t', '3', '-B', '-1', bed_fn, splitext(bed_fn)[0])
-      LOGGER.debug(cmd)
-      try:  # Occasionally fails for poorer-quality genomes.
-        pout = call_subprocess(cmd, path=self.conf.hostpath)
-        for line in pout:
-          bedgraphs.append(line.strip())
-        pout.close()
-      except CalledProcessError, err:
-        LOGGER.warn("Unable to create bedGraph file: %s", err)
-
-    # make bigWig file(s)
-    LOGGER.info("Creating bigWig files...")
-    bigwigs = []
-    for bgr_fn in bedgraphs:
-      bwfile = splitext(bgr_fn)[0] + '.bw'
-      cmd = ('bedGraphToBigWig', bgr_fn, chrom_sizes, bwfile)
-      LOGGER.debug(cmd)
-      try:  # This can fail, e.g. for very small input files.
-        call_subprocess(cmd, path=self.conf.hostpath)
-        bigwigs.append(bwfile)
-      except CalledProcessError, err:
-        LOGGER.warn("Unable to create bigWig file: %s", err)
+    # Don't run this for smallRNA-seq and the like.
+    if not lib.libtype.code in self.conf.nonquant_libtypes:
+      wigs      = self.generate_wig_files(beds)
+      bedgraphs = self.generate_bedgraph_files(beds)
+      bigwigs   = self.generate_bigwig_files(bedgraphs, chrom_sizes)
         
     # We're now done with the chrom_sizes file.
     if chr_istmp:
@@ -277,6 +298,7 @@ class AlignProcessingManager(object):
     hnd     = AlignmentHandler(prog=aligner, params=params, genome=genome)
     fstatus = Status.objects.get(code='complete', authority=None)
     lane    = hnd.add(bedgz + bgrgz + wigsgz + bigwigs + [in_fn],
+                      total_reads=numreads,
                       final_status=fstatus)
 
     # Occasionally we process a bam file we're confident is completely
