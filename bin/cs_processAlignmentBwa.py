@@ -246,7 +246,10 @@ class AlignProcessingManager(object):
     for outBed in bamToBed.convert(in_fn, bed_fn):
       beds.append(outBed)
 
-    # Don't run this for smallRNA-seq and the like.
+    # Don't run this for smallRNA-seq and the like. (Update: actually
+    # it's fine to run this on reaper/tally smallRNA outputs now; we
+    # keep the config option for future use or until one of us gets
+    # tired of maintaining it).
     if not lib.libtype.code in self.conf.nonquant_libtypes:
       wigs      = self.generate_wig_files(beds)
       bedgraphs = self.generate_bedgraph_files(beds)

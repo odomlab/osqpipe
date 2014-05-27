@@ -50,8 +50,6 @@
       <value>TFIIIC</value>
     </option>
     <option name="nonquant_libtypes"><!-- Libtypes for which wig/bgr/bw file creation is inappropriate. -->
-      <value>smrnaseq</value>
-      <value>mirna</value>
       <value>bisulph-smrna</value>
     </option>
     <option name="core_facility_code">CRI</option>
