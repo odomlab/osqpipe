@@ -18,6 +18,7 @@ import grp
 import gzip
 import hashlib
 from subprocess import Popen, CalledProcessError, PIPE
+from distutils import spawn
 import threading
 from config import Config
 from setup_logs import configure_logging
@@ -83,23 +84,35 @@ def unzip_file(fname, dest=None, delete=True):
     raise IOError("Gzip output file already exists; cannot continue: %s"
                   % (dest,))
 
-  # We use the gzip module for this.
-  with open(dest, 'wb') as out_fd:
-    with gzip.open(fname, 'rb') as gz_fd:
-      for line in gz_fd:
-        out_fd.write(line)
+  # We use external gzip where available
+  if spawn.find_executable('gzip'):
+    cmd = 'gzip -dc %s > %s' % (fname, dest)
+    call_subprocess(cmd, shell=True, path=DBCONF.hostpath)
+
+  else:
+
+    # External gzip unavailable, so we use the (slower) gzip module.
+    LOGGER.warning("Using python gzip module, which may be quite slow.")
+    with open(dest, 'wb') as out_fd:
+      with gzip.open(fname, 'rb') as gz_fd:
+        for line in gz_fd:
+          out_fd.write(line)
 
   if delete:
     os.unlink(fname)
 
   return dest
 
-def rezip_file(fname, dest=None, delete=True):
+def rezip_file(fname, dest=None, delete=True, compresslevel=6):
   '''
   Compress a file using gzip.
   '''
   if is_zipped(fname):
     raise ValueError("Trying to rezip an already-zipped file: %s" % (fname,))
+
+  # Default gzip package compression level is 9; gzip executable default is 6.
+  if not compresslevel in range(1,10):
+    raise ValueError("Inappropriate compresslevel specified: %s" % (str(compresslevel),))
 
   if dest is None:
     dest = fname + DBCONF.gzsuffix
@@ -110,13 +123,18 @@ def rezip_file(fname, dest=None, delete=True):
     raise StandardError(
       "Output gzipped file already exists. Will not overwrite %s." % dest)
 
-  # Again, using the built-in gzip module rather than relying on
-  # external programs.
+  # Again, using external gzip where available but falling back on the
+  # (really quite slow) built-in gzip module where necessary.
   LOGGER.info("GZip compressing file: %s", fname)
-  with gzip.open(dest, 'wb') as gz_fd: # default compression level is 9.
-    with open(fname, 'rb') as in_fd:
-      for line in in_fd:
-        gz_fd.write(line)
+  if spawn.find_executable('gzip'):
+    cmd = 'gzip -%d -c %s > %s' % (compresslevel, fname, dest)
+    call_subprocess(cmd, shell=True, path=DBCONF.hostpath)
+  else:
+    LOGGER.warning("Using python gzip module, which may be quite slow.")
+    with gzip.open(dest, 'wb', compresslevel) as gz_fd:
+      with open(fname, 'rb') as in_fd:
+        for line in in_fd:
+          gz_fd.write(line)
 
   if delete:
     os.unlink(fname)
@@ -142,6 +160,8 @@ def checksum_file(fname):
   decompressing on the fly (i.e., the returned checksum is of the
   uncompressed data, to avoid gzip timestamps changing the MD5 sum).
   '''
+  # FIXME consider piping from external gzip (where available) rather
+  # than using gzip module?
   if is_zipped(fname):
     with gzip.open(fname, 'rb') as fileobj:
       md5 = _checksum_fileobj(fileobj)

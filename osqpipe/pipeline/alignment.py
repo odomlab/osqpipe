@@ -31,6 +31,7 @@ def count_reads(fname):
   Count the number of reads in a bed file. This function will handle
   gzipped bed files seamlessly.
   '''
+  # FIXME consider using external gzip binary where available.
   if is_zipped(fname):
     fdesc = gzip.open(fname, 'rb')
   else:
