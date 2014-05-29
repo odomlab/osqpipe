@@ -400,6 +400,30 @@ class GenericFileProcessor(object):
       self.lane.genomicssampleid = lims_lane.genomics_sample_id
       self.lane.summaryurl = lims_lane.build_summary_url()
 
+  def kick_off_alignment(self, tfiles):
+    '''
+    Start the alignment of our fastq files against the specified
+    genome.
+    '''
+    if 'noalign' in self.options:
+      LOGGER.info("Skipping alignment.")
+      return
+
+    nocc = None
+
+    # self.library.factor could be 'None' here...
+    if str(self.library.factor) in CONFIG.reallocation_factors:
+      nocc = CONFIG.nonuniquereads
+
+    # FIXME we need to remove 'incoming' as hardcoded here.
+    aligner = FastqBwaAligner(test_mode=self.test_mode,
+                              finaldir=os.path.join(CONFIG.repositorydir,
+                                                    'incoming'))
+    aligner.align_standalone(filepaths=tfiles,
+                             genome=self.library.genome,
+                             nocc=nocc,
+                             destnames=self.outfiles)
+
   def post_process(self):
     '''
     Stub method standing in for the main processing steps to be
@@ -550,30 +574,6 @@ class ChIPQseqFileProc(GenericFileProcessor):
       tnames.append(trimname)
       self.tempfiles.append(trimname)
     return tnames
-
-  def kick_off_alignment(self, tfiles):
-    '''
-    Start the alignment of our fastq files against the specified
-    genome.
-    '''
-    if 'noalign' in self.options:
-      LOGGER.info("Skipping alignment.")
-      return
-
-    nocc = None
-
-    # self.library.factor could be 'None' here...
-    if str(self.library.factor) in CONFIG.reallocation_factors:
-      nocc = CONFIG.nonuniquereads
-
-    # FIXME we need to remove 'incoming' as hardcoded here.
-    aligner = FastqBwaAligner(test_mode=self.test_mode,
-                              finaldir=os.path.join(CONFIG.repositorydir,
-                                                    'incoming'))
-    aligner.align_standalone(filepaths=tfiles,
-                             genome=self.library.genome,
-                             nocc=nocc,
-                             destnames=self.outfiles)
 
   def post_process(self):
     '''
@@ -809,6 +809,7 @@ class MiRFastqFileProc(GenericFileProcessor):
       screened_fn = self.trim_linkers(fname)
       cluster_fn = self.cluster_exact_matches(screened_fn,
                                               self._derive_fastq_basename(fname))
+      self.kick_off_alignment([cluster_fn])
       self.outfiles.append(cluster_fn)
       self.tempfiles.append(screened_fn)
     return Status.objects.get(code='complete', authority=None)
