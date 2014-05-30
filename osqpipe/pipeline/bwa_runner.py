@@ -560,6 +560,8 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     else:
       noccflag = ''
 
+    progpath = spawn.find_executable('cs_runBwaWithSplit.py', path=self.conf.clusterpath)
+
     # Next, submit the actual jobs on the actual cluster.
     if is_paired:
       LOGGER.debug("Running bwa on paired-end sequencing input.")
@@ -569,7 +571,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
       ##   --rcp       is where cs_runBwaWithSplit_Merge.py eventually copies
       ##                 the reassembled bam file (via scp).
       cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s"
-             % (spawn.find_executable('cs_runBwaWithSplit.py'),
+             % (progpath,
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
                 noccflag,
@@ -582,7 +584,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
       LOGGER.debug("Running bwa on single-end sequencing input.")
       fnlist = quote(destnames[0])
       cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s"
-             % (spawn.find_executable('cs_runBwaWithSplit.py'),
+             % (progpath,
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
                 noccflag,
@@ -802,7 +804,8 @@ class BwaRunner(object):
     # the remote command.
     self.bwa_prog      = 'bwa'
     self.samtools_prog = 'samtools'
-    self.merge_prog    = spawn.find_executable('cs_runBwaWithSplit_Merge.py')
+    self.merge_prog    = spawn.find_executable('cs_runBwaWithSplit_Merge.py',
+                                               path=self.conf.clusterpath)
     self.logfile       = self.conf.splitbwarunlog
     self.debug         = debug
 

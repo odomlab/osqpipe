@@ -110,6 +110,8 @@ class ProgramSummary(object):
     '''
     Identify the installation directory for the program of interest.
     '''
+    # FIXME currently assumes os.environ['PATH'] is to be searched; we
+    # need to be able to pass in specific path listings.
     out = spawn.find_executable(program)
     (pdir, _prog) = os.path.split(out)
 
