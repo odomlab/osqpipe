@@ -594,6 +594,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
                 self.genome,
                 fnlist))
 
+    LOGGER.info("Submitting bwa job to cluster.")
     self.job.submit_command(cmd, *args, **kwargs)
 
   @classmethod
@@ -750,7 +751,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
     if cleanup:
       cmd += (" && rm %s" % " ".join(tempfiles))
 
-    LOGGER.info("Submitting bwa job to cluster.")
+    LOGGER.info("Submitting bwa job to alignment host.")
     self.job.submit_command(cmd)
 
   @classmethod

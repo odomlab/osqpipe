@@ -91,8 +91,6 @@ class FastqAligner(object):
       lanestoprocess = lanestoprocess.filter(facility__code=facility)
 
     for lane in lanestoprocess:
-      print "Lane: %s" % (lane.lanenum)
-    # for lane in lanes.all():
       files = []
       lanecount = 0
       for fobj in [ x for x in lane.lanefile_set.all()
