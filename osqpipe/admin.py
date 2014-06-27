@@ -26,7 +26,7 @@ class AlignmentAdmin(admin.ModelAdmin):
             'mapped', 'munique', 'headtrim', 'tailtrim')
 
   def lane_link(self, obj):
-    url = reverse('admin:repository_lane_change', args=(obj.lane.pk,))
+    url = reverse('admin:osqpipe_lane_change', args=(obj.lane.pk,))
     return '<a href="%s">%s</a>' % (url, obj.lane)
   lane_link.allow_tags = True
   
@@ -43,7 +43,7 @@ class AlnfileAdmin(admin.ModelAdmin):
             'alignment', 'date', 'description')
 
   def alignment_link(self, obj):
-    url = reverse('admin:repository_alignment_change', args=(obj.alignment.pk,))
+    url = reverse('admin:osqpipe_alignment_change', args=(obj.alignment.pk,))
     return '<a href="%s">%s</a>' % (url, obj.alignment)
   alignment_link.allow_tags = True
 
@@ -119,7 +119,7 @@ class LaneQCAdmin(admin.ModelAdmin):
   fields = ('lane',)
 
   def lane_link(self, obj):
-    url = reverse('admin:repository_lane_change', args=(obj.lane.pk,))
+    url = reverse('admin:osqpipe_lane_change', args=(obj.lane.pk,))
     return '<a href="%s">%s</a>' % (url, obj.lane)
   lane_link.allow_tags = True
   
@@ -136,7 +136,7 @@ class LanefileAdmin(admin.ModelAdmin):
             'lane', 'pipeline', 'description')
     
   def lane_link(self, obj):
-    url = reverse('admin:repository_lane_change', args=(obj.lane.pk,))
+    url = reverse('admin:osqpipe_lane_change', args=(obj.lane.pk,))
     return '<a href="%s">%s</a>' % (url, obj.lane)
   lane_link.allow_tags = True
   
@@ -152,7 +152,7 @@ class LibfileAdmin(admin.ModelAdmin):
             'filetype', 'description')
 
   def library_link(self, obj):
-    url = reverse('admin:repository_library_change', args=(obj.library.pk,))
+    url = reverse('admin:osqpipe_library_change', args=(obj.library.pk,))
     return '<a href="%s">%s</a>' % (url, obj.library)
   library_link.allow_tags = True
   
@@ -194,7 +194,7 @@ class LibraryAdmin(admin.ModelAdmin):
     ]
 
   def genome_link(self, obj):
-    url = reverse('admin:repository_genome_change', args=(obj.genome.pk,))
+    url = reverse('admin:osqpipe_genome_change', args=(obj.genome.pk,))
     return '<a href="%s">%s</a>' % (url, obj.genome)
   genome_link.allow_tags = True
   
@@ -235,12 +235,12 @@ class PeakcallingAdmin(admin.ModelAdmin):
   readonly_fields = ('input_align', 'factor_align')
 
   def factor_align_link(self, obj):
-    url = reverse('admin:repository_alignment_change', args=(obj.factor_align.pk,))
+    url = reverse('admin:osqpipe_alignment_change', args=(obj.factor_align.pk,))
     return '<a href="%s">%s</a>' % (url, obj.factor_align)
   factor_align_link.allow_tags = True
   
   def input_align_link(self, obj):
-    url = reverse('admin:repository_alignment_change', args=(obj.input_align.pk,))
+    url = reverse('admin:osqpipe_alignment_change', args=(obj.input_align.pk,))
     return '<a href="%s">%s</a>' % (url, obj.input_align)
   input_align_link.allow_tags = True
 
@@ -254,7 +254,7 @@ class PeakfileAdmin(admin.ModelAdmin):
   fields = ('filename', 'peakcalling', 'filetype', 'checksum', 'description')
 
   def peakcalling_link(self, obj):
-    url = reverse('admin:repository_peakcalling_change', args=(obj.peakcalling.pk,))
+    url = reverse('admin:osqpipe_peakcalling_change', args=(obj.peakcalling.pk,))
     return '<a href="%s">%s</a>' % (url, obj.peakcalling)
   peakcalling_link.allow_tags = True
 
@@ -299,7 +299,7 @@ class QCfileAdmin(admin.ModelAdmin):
             'laneqc', 'date', 'description')
 
   def laneqc_link(self, obj):
-    url = reverse('admin:repository_laneqc_change', args=(obj.laneqc.pk,))
+    url = reverse('admin:osqpipe_laneqc_change', args=(obj.laneqc.pk,))
     return '<a href="%s">%s</a>' % (url, obj.laneqc)
   laneqc_link.allow_tags = True
 
