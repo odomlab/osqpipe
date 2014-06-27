@@ -208,7 +208,7 @@ class JobRunner(object):
     if tmpdir is None:
       tmpdir = gettempdir()
 
-    LOGGER.info(cmd)
+    LOGGER.debug(cmd)
     if not self.test_mode:
       return call_subprocess(cmd, shell=True, path=path, tmpdir=tmpdir)
     return None
@@ -297,7 +297,7 @@ class RemoteJobRunner(JobRunner):
               wdir,
               pathdef,
               re.sub(r'"', r'\"', cmd)))
-    LOGGER.info(cmd)
+    LOGGER.debug(cmd)
     if not self.test_mode:
       return call_subprocess(cmd, shell=True, path=self.config.hostpath)
     return None
@@ -323,7 +323,7 @@ class RemoteJobRunner(JobRunner):
                                     self.remote_host,
                                     quote(destfile)))) # FIXME sshfs?
 
-      LOGGER.info(cmd)
+      LOGGER.debug(cmd)
       if not self.test_mode:
         call_subprocess(cmd, shell=True, path=self.config.hostpath)
 
@@ -546,6 +546,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     paired_sanity_check(filenames, is_paired)
 
     # First, copy the files across and uncompress on the server.
+    LOGGER.info("Copying files to the cluster head node.")
     destnames = self.job.transfer_data(filenames, destnames)
 
     # Next, create flag for cleanup
@@ -655,6 +656,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
     paired_sanity_check(filenames, is_paired)
 
     # First, copy the files across and uncompress on the server.
+    LOGGER.info("Copying files to the alignment server.")
     destnames = self.job.transfer_data(filenames, destnames)
 
     outfnbase = make_bam_name(destnames[0])
@@ -748,6 +750,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
     if cleanup:
       cmd += (" && rm %s" % " ".join(tempfiles))
 
+    LOGGER.info("Submitting bwa job to cluster.")
     self.job.submit_command(cmd)
 
   @classmethod
