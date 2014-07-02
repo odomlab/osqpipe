@@ -872,9 +872,9 @@ class SplitBwaRunner(BwaRunner):
     self.commands = {
       'SPLIT'       : "split -l %s %s %s", # split -l size file.fq prefix
       'BWA_SE'      : "%s aln %s %s | %s samse %s %s - %s"
-                                + " | %s view -b -S -u - > %s",
+                                + " | %s view -b -S -u - > %s && rm %s",
       'BWA_PE1'     : "%s aln %s %s > %s",
-      'BWA_PE2'     : "%s sampe %s %s %s %s %s %s | %s view -b -S -u - > %s",
+      'BWA_PE2'     : "%s sampe %s %s %s %s %s %s | %s view -b -S -u - > %s && rm %s %s %s %s",
       'MERGE'       : "python %s --loglevel %d %s %s %s %s",
       'MERGE_RCP'   : "python %s --loglevel %d %s %s --rcp %s %s %s",
       }
@@ -905,11 +905,11 @@ class SplitBwaRunner(BwaRunner):
       LOGGER.info("Unlinking fq file '%s'", fastq_fn)
     return fq_files
 
-  def _submit_lsfjob(self, command, jobname, depend=None, sleep=0):
+  def _submit_lsfjob(self, command, jobname, depend=None, sleep=0, mem=8000):
     """ Executes command in LSF cluster """
 
     jobid = self.bsub.submit_command(command, jobname=jobname,
-                                     depend_jobs=depend, mem=8000,
+                                     depend_jobs=depend, mem=mem,
                                      path=self.conf.clusterpath,
                                      tmpdir=self.conf.clusterworkdir,
                                      queue=self.conf.clusterqueue,
@@ -946,7 +946,12 @@ class SplitBwaRunner(BwaRunner):
                               bash_quote(sai_file2),
                               bash_quote(fqname),
                               bash_quote(fq_files2[current]),
-                              self.samtools_prog, out)
+                              self.samtools_prog,
+                              out,
+                              bash_quote(sai_file1),
+                              bash_quote(sai_file2),
+                              bash_quote(fqname),
+                              bash_quote(fq_files2[current]))
 
         LOGGER.info("starting bwa step1 on '%s'", fqname)
         jobid_sai1 = self._submit_lsfjob(cmd, jobname1, sleep=current)
@@ -955,11 +960,11 @@ class SplitBwaRunner(BwaRunner):
         jobid_sai2 = self._submit_lsfjob(cmd2, jobname2, sleep=current)
         LOGGER.debug("got job id '%s'", jobid_sai2)
 
-        if jobid_sai2 and jobid_sai2:
+        if jobid_sai1 and jobid_sai2:
           LOGGER.info("preparing bwa step2 on '%s'", fqname)
           jobid_bam = self._submit_lsfjob(cmd3, jobname_bam,
                                           (jobid_sai1, jobid_sai2), sleep=current)
-          LOGGER.debug("got job id '%s'", jobid_sai2)
+          LOGGER.debug("got job id '%s'", jobid_bam)
           job_ids.append(jobid_bam)
         else:
           LOGGER.error("bjob submission for bwa step1 for '%s' or '%s' failed!",
@@ -970,7 +975,9 @@ class SplitBwaRunner(BwaRunner):
                             self.bwa_prog, self.nocc,
                             genome,
                             bash_quote(fqname),
-                            self.samtools_prog, out)
+                            self.samtools_prog,
+                            out,
+                            bash_quote(fqname))
         LOGGER.info("starting bwa on '%s'", fqname)
         LOGGER.debug(cmd)
         jobid_bam = self._submit_lsfjob(cmd, jobname_bam, sleep=current)
@@ -1008,7 +1015,7 @@ class SplitBwaRunner(BwaRunner):
 
     LOGGER.info("Preparing bwa merge on '%s'", input_files)
     LOGGER.debug(cmd)
-    jobid = self._submit_lsfjob(cmd, jobname, depend)
+    jobid = self._submit_lsfjob(cmd, jobname, depend, mem=10000)
     LOGGER.debug("got job id '%s'", jobid)
 
   def run(self, files, genome, rcp_target=None):
@@ -1087,40 +1094,11 @@ class MergeBwaRunner(BwaRunner):
       self.set_file_permissions(self.group, output_fn)
     if self.cleanup:
       for fname in input_fns:
-        # remove bam file
+
+        # Remove input bam file, as long as it's not the only one.
         if len(input_fns) > 1:
           LOGGER.info("Unlinking bam file '%s'", fname)
           os.unlink(fname)
-        # strip bam to fastq and remove
-        fq1 = os.path.splitext(fname)[0]
-        LOGGER.info("Unlinking fastq file '%s'", fq1)
-        os.unlink(fq1)
-        # strip fastq to base and check if paired end
-        (fq1base, fq1ext) = os.path.splitext(fq1)
-        base_pattern = re.compile(r'^(.*\d\d)(p\d)$')
-        matchobj = base_pattern.match(fq1base)
-
-        # If paired end pattern found, remove pe fastq and sai files.
-        # FIXME this currently fails (leaving unwanted files lying
-        # around) if the paired files don't conform to our usual
-        # naming scheme. Is there a better way?
-        if matchobj:
-          sext = matchobj.group(2)
-          if sext == 'p1':
-            pext = 'p2'
-          elif sext == 'p2':
-            pext = 'p1'
-          else:
-            raise ValueError("Unexpected paired-end designation: %s" % sext)
-          fq2 = matchobj.group(1) + pext + fq1ext
-          sai1 = fq1 + ".sai"
-          sai2 = fq2 + ".sai"
-          LOGGER.info("Unlinking fastq file '%s'", fq2)
-          os.unlink(fq2)
-          LOGGER.info("Unlinking sai file '%s'", sai1)
-          os.unlink(sai1)
-          LOGGER.info("Unlinking sai file '%s'", sai2)
-          os.unlink(sai2)
 
   def copy_result(self, target, fname):
     """Copies file to target location"""

@@ -10,13 +10,14 @@ import os.path
 import logging
 from datetime import date
 from pipes import quote
+from shutil import move
 
 from django.db import transaction
 
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging()
 
-from osqpipe.pipeline.utilities import call_subprocess, checksum_file
+from osqpipe.pipeline.utilities import call_subprocess, checksum_file, rezip_file
 from osqpipe.models import Filetype, Library, Lane, Alignment, Alnfile, Facility
 from osqpipe.pipeline.config import Config
 
@@ -44,32 +45,18 @@ class BedGraphCreator(object):
     bed = aln.alnfile_set.filter(filetype=self.bedtype).exclude(filename__contains='chr21')
     return (len(bed) == 1 and len(bgr) == 0)
 
-  def load_library(self, aln):
-    '''Convenience function to load the lane and library for a given
-    alignment.'''
-    lane = aln.lane
-    return (lane, lane.library, lane.facility.code)
-
   @transaction.commit_on_success
   def make_bed_graph(self, aln):
     '''Code wrapper for makeWiggle.'''
     bed = aln.alnfile_set.filter(filetype=self.bedtype).exclude(filename__contains='chr21')[0]
     
-    # Note that this doesn't use alnfile.repository_file_path, because
-    # it's allegedly working directly with uncompressed BED and BGR
-    # files stored in the repository. Since it's not respecting the
-    # filetype.gzip flags, I surmise that this script is old and not
-    # being used at the moment. I've therefore not gone to the trouble
-    # of writing scads of gzip-handling code to fix it at this point
-    # (TFR).
+    # Note makeWiggle can read gzipped bed files directly; we use that fact here.
     lib   = aln.lane.library
-    bedFN = os.path.join(self.conf.repositorydir,
-                         lib.code,
-                         bed.filename)
-    bgrBASE = os.path.join(self.conf.repositorydir,
-                           lib.code,
-                           os.path.splitext(bed.filename)[0])
-    bgrFN = bgrBASE + self.bgrtype.suffix
+    bedFN = bed.repository_file_path
+
+    # Write to local directory first.
+    bgrBASE = os.path.splitext(bed.filename)[0]
+    bgrFN   = bgrBASE + self.bgrtype.suffix
     cmd = BED2BGR % (quote(bedFN), quote(bgrBASE))
     LOGGER.debug(cmd)
     if not self.testMode:
@@ -79,8 +66,10 @@ class BedGraphCreator(object):
       else:
         chksum = checksum_file(bgrFN)
         bgr = Alnfile(filename=os.path.basename(bgrFN), checksum=chksum,
-                      filetype_id=self.bgrtype.id, description='',
+                      filetype=self.bgrtype, description='',
                       alignment=aln)
+        bgrFN = rezip_file(bgrFN)
+        move(bgrFN, bgr.repository_file_path)
         bgr.save()
 
   def run(self):
@@ -89,13 +78,10 @@ class BedGraphCreator(object):
 
     for aln in Alignment.objects.all():
       if self.needs_bed_graph(aln):
-        (lane, lib, facility) = self.load_library(aln)
-        LOGGER.info("%s %s%02d", lib.code, facility, lane.lanenum)
+        LOGGER.info("Creating bedgraph file for alignment %s", aln)
         self.make_bed_graph(aln)
       else:
-        (lane, lib, facility) = self.load_library(aln)
-        LOGGER.debug("skipping %s %s%02d",
-                     lib.code, facility, lane.lanenum)
+        LOGGER.debug("Skipping alignment %s", aln)
 
 ###############################################################################
 
