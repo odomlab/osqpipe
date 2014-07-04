@@ -24,7 +24,7 @@ class ProgramSummary(object):
   """
   def __init__(self, program, path = None, version = None,
                versioncmd = None, debug = None,
-               ssh_host = None, ssh_user = None, ssh_path = None ):
+               ssh_host = None, ssh_user = None, ssh_path = None, ssh_port=None ):
 
     self.program = None
     self.path    = None
@@ -135,8 +135,8 @@ class ProgramSummary(object):
     if ssh_host is None:
       program = os.path.join(self.path, self.program)
     else:
-      program = "ssh %s@%s \"PATH=%s %s\"" % (ssh_user, ssh_host,
-                                              ssh_path, self.program)
+      program = ("ssh -p %s %s@%s \"PATH=%s %s\""
+                 % (str(ssh_port), ssh_user, ssh_host, ssh_path, self.program))
 
     # If a string to tease out version from program is known:
     if versioncmd is not None and versioncmd != "":

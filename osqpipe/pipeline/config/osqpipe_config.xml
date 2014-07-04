@@ -8,6 +8,7 @@
   </section>
   <section name="Cluster">
     <option name="cluster">uk-cri-lcst01</option>
+    <option name="clusterport">22</option>
     <option name="clusteruser">fnc-odompipe</option>
     <option name="clusterstdoutdir">/lustre/dolab/fnc-odompipe/pipeline/stdout/</option>
     <option name="clusterworkdir">/lustre/dolab/fnc-odompipe/pipeline/tmp/</option>
@@ -19,6 +20,7 @@
 <!-- Uncomment the following and set appropriately if the main compute cluster is out of action.
   <section name="AlternativeAlignmentHost">
     <option name="althost">magellan.cri.camres.org</option>
+    <option name="althostport">22</option>
     <option name="althostuser">rayner01</option>
     <option name="althostpath">/usr/local/bin:/usr/bin/:/bin</option>
     <option name="althostworkdir">/Users/rayner01/Scratch_Area/production_pipeline_area</option>

@@ -258,6 +258,7 @@ class RemoteJobRunner(JobRunner):
   computing resources.
   '''
   remote_host = None
+  remote_port = 22  # ssh default
   remote_user = None
   remote_wdir = None
 
@@ -291,8 +292,9 @@ class RemoteJobRunner(JobRunner):
         path = ":".join(path)
       pathdef = "PATH=%s" % path
 
-    cmd = ("ssh %s@%s \"cd %s && %s %s\""
-           % (self.remote_user,
+    cmd = ("ssh -p %s %s@%s \"cd %s && %s %s\""
+           % (str(self.remote_port),
+              self.remote_user,
               self.remote_host,
               wdir,
               pathdef,
@@ -318,7 +320,8 @@ class RemoteJobRunner(JobRunner):
       destfile = os.path.join(self.remote_wdir, destfn)
       destfile = bash_quote(destfile)
 
-      cmd = " ".join(('scp', '-p', '-q', bash_quote(fromfn),
+      cmd = " ".join(('scp', '-P', str(self.remote_port),
+                      '-p', '-q', bash_quote(fromfn),
                       "%s@%s:%s" % (self.remote_user,
                                     self.remote_host,
                                     quote(destfile)))) # FIXME sshfs?
@@ -390,6 +393,7 @@ class ClusterJobSubmitter(RemoteJobRunner):
 
     self.conf        = Config()
     self.remote_host = self.conf.cluster
+    self.remote_port = self.conf.clusterport
     self.remote_user = self.conf.clusteruser
     self.remote_wdir = self.conf.clusterworkdir if remote_wdir is None else remote_wdir
 
@@ -424,6 +428,7 @@ class ClusterJobRunner(RemoteJobRunner):
 
     self.conf        = Config()
     self.remote_host = self.conf.cluster
+    self.remote_port = self.conf.clusterport
     self.remote_user = self.conf.clusteruser
     self.remote_wdir = self.conf.clusterworkdir if remote_wdir is None else remote_wdir
 
@@ -444,6 +449,7 @@ class DesktopJobSubmitter(RemoteJobRunner):
 
     self.conf        = Config()
     self.remote_host = self.conf.althost
+    self.remote_port = self.conf.althostport
     self.remote_user = self.conf.althostuser
     self.remote_wdir = self.conf.althostworkdir
 
@@ -609,6 +615,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     # in path and try to predict its version.
     alignerinfo = ProgramSummary(conf.aligner,
                                  ssh_host=conf.cluster,
+                                 ssh_port=conf.clusterport,
                                  ssh_user=conf.clusteruser,
                                  ssh_path=conf.clusterpath)
     indexdir = None
