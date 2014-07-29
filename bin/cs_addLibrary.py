@@ -40,9 +40,6 @@ if __name__ == '__main__':
   PARSER.add_argument('--strain', dest='strain', type=str,
                       help='The strain from which the library was derived.')
 
-  PARSER.add_argument('--description', dest='description', type=str,
-                      help='The individual from which the library was derived.')
-
   PARSER.add_argument('--factor', dest='factor', type=str,
                       help='The (typically ChIPseq) factor'
                       + ' being assayed by the library.')

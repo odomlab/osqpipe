@@ -66,7 +66,7 @@ class BedGraphCreator(object):
       else:
         chksum = checksum_file(bgrFN)
         bgr = Alnfile(filename=os.path.basename(bgrFN), checksum=chksum,
-                      filetype=self.bgrtype, description='',
+                      filetype=self.bgrtype,
                       alignment=aln)
         bgrFN = rezip_file(bgrFN)
         move(bgrFN, bgr.repository_file_path)

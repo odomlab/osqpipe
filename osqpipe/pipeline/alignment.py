@@ -247,7 +247,7 @@ class AlignmentHandler(object):
       # to do this before moving files, in case there's a naming
       # collision.
       alnfile = Alnfile.objects.create(filename=basefn, checksum=chksums[fname],
-                                       filetype=ftype, description='',
+                                       filetype=ftype,
                                        alignment=aln)
 
       # Move files to permanent locations.

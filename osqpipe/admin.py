@@ -190,7 +190,7 @@ class LibraryAdmin(admin.ModelAdmin):
      {'fields': ['libtype', 'genome', 'paired',
                  'adapter', 'linkerset', 'barcode', 'bad']}),
     ('Project Info',
-     {'fields': ['projects', 'chipsample', 'description']})
+     {'fields': ['projects', 'chipsample', 'comment']})
     ]
 
   def genome_link(self, obj):
