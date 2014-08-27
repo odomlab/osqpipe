@@ -23,7 +23,7 @@ class AlignmentAdmin(admin.ModelAdmin):
   search_fields = ('lane__library__code', 'genome__code')
   readonly_fields = ('lane',)
   fields = ('lane', 'genome',
-            'mapped', 'munique', 'headtrim', 'tailtrim')
+            'mapped', 'munique', 'total_reads', 'headtrim', 'tailtrim')
 
   def lane_link(self, obj):
     url = reverse('admin:osqpipe_lane_change', args=(obj.lane.pk,))
