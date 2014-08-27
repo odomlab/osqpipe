@@ -260,12 +260,15 @@ class RemoteJobRunner(JobRunner):
   remote_host = None
   remote_user = None
   remote_wdir = None
+  transfer_host = None
+  transfer_wdir = None
 
   def __init__(self, *args, **kwargs):
 
     # A little programming-by-contract, as it were.
     if not all( x in self.__dict__.keys()
-                for x in ('remote_host', 'remote_user', 'remote_wdir')):
+                for x in ('remote_host', 'remote_user', 'remote_wdir',
+                          'transfer_host', 'transfer_wdir')):
       raise StandardError("Remote host information not provided.")
     super(RemoteJobRunner, self).__init__(*args, **kwargs)
 
@@ -315,13 +318,17 @@ class RemoteJobRunner(JobRunner):
       fromfn = filenames[i]
       destfn = destnames[i]
 
-      destfile = os.path.join(self.remote_wdir, destfn)
+      destfile = os.path.join(self.transfer_wdir, destfn)
       destfile = bash_quote(destfile)
 
+      # Currently we assume that the same login credentials work for
+      # both the cluster and the data transfer host. Note that this
+      # needs an appropriate ssh key to be authorised on both the
+      # transfer host and the cluster host.
       cmd = " ".join(('scp', '-p', '-q', bash_quote(fromfn),
                       "%s@%s:%s" % (self.remote_user,
-                                    self.remote_host,
-                                    quote(destfile)))) # FIXME sshfs?
+                                    self.transfer_host,
+                                    quote(destfile))))
 
       LOGGER.debug(cmd)
       if not self.test_mode:
@@ -392,6 +399,16 @@ class ClusterJobSubmitter(RemoteJobRunner):
     self.remote_host = self.conf.cluster
     self.remote_user = self.conf.clusteruser
     self.remote_wdir = self.conf.clusterworkdir if remote_wdir is None else remote_wdir
+    try:
+      self.transfer_host = self.conf.transferhost
+    except AttributeError, _err:
+      LOGGER.debug("Falling back to cluster host for transfer.")
+      self.transfer_host = self.remote_host
+    try:
+      self.transfer_wdir = self.conf.transferdir
+    except AttributeError, _err:
+      LOGGER.debug("Falling back to cluster remote directory for transfer.")
+      self.transfer_wdir = self.remote_wdir
 
     # Must call this *after* setting the remote host info.
     super(ClusterJobSubmitter, self).__init__(command_builder=BsubCommand(),
@@ -426,6 +443,16 @@ class ClusterJobRunner(RemoteJobRunner):
     self.remote_host = self.conf.cluster
     self.remote_user = self.conf.clusteruser
     self.remote_wdir = self.conf.clusterworkdir if remote_wdir is None else remote_wdir
+    try:
+      self.transfer_host = self.conf.transferhost
+    except AttributeError, _err:
+      LOGGER.debug("Falling back to cluster host for transfer.")
+      self.transfer_host = self.remote_host
+    try:
+      self.transfer_wdir = self.conf.transferdir
+    except AttributeError, _err:
+      LOGGER.debug("Falling back to cluster remote directory for transfer.")
+      self.transfer_wdir = self.remote_wdir
 
     # Must call this *after* setting the remote host info.
     super(ClusterJobRunner, self).__init__(command_builder=SimpleCommand(),
@@ -446,6 +473,8 @@ class DesktopJobSubmitter(RemoteJobRunner):
     self.remote_host = self.conf.althost
     self.remote_user = self.conf.althostuser
     self.remote_wdir = self.conf.althostworkdir
+    self.transfer_host = self.remote_host
+    self.transfer_dir  = self.remote_wdir
 
     # Must call this *after* setting the remote host info.
     super(DesktopJobSubmitter, self).__init__(command_builder=NohupCommand(),
@@ -546,7 +575,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     paired_sanity_check(filenames, is_paired)
 
     # First, copy the files across and uncompress on the server.
-    LOGGER.info("Copying files to the cluster head node.")
+    LOGGER.info("Copying files to the cluster.")
     destnames = self.job.transfer_data(filenames, destnames)
 
     # Next, create flag for cleanup

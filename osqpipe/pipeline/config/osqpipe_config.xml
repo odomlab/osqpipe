@@ -15,6 +15,9 @@
     <option name="clustergenomedir">/lustre/dolab/fnc-odompipe/genomes</option>
     <option name="clusterqueue">dolab</option>
     <option name="splitbwarunlog">/home/fnc-odompipe/pipeline/log/cs_runBwaWithSplit_fnc-odompipe.log</option>
+    <option name="transferhost">hpcgate.cri.camres.org</option>
+<!-- Uncomment the following and set it if it differs at all from clusterworkdir:
+    <option name="transferdir">/lustre/dolab/fnc-odompipe/pipeline/tmp/</option> -->
   </section>
 <!-- Uncomment the following and set appropriately if the main compute cluster is out of action.
   <section name="AlternativeAlignmentHost">
