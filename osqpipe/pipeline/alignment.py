@@ -18,7 +18,6 @@ from utilities import is_zipped, parse_repository_filename, \
     checksum_file, rezip_file
 from ..models import Filetype, Lane, Alignment, Alnfile, Facility, \
     Genome, Program, DataProvenance
-from samtools import count_bam_reads
 from config import Config
 
 from progsum import ProgramSummary
@@ -38,11 +37,26 @@ def count_reads(fname):
     fdesc = open(fname, 'rb')
   mapped = 0
   unique = 0
+  checktally = True
   for line in fdesc:
     flds = line.split("\t")
-    mapped += 1
+    count = 1
+
+    # Account for tally processing of smallRNA-seq data.
+    if checktally:
+      tally = flds[3].split(':')
+      if len(tally) == 2:
+        tally = tally[1].split('_')
+        if len(tally) == 2 and tally[0] == 'count':
+          count = int(tally[1])
+        else:
+          checktally = False # these are not tally data.
+      else:
+        checktally = False # these are not tally data.
+
+    mapped += count
     if int(flds[4]) > 0:
-      unique += 1
+      unique += count
   fdesc.close()
   return (mapped, unique)
 
@@ -276,17 +290,7 @@ class AlignmentHandler(object):
     # Find the appropriate alignment. Note that aln is not yet saved
     # in the database.
     (aln, lane) = self.aln_from_bedfile(bed)
-
-    # Update the alignment with the total number of reads in the
-    # supplied bam file. This is mainly to support e.g. smallRNA-seq
-    # where the number of reads in the alignment is far smaller than
-    # the number in the fastq file.
-    if total_reads is None:
-      bam = self.identify_bam_file(files)
-      if not bam:
-        raise ValueError("Unable to identify bam file in input.")
-      total_reads = count_bam_reads(bam)
-    aln.total_reads = total_reads
+    aln.total_reads = lane.passedpf
 
     # Do some heavy lifting *outside* of our database transaction, to
     # avoid locking the db for extended periods.
