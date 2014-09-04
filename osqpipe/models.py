@@ -120,7 +120,7 @@ class Antibody(ControlledVocab):
   _controlled_field = 'name'
   
   def __unicode__(self):
-    return self.name
+    return "%s (lot: %s)" % (self.name, self.lot_number)
 
   class Meta:
     db_table = u'antibody'
