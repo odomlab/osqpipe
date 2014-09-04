@@ -112,7 +112,7 @@ class Tissue(ControlledVocab):
 
 class Antibody(ControlledVocab):
   name         = models.CharField(max_length=255)
-  lot_number   = models.CharField(max_length=64, default='unkown')
+  lot_number   = models.CharField(max_length=64, default='unknown')
   description  = models.TextField(null=True, blank=True)
 
   objects      = AntibodyManager()
