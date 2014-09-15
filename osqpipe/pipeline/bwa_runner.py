@@ -198,9 +198,12 @@ class JobRunner(object):
     self.command_builder = SimpleCommand() \
         if command_builder is None else command_builder
 
-  def run_command(self, cmd, tmpdir=None, path=None, *args, **kwargs):
+  def run_command(self, cmd, tmpdir=None, path=None, command_builder=None, *args, **kwargs):
 
-    cmd = self.command_builder.build(cmd, *args, **kwargs)
+    if command_builder:
+      cmd = command_builder.build(cmd, *args, **kwargs)
+    else:
+      cmd = self.command_builder.build(cmd, *args, **kwargs)
 
     if path is None:
       path = self.config.hostpath
@@ -272,7 +275,7 @@ class RemoteJobRunner(JobRunner):
       raise StandardError("Remote host information not provided.")
     super(RemoteJobRunner, self).__init__(*args, **kwargs)
 
-  def run_command(self, cmd, wdir=None, path=None, *args, **kwargs):
+  def run_command(self, cmd, wdir=None, path=None, command_builder=None, *args, **kwargs):
     '''
     Method used to run a command *directly* on the remote host. No
     attempt will be made to use any kind of queuing or backgrounding
@@ -282,8 +285,11 @@ class RemoteJobRunner(JobRunner):
     also automatically change to the configured remote working
     directory before executing the command.
     '''
-    cmd = self.command_builder.build(cmd, *args, **kwargs)
-    
+    if command_builder:
+      cmd = command_builder.build(cmd, *args, **kwargs)
+    else:
+      cmd = self.command_builder.build(cmd, *args, **kwargs)
+
     if wdir is None:
       wdir = self.remote_wdir
 
@@ -342,11 +348,17 @@ class RemoteJobRunner(JobRunner):
     # Note that we're assuming that the name extensions reflect the
     # compression status.
     destfile = os.path.join(self.remote_wdir, fname)
-    destfile = bash_quote(destfile)
+
+##  Note that double-quoting here gives undesired results if the
+##  filename contains square brackets. If problems recur with other
+##  filenames, consider modifying bash_quote to omit the
+##  square-bracket quoting.
+#    destfile = bash_quote(destfile)
 
     # Assumes that gzip is in the executable path on the remote server.
+    LOGGER.info("Uncompressing remote file %s", fname)
     cmd = " ".join(('gzip -f -d', quote(destfile)))
-    self.run_command(cmd)
+    self.run_command(cmd, command_builder=SimpleCommand())
 
     # Remove the .gz extension.
     return os.path.splitext(fname)[0]
