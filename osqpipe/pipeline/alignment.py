@@ -176,23 +176,36 @@ class AlignmentHandler(object):
     for num in range(len(self.prog)):
       subprog = self.prog[num]
       subprog.strip()
-      if althost is not None and subprog == self.conf.aligner:
-        # Using the alternative alignment host.
-        alignerinfo = ProgramSummary(subprog, ssh_host=althost,
-                                     ssh_user=self.conf.althostuser,
-                                     ssh_path=self.conf.althostpath)
+
+      # FIXME come up with a better heuristic than this.
+      chipseq = aln.lane.library.factor
+      if subprog in ('reallocateReads', 'samtools') \
+        and chipseq \
+        and chipseq.name in self.conf.reallocation_factors:
+
+        # These programs used on the local server.
+        alignerinfo = ProgramSummary(subprog, path=self.conf.hostpath)
+        
       else:
-        # Using the compute cluster as standard.
-        alignerinfo = ProgramSummary(subprog, ssh_host=self.conf.cluster,
-                                     ssh_user=self.conf.clusteruser,
-                                     ssh_path=self.conf.clusterpath)
+
+        # bwa, maq, gsnap et al. as launched on cluster or remote alignment host.
+        if althost is not None and subprog == self.conf.aligner:
+          # Using the alternative alignment host.
+          alignerinfo = ProgramSummary(subprog, ssh_host=althost,
+                                       ssh_user=self.conf.althostuser,
+                                       ssh_path=self.conf.althostpath)
+        else:
+          # Using the compute cluster as standard.
+          alignerinfo = ProgramSummary(subprog, ssh_host=self.conf.cluster,
+                                       ssh_user=self.conf.clusteruser,
+                                       ssh_path=self.conf.clusterpath)
       try:
         prg = Program.objects.get(program=alignerinfo.program,
                                   version=alignerinfo.version,
                                   current=True)
       except Program.DoesNotExist, _err:
         raise StandardError("Unable to find current program in database: %s %s"
-                            % (self.prog, alignerinfo.version))
+                            % (subprog, alignerinfo.version))
 
       DataProvenance.objects.create(program      = prg,
                                     parameters   = self.params[num],

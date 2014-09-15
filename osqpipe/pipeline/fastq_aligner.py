@@ -110,8 +110,8 @@ class FastqAligner(object):
                          % (wanted_filetype, lane))
 
       elif len(files) > 2:  # (paired-end reads only).
-        raise ValueError("More than two %s files found in database"
-                         + " for lane %s." % (wanted_filetype, lane))
+        raise ValueError(("More than two %s files found in database"
+                         + " for lane %s.") % (wanted_filetype, lane))
 
       self._call_aligner(files, gobj, destnames=destnames,
                         nocc=nocc, cleanup=(not nocleanup))
