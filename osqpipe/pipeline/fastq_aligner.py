@@ -80,10 +80,14 @@ class FastqAligner(object):
       raise StandardError("No sequencing lanes found for library: %s"
                           % (library,))
 
-    # We specifically want fastq ("fq") files.
-    wanted = Filetype.objects.get(code='fq')
+    if lib.libtype.code in ('smrnaseq'):
+      # SmallRNA-seq uses fasta files from the reaper/tally pipeline.
+      wanted_filetype = 'fa'
+    else:
+      # For every thing else, we want fastq ("fq") files.
+      wanted_filetype = 'fq'
 
-    LOGGER.debug("Retrieving fastq files for library from database.")
+    LOGGER.debug("Retrieving %s files for library from database.", wanted_filetype)
     lanestoprocess = lanes.all()
     if lanenum is not None:
       lanestoprocess = lanestoprocess.filter(lanenum=lanenum)
@@ -92,22 +96,22 @@ class FastqAligner(object):
 
     for lane in lanestoprocess:
       files = []
-      lanecount = 0
-      for fobj in [ x for x in lane.lanefile_set.all()
-                    if x.filetype == wanted ]:
+      for fobj in lane.lanefile_set.filter(filetype__code__iexact=wanted_filetype):
         files += [ fobj.repository_file_path ]
-        lanecount += 1
-      if lanecount > 2:
-        raise ValueError("More than one fastq file found in database for lane.")
 
       if len(files) == 0:
         LOGGER.warning(
-          "No fastq files found in database for lane %s (%s). Skipping.",
-          lane, library)
+          "No %s files found in database for lane %s. Skipping.",
+          wanted_filetype, lane)
         return
-      elif len(files) > 2:  # up to 2 (for paired-end reads).
-        raise ValueError("More than two fastq files found in database"
-                         + " for lane %d (%s)." % (lane.lane, library))
+
+      if len(files) > 1 and not lane.paired:
+        raise ValueError("Multiple %s files found for single-ended lane %s."
+                         % (wanted_filetype, lane))
+
+      elif len(files) > 2:  # (paired-end reads only).
+        raise ValueError("More than two %s files found in database"
+                         + " for lane %s." % (wanted_filetype, lane))
 
       self._call_aligner(files, gobj, destnames=destnames,
                         nocc=nocc, cleanup=(not nocleanup))
