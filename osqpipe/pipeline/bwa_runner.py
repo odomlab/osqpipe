@@ -198,9 +198,12 @@ class JobRunner(object):
     self.command_builder = SimpleCommand() \
         if command_builder is None else command_builder
 
-  def run_command(self, cmd, tmpdir=None, path=None, *args, **kwargs):
+  def run_command(self, cmd, tmpdir=None, path=None, command_builder=None, *args, **kwargs):
 
-    cmd = self.command_builder.build(cmd, *args, **kwargs)
+    if command_builder:
+      cmd = command_builder.build(cmd, *args, **kwargs)
+    else:
+      cmd = self.command_builder.build(cmd, *args, **kwargs)
 
     if path is None:
       path = self.config.hostpath
@@ -261,16 +264,19 @@ class RemoteJobRunner(JobRunner):
   remote_port = 22  # ssh default
   remote_user = None
   remote_wdir = None
+  transfer_host = None
+  transfer_wdir = None
 
   def __init__(self, *args, **kwargs):
 
     # A little programming-by-contract, as it were.
     if not all( x in self.__dict__.keys()
-                for x in ('remote_host', 'remote_user', 'remote_wdir')):
+                for x in ('remote_host', 'remote_user', 'remote_wdir',
+                          'transfer_host', 'transfer_wdir')):
       raise StandardError("Remote host information not provided.")
     super(RemoteJobRunner, self).__init__(*args, **kwargs)
 
-  def run_command(self, cmd, wdir=None, path=None, *args, **kwargs):
+  def run_command(self, cmd, wdir=None, path=None, command_builder=None, *args, **kwargs):
     '''
     Method used to run a command *directly* on the remote host. No
     attempt will be made to use any kind of queuing or backgrounding
@@ -280,8 +286,11 @@ class RemoteJobRunner(JobRunner):
     also automatically change to the configured remote working
     directory before executing the command.
     '''
-    cmd = self.command_builder.build(cmd, *args, **kwargs)
-    
+    if command_builder:
+      cmd = command_builder.build(cmd, *args, **kwargs)
+    else:
+      cmd = self.command_builder.build(cmd, *args, **kwargs)
+
     if wdir is None:
       wdir = self.remote_wdir
 
@@ -317,14 +326,18 @@ class RemoteJobRunner(JobRunner):
       fromfn = filenames[i]
       destfn = destnames[i]
 
-      destfile = os.path.join(self.remote_wdir, destfn)
+      destfile = os.path.join(self.transfer_wdir, destfn)
       destfile = bash_quote(destfile)
 
+      # Currently we assume that the same login credentials work for
+      # both the cluster and the data transfer host. Note that this
+      # needs an appropriate ssh key to be authorised on both the
+      # transfer host and the cluster host.
       cmd = " ".join(('scp', '-P', str(self.remote_port),
                       '-p', '-q', bash_quote(fromfn),
                       "%s@%s:%s" % (self.remote_user,
-                                    self.remote_host,
-                                    quote(destfile)))) # FIXME sshfs?
+                                    self.transfer_host,
+                                    quote(destfile))))
 
       LOGGER.debug(cmd)
       if not self.test_mode:
@@ -338,11 +351,17 @@ class RemoteJobRunner(JobRunner):
     # Note that we're assuming that the name extensions reflect the
     # compression status.
     destfile = os.path.join(self.remote_wdir, fname)
-    destfile = bash_quote(destfile)
+
+##  Note that double-quoting here gives undesired results if the
+##  filename contains square brackets. If problems recur with other
+##  filenames, consider modifying bash_quote to omit the
+##  square-bracket quoting.
+#    destfile = bash_quote(destfile)
 
     # Assumes that gzip is in the executable path on the remote server.
+    LOGGER.info("Uncompressing remote file %s", fname)
     cmd = " ".join(('gzip -f -d', quote(destfile)))
-    self.run_command(cmd)
+    self.run_command(cmd, command_builder=SimpleCommand())
 
     # Remove the .gz extension.
     return os.path.splitext(fname)[0]
@@ -396,6 +415,16 @@ class ClusterJobSubmitter(RemoteJobRunner):
     self.remote_port = self.conf.clusterport
     self.remote_user = self.conf.clusteruser
     self.remote_wdir = self.conf.clusterworkdir if remote_wdir is None else remote_wdir
+    try:
+      self.transfer_host = self.conf.transferhost
+    except AttributeError, _err:
+      LOGGER.debug("Falling back to cluster host for transfer.")
+      self.transfer_host = self.remote_host
+    try:
+      self.transfer_wdir = self.conf.transferdir
+    except AttributeError, _err:
+      LOGGER.debug("Falling back to cluster remote directory for transfer.")
+      self.transfer_wdir = self.remote_wdir
 
     # Must call this *after* setting the remote host info.
     super(ClusterJobSubmitter, self).__init__(command_builder=BsubCommand(),
@@ -431,6 +460,16 @@ class ClusterJobRunner(RemoteJobRunner):
     self.remote_port = self.conf.clusterport
     self.remote_user = self.conf.clusteruser
     self.remote_wdir = self.conf.clusterworkdir if remote_wdir is None else remote_wdir
+    try:
+      self.transfer_host = self.conf.transferhost
+    except AttributeError, _err:
+      LOGGER.debug("Falling back to cluster host for transfer.")
+      self.transfer_host = self.remote_host
+    try:
+      self.transfer_wdir = self.conf.transferdir
+    except AttributeError, _err:
+      LOGGER.debug("Falling back to cluster remote directory for transfer.")
+      self.transfer_wdir = self.remote_wdir
 
     # Must call this *after* setting the remote host info.
     super(ClusterJobRunner, self).__init__(command_builder=SimpleCommand(),
@@ -452,6 +491,8 @@ class DesktopJobSubmitter(RemoteJobRunner):
     self.remote_port = self.conf.althostport
     self.remote_user = self.conf.althostuser
     self.remote_wdir = self.conf.althostworkdir
+    self.transfer_host = self.remote_host
+    self.transfer_dir  = self.remote_wdir
 
     # Must call this *after* setting the remote host info.
     super(DesktopJobSubmitter, self).__init__(command_builder=NohupCommand(),
@@ -552,7 +593,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     paired_sanity_check(filenames, is_paired)
 
     # First, copy the files across and uncompress on the server.
-    LOGGER.info("Copying files to the cluster head node.")
+    LOGGER.info("Copying files to the cluster.")
     destnames = self.job.transfer_data(filenames, destnames)
 
     # Next, create flag for cleanup

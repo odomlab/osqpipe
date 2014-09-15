@@ -66,7 +66,7 @@ class Program(models.Model):
   files        = models.CharField(max_length=256, null=True, blank=True)
   type         = models.CharField(max_length=128) # FIXME we need another CV table here
   description  = models.TextField(null=True, blank=True)
-  date         = models.DateField(auto_now_add=True) # FIXME check this
+  date         = models.DateField(auto_now_add=True)
   current      = models.BooleanField(default=True)
 
   def __unicode__(self):
@@ -112,7 +112,7 @@ class Tissue(ControlledVocab):
 
 class Antibody(ControlledVocab):
   name         = models.CharField(max_length=255)
-  lot_number   = models.CharField(max_length=64, default='unkown')
+  lot_number   = models.CharField(max_length=64, default='unknown')
   description  = models.TextField(null=True, blank=True)
 
   objects      = AntibodyManager()
@@ -120,7 +120,7 @@ class Antibody(ControlledVocab):
   _controlled_field = 'name'
   
   def __unicode__(self):
-    return self.name
+    return "%s (lot: %s)" % (self.name, self.lot_number)
 
   class Meta:
     db_table = u'antibody'
@@ -228,12 +228,12 @@ class Library(models.Model):
   bad          = models.BooleanField(default=False)
   projects     = models.ManyToManyField(Project, db_table='library_project', related_name='libraries')
   libtype      = models.ForeignKey(Libtype, on_delete=models.PROTECT)
-  description  = models.TextField(null=True, blank=True) # I think this can be deprecated FIXME.
   barcode      = models.CharField(max_length=32, null=True, blank=True)
   linkerset    = models.ForeignKey(Linkerset, on_delete=models.PROTECT, null=True, blank=True)
   chipsample   = models.CharField(max_length=255, null=True, blank=True)
   paired       = models.BooleanField(default=False)
   adapter      = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True)
+  comment      = models.TextField(null=True, blank=True)
 
   objects      = LibraryManager()
 
@@ -508,7 +508,7 @@ class Datafile(models.Model):
   checksum     = models.CharField(max_length=128)
   filetype     = models.ForeignKey(Filetype, on_delete=models.PROTECT)
   description  = models.TextField(null=True, blank=True)
-  date         = models.DateField(auto_now_add=True) # FIXME check this.
+  date         = models.DateField(auto_now_add=True)
 
   @property
   def libcode(self):
@@ -576,16 +576,6 @@ class Libfile(models.Model):
     db_table = u'libfile'
     ordering = ['filename']
 
-# FIXME shortly to be deprecated
-class LibraryNameIgnore(models.Model):
-  libname      = models.CharField(max_length=128, unique=True)
-
-  def __unicode__(self):
-    return self.libname
-
-  class Meta:
-    db_table = u'library_name_ignore'
-
 # FIXME could also be deprecated, might conceivably be useful though.
 class LibraryNameMap(models.Model):
   libname      = models.CharField(max_length=128)
@@ -604,7 +594,7 @@ class Peakcalling(DataProcess):
   input_align  = models.ForeignKey(Alignment, on_delete=models.PROTECT,
                                    related_name='+', db_column='ilane_id')
   description  = models.TextField(null=True, blank=True)
-  date         = models.DateField(auto_now_add=True) # FIXME check this.
+  date         = models.DateField(auto_now_add=True)
 
   def __unicode__(self):
     provenance = ", ".join([str(x) for x in self.provenance.all().order_by('rank_index')])

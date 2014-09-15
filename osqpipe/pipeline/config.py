@@ -193,7 +193,7 @@ class Config(object):
     if key in self.__dict__.keys():
       return self.__dict__[key]
     else:
-      LOGGER.error("Attempt to retrieve unknown config key '%s'", key)
+      LOGGER.debug("Attempt to retrieve unknown config key '%s'", key)
       raise IndexError("Unknown config option '%s'" % (key,))
 
   def __setitem__(self, key, value):
@@ -215,7 +215,7 @@ class Config(object):
                'trait_names', '_getAttributeNames']:
       raise AttributeError
     else:
-      LOGGER.warn("Attempt to retrieve unknown config key '%s'", key)
+      LOGGER.debug("Attempt to retrieve unknown config key '%s'", key)
       raise AttributeError("Unknown config option '%s'" % (key,))
 
   def __setattr__(self, key, value):

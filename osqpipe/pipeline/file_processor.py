@@ -478,7 +478,7 @@ class GenericFileProcessor(object):
       (_label, _fac, _lane, pipeline) = parse_repository_filename(fname)
       fobj = Lanefile(filename=fname, checksum=chksum,
                       filetype=filetype,
-                      description="", pipeline=pipeline,
+                      pipeline=pipeline,
                       lane=self.lane)
       if filetype.gzip:
         if not self.test_mode:

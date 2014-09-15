@@ -26,12 +26,10 @@
     <tr><th>Strain: </th><td>{{ library.strain }}</td></tr>
     <tr><th>Tissue: </th><td>{{ library.tissue }}</td></tr>
     <tr><th>Sex: </th><td>{{ library.sex }}</td></tr>
-    <tr><th>Antibody: </th><td>{{ library.antibody }}
-        {% if library.antibody %} (lot: {{ library.antibody.lot_number }}){% endif %}</td></tr>
+    <tr><th>Antibody: </th><td>{{ library.antibody }}</td></tr>
     <tr><th>Individual: </th><td>{{ library.individual }}</td></tr>
     <tr><th>Factor: </th><td>{{ library.factor }}</td></tr>
     <tr><th>Library type: </th><td>{{ library.libtype }}</td></tr>
-    <tr><th>Description: </th><td>{{ library.description }}</td></tr>
     <tr><th>Barcode: </th><td>{{ library.barcode }}</td></tr>
     <tr><th>Linkerset: </th><td>{{ library.linkerset }}</td></tr>
     <tr><th>Adapter: </th><td>{{ library.adapter }}{% if library.adapter %} (sequence: {{ library.adapter.sequence }}){% endif %}</td></tr>
@@ -41,6 +39,7 @@
         &nbsp;&nbsp;( lanes: {% for lane in library.lane_set.all %}{{ lane.paired|yesno:"PE,SE" }} {% endfor %})
         {% endif %}
     </td></tr>
+    <tr><th>Comment: </th><td>{{ library.comment }}</td></tr>
     <tr><th>Bad: </th><td>{{ library.bad|yesno }}</td></tr>
   </table>
 

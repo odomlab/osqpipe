@@ -53,7 +53,7 @@ class RepoFileHandler(object):
         LOGGER.debug("basefn: '%s'" % (basefn))
         lanefile = Lanefile(filename=basefn, checksum=chksum,
                             filetype=filetype, lane=lane,
-                            description='', pipeline=pipeline)
+                            pipeline=pipeline)
         lanefile.save()
 
 ###########################################################

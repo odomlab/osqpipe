@@ -156,16 +156,6 @@ class LibraryHandler(object):
     keys['genome'] = genome
     keys['tissue'] = tissue
 
-    # Generate an ad-hoc description string.
-    if 'description' not in keys or keys['description'] is None:
-      fac = keys['factor'] if 'factor' in keys else 'unk'
-      tis = keys['tissue'] if 'tissue' in keys else 'unk'
-      ant = keys['antibody'] if 'antibody' in keys else 'unk'
-      ind = keys['individual'] if 'individual' in keys else ''
-      sta = keys['strain'] if 'strain' in keys else ''
-      keys['description'] = ("%s_%s_%s_%s%s%s"
-                             % (fac, tis, ant, keys['genome'], sta, ind))
-
     # If we're using approximate matching, check our synonyms
     # list. Note that we *could* store these directly in the
     # repository. FIXME?

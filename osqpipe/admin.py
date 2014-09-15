@@ -23,7 +23,7 @@ class AlignmentAdmin(admin.ModelAdmin):
   search_fields = ('lane__library__code', 'genome__code')
   readonly_fields = ('lane',)
   fields = ('lane', 'genome',
-            'mapped', 'munique', 'headtrim', 'tailtrim')
+            'mapped', 'munique', 'total_reads', 'headtrim', 'tailtrim')
 
   def lane_link(self, obj):
     url = reverse('admin:osqpipe_lane_change', args=(obj.lane.pk,))
@@ -190,7 +190,7 @@ class LibraryAdmin(admin.ModelAdmin):
      {'fields': ['libtype', 'genome', 'paired',
                  'adapter', 'linkerset', 'barcode', 'bad']}),
     ('Project Info',
-     {'fields': ['projects', 'chipsample', 'description']})
+     {'fields': ['projects', 'chipsample', 'comment']})
     ]
 
   def genome_link(self, obj):

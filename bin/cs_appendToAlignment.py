@@ -37,7 +37,7 @@ def _save_file_to_database(fname, aln, chksum):
   LOGGER.debug("basefn: '%s'", basefn)
   afile = Alnfile.objects.create(filename=basefn,
                                  checksum=chksum, filetype=filetype,
-                                 description='', alignment=aln)
+                                 alignment=aln)
 
   # Move files to permanent locations.
   destname = afile.repository_file_path
