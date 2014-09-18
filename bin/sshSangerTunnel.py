@@ -9,14 +9,12 @@ from socket import socket, AF_INET, SOCK_STREAM
 from syslog import syslog, LOG_ERR, LOG_INFO, LOG_WARNING
 
 # Required for OneWayTunnel:
-GATEWAY_HOSTNAME = 'ssh.sanger.ac.uk'
-REMOTE_HOSTNAME  = 'seq3b.internal.sanger.ac.uk'
-LOCAL_PORT       = 22000 # opens on localhost, connects to REMOTE_HOSTNAME:22
+LOCAL_PORT       = 22000 # opens on localhost, connects to remote host port 22
 
 # Also required for TwoWayTunnel:
 # (the IP address below is lsrv01)
 LOCAL_HOSTIP     = '10.20.192.3'
-REMOTE_PORT      = 22000 # opens on REMOTE_HOSTNAME, connects to localhost:22
+REMOTE_PORT      = 22000 # opens on remote host, connects to localhost:22
 
 # FIXME make sure the squid proxy 3128:webcache.sanger.ac.uk:3128
 # forwarding is in ~/.ssh/config prior to deploying this.
@@ -47,7 +45,7 @@ def poll_reverse_tunnel():
 
   '''Periodically ensure that the reverse tunnel is up and
   running. Returns upon loss of connection. This is used by a copy of
-  this script running on REMOTE_HOSTNAME.'''
+  this script running on the remote host.'''
 
   import time
 
@@ -65,7 +63,7 @@ class OneWayTunnel(object):
   '''Class to connect to a remote host and forward ports from target
   machines back to our local host.'''
 
-  def __init__(self, test_mode=False):
+  def __init__(self, remote_hostname, test_mode=False):
 
     import getpass
 
@@ -82,7 +80,7 @@ class OneWayTunnel(object):
     # N.B. we could add additional tunnels to this command, e.g. port
     # 22 for rsync. Often this will be better put in the ~/.ssh/config
     # file though.
-    self.ssh_flags = '-C -N -L %d:%s:22' % (LOCAL_PORT, REMOTE_HOSTNAME)
+    self.ssh_flags = '-C -N -L %d:%s:22' % (LOCAL_PORT, remote_hostname)
 
     self.test_mode = test_mode
 
@@ -234,7 +232,7 @@ class TwoWayTunnel(OneWayTunnel):
     # For forwarding other ports, e.g. https port 443, look into the
     # ~/.ssh/config file using host-specific RemoteForward
     # directives. Note that we omit the -N option here because we want
-    # to run a script on REMOTE_HOST to check for port integrity.
+    # to run a script on the remote host to check for port integrity.
     self.reverse_ssh_flags = '-p %d -C -R %d:%s:22' % (LOCAL_PORT, REMOTE_PORT, LOCAL_HOSTIP)
 
   def _scp_script_remote(self):
@@ -282,8 +280,8 @@ class TwoWayTunnel(OneWayTunnel):
         self._scp_script_remote()
 
       # Set up the reverse tunnel here. We need an SSH session going
-      # out to REMOTE_HOST over the previously-established tunnel to
-      # GATEWAY_HOST. We then run a copy of this script on REMOTE_HOST
+      # out to the remote host over the previously-established tunnel to
+      # the gateway host. We then run a copy of this script on the remote host
       # with the --revpoll option to check that the forwarded port
       # link is maintained.
       if self.grandchild is None or not self.grandchild.isalive():
@@ -338,6 +336,14 @@ if __name__ == '__main__':
                       help='The directory on the remote machine into which this script'
                          + ' will be copied. Two-way tunnels only.')
 
+  PARSER.add_argument('--gateway-host', dest='gateway', type=str, default='ssh.sanger.ac.uk',
+                      help='The gateway SSH host (default: ssh.sanger.ac.uk).')
+
+  PARSER.add_argument('--remote-host', dest='remote', type=str,
+                      default='seq3b.internal.sanger.ac.uk',
+                      help='The remote internal SSH host'
+                      + ' (default: seq3b.internal.sanger.ac.uk).')
+
   PARSER.add_argument('--testmode', dest='testmode', action='store_true',
                       help='Run the script in test mode. This will prevent the script'
                          + ' from detaching from the console as a daemon, and produce'
@@ -354,10 +360,13 @@ if __name__ == '__main__':
   # Here's where the tunnels actually get set up.
   if ARGS.twoway:
     print "Setting up a Two-way tunnel to the remote host."
-    TUNNEL = TwoWayTunnel(test_mode=ARGS.testmode, remote_dir=ARGS.remdir)
+    TUNNEL = TwoWayTunnel(remote_hostname=ARGS.remote,
+                          test_mode=ARGS.testmode,
+                          remote_dir=ARGS.remdir)
   else:
     print "Setting up a One-way tunnel to the remote host."
-    TUNNEL = OneWayTunnel(test_mode=ARGS.testmode)
+    TUNNEL = OneWayTunnel(remote_hostname=ARGS.remote,
+                          test_mode=ARGS.testmode)
 
-  TUNNEL.connect(GATEWAY_HOSTNAME)
+  TUNNEL.connect(ARGS.gateway)
 
