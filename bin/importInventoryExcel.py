@@ -188,6 +188,14 @@ class InventoryImporter(object):
           if int(barcode) > 12 and rowdict['protocol'].lower() == 'neb':
             LOGGER.error('NEB barcode index greater than 12 used; confirm sequences match TruSeq!')
             raise ValueError()
+
+      # FIXME the following protocol list should be simplified to
+      # reflect whatever we end up actually using.
+      if 'protocol' in rowdict and rowdict['protocol'].lower() in ('sureselectxt', 'sureselect', 'xt'):
+        adapter = 'XT_' + barcode
+        if int(barcode) > 16:
+          LOGGER.error('SureSelectXT barcode index greater than 16 used.')
+          raise ValueError()
           
       else:
         LOGGER.error('Uncertain which adapter scheme (e.g. TruSeq) has been used: %s',
