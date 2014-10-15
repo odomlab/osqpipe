@@ -323,7 +323,7 @@ class FlowCellQuery(object):
       print "%s UNK %s" % (flowcell_id, lims_fc.finish_date)
     for lane in lims_fc.iter_lanes():
       if flowlane_num == None or lane.lane == int(flowlane_num):
-        if lane.user_email is not None and lane.user_email.lower() in emails:
+        if any([x.lower() in emails for x in lane.user_emails]):
           self.check_lane(lane, lims_fc)
 
     return lims_fc

@@ -64,10 +64,10 @@ class LimsWatcher(object):
       run_id = run_elem.find('./runFolder').text
       lims_fc = self.lims.load_run(run_id)
       for limslane in lims_fc.iter_lanes():
-        if limslane.user_email is not None and limslane.user_email in emails:
+        if any(x in emails for x in limslane.user_emails):
 
           # Lane contains a sample we've submitted.
-          self.user_emails.add(limslane.user_email)
+          self.user_emails = self.user_emails.union(limslane.user_emails)
           lanelibs = [ x.strip() for x in limslane.user_sample_id.split(',') ]
           for libcode in lanelibs:
             try:
