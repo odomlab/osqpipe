@@ -84,21 +84,21 @@
   <section name="ControlledVocabs"> <!-- Site-specific addenda -->
     <option name="genome_synonyms">
       <option name="Amex">ame</option>
-      <option name="Cfam">cfa</option>
-      <option name="Cjac">cja</option>
-      <option name="Ggal">gga</option>
-      <option name="Ggor">ggo</option>
-      <option name="Hsap">hsa</option>
+      <option name="Cfam">canFam3</option>
+      <option name="Cjac">calJac3</option>
+      <option name="Ggal">galGal4</option>
+      <option name="Ggor">gorGor3</option>
+      <option name="Hsap">hg19</option>
       <option name="Mcas">mca</option>
-      <option name="Mdom">mdo</option>
-      <option name="Mmul">mml</option>
-      <option name="Mmus">mmu</option>
+      <option name="Mdom">monDom5</option>
+      <option name="Mmul">rheMac3</option>
+      <option name="Mmus">mm10</option>
       <option name="Mspr">msp</option>
-      <option name="Ocun">ocu</option>
-      <option name="Pham">pha</option>
+      <option name="Ocun">oryCun2</option>
+      <option name="Pham">papHam1</option>
       <option name="Ppyg">ppy</option>
-      <option name="Ptro">ptr</option>
-      <option name="Rnor">rno</option>
+      <option name="Ptro">panTro4</option>
+      <option name="Rnor">rn5</option>
       <option name="Xtro">xtr</option>
     </option>
   </section>

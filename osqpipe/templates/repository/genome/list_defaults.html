@@ -1,24 +1,25 @@
 {% extends "repository/base.html" %}
 
-{% block title %} Genomes List {% endblock %}
+{% block title %} Default Genomes List {% endblock %}
 
 {% block content %}
 
-  <span><a href="{% url "default-genome-list" %}">Default Genome codes</a></span>
+  <p>These default genome codes should only be used for
+  rough guidance when starting new projects; for established projects
+  you will want to explicitly request
+  a <a href="{% url "genome-list" %}">specific genome version</a>.</p>
 
-  {% include "repository/simple_search_form.html" %}
-
-  {% if genomes %}
+  {% if synonyms %}
     <table class="fixed-widths">
       <tr>
-        <th>Common name</th>
-        <th>Code</th>
+        <th>Default genome name</th>
+        <th>Actual genome code used</th>
         <th>Scientific name</th>
         <th>Version</th>
       </tr>
-    {% for gen in genomes %}
+    {% for syn, gen in synonyms.iteritems %}
       <tr>
-        <td>{{ gen.common_name }}</td>
+        <td>{{ syn }}</td>
         <td>{{ gen.code }}</td>
         <td>{{ gen.scientific_name }}</td>
         <td>{{ gen.version }}</td>
