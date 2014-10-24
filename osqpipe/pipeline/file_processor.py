@@ -124,6 +124,7 @@ class GenericFileProcessor(object):
     try:
       (self.libcode, self.flowcell, self.flowlane, _flowpair)\
         = parse_incoming_fastq_name(self.basename, ext='')
+      self.flowlane = int(self.flowlane)
     except StandardError, _err:
       if libcode is None or flowcell is None or flowlane is None:
         raise StandardError(
