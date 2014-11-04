@@ -953,8 +953,9 @@ class FileProcessingManager(object):
     # metadata file.
     chksum = checksum_file(fname)
     if chksum != metadata['md5']:
-      LOGGER.warning("Md5sum not same as in metadata file. Quitting.")
-      sys.exit("Md5sum not same as in metadata file.")
+      ## Note we cannot assume this will be correct now that we are
+      ## postprocessing bam files to remove QC-fail reads.
+      LOGGER.warning("Md5sum not same as in metadata file.")
 
     # As the flowcell id is not known (i.e. is not available easily,
     # improvise flowcell id from run number
