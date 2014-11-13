@@ -339,8 +339,8 @@ class GenericFileProcessor(object):
         # must be an old-style lane, with flow cell instead of run number
 #        self.lane.flowcell = self.lane.runnumber
         self.lane.runnumber = None
-    self.lane.seqsamplepf = "\n".join(goodreads)
-    self.lane.seqsamplebad = "\n".join(badreads)
+    self.lane.seqsamplepf = "\n".join(goodreads[1:100])
+    self.lane.seqsamplebad = "\n".join(badreads[1:100])
 
   def collect_lims_info(self):
     '''
