@@ -1,7 +1,9 @@
 from django.conf.urls import patterns, include, url
 from django.views.generic import DetailView, ListView, UpdateView, TemplateView
 from models import Project
-from views import ProjectListView, LibraryListView, GenomeListView, LibraryDetailView, LaneDetailView, QualplotDetailView, FileDownloadView, TempfileDownloadView, LibrarySearchView
+from views import ProjectListView, LibraryListView, GenomeListView, DefaultGenomeListView, \
+    LibraryDetailView, LaneDetailView, QualplotDetailView, \
+    FileDownloadView, TempfileDownloadView, LibrarySearchView
 from django.core.urlresolvers import reverse_lazy
 
 # Examples:
@@ -56,6 +58,11 @@ urlpatterns = patterns(
   url(r'^genome/$',
       GenomeListView.as_view(),
       name='genome-list',
+      ),
+
+  url(r'^default_genome/$',
+      DefaultGenomeListView.as_view(),
+      name='default-genome-list',
       ),
 
   # Our login and logout urls are managed within this application but

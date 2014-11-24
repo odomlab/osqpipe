@@ -124,13 +124,17 @@ class GenericFileProcessor(object):
     try:
       (self.libcode, self.flowcell, self.flowlane, _flowpair)\
         = parse_incoming_fastq_name(self.basename, ext='')
+      self.flowlane = int(self.flowlane)
     except StandardError, _err:
-      if libcode is None or flowcell is None or flowlane is None:
+      if libcode is None or flowcell is None or flowlane is None or flowlane == 0:
         raise StandardError(
-          "%s; consider supplying lane identifying metadata manually." % _err)
+          "Problem identifying libcode/flowcell/flowlane:\n%s; consider supplying lane identifying metadata manually." % _err)
       self.libcode  = libcode
       self.flowcell = flowcell
       self.flowlane = flowlane
+
+    LOGGER.debug("Identified %s: %s (lane %d) from fastq filename.",
+                 self.libcode, self.flowcell, self.flowlane)
 
     try:
       self.library = Library.objects.get(code=self.libcode)
@@ -250,7 +254,7 @@ class GenericFileProcessor(object):
       self.lane = Lane(facility = facobj,
                        library  = self.library,
                        flowcell = self.flowcell,
-                       flowlane = self.flowlane,
+                       flowlane = int(self.flowlane),
                        lanenum  = Lane.objects.next_lane_number(self.library),
                        status   = newstatus)
 
@@ -309,37 +313,41 @@ class GenericFileProcessor(object):
       flds = line.split()
       if flds[0] == "empty":
         LOGGER.warning("%s: no data", self.files[0])
-        self.lane.machine = "unknown"
+        self.lane.runnumber = 'unknown'
       keyword = flds[0]
       if len(flds) > 2:
         data = [ float(x) for x in flds[1:] ]
       else:
         data = flds[1]
 
-      # FIXME better definition of keywords populating lane info would
-      # be good here.
       if keyword == 'good':
         goodreads.append(data)
       elif keyword == 'bad':
         badreads.append(data)
-      else:
+      elif keyword in ('runnumber','reads','passedpf',
+                       'qualmean','qualstdev','qualmeanpf','qualstdevpf'):
+
+        # Note that we omit flowlane deliberately; it is no longer
+        # parsed correctly by summarizeFile (and is not all that
+        # desirable to change at this point in the code!). Also,
+        # machine is now better identified via the upstream LIMS.
 
         # This is a bit ugly. Is there a better way using Django?
         vars(self.lane)[keyword] = data
         LOGGER.debug("LaneInfo: '%s' => '%s'", keyword, flds[1])
 
     pout.close()
-    if self.lane.machine is None:
-      LOGGER.error("No machine information parsed from file header.")
+    if self.lane.runnumber is None:
+      LOGGER.error("No runnumber information parsed from file header.")
       raise(Exception("Problem collecting information from file."))
-    if 'runnumber' in vars(self.lane):
-      chars_in_num = sum([ not x.isdigit() for x in self.lane.runnumber ])
-      if chars_in_num > 0:
-        # must be an old-style lane, with flow cell instead of run number
+#    if 'runnumber' in vars(self.lane):
+#      chars_in_num = sum([ not x.isdigit() for x in self.lane.runnumber ])
+#      if chars_in_num > 0:
+#        # must be an old-style lane, with flow cell instead of run number
 #        self.lane.flowcell = self.lane.runnumber
-        self.lane.runnumber = None
-    self.lane.seqsamplepf = "\n".join(goodreads)
-    self.lane.seqsamplebad = "\n".join(badreads)
+#        self.lane.runnumber = None
+    self.lane.seqsamplepf = "\n".join(goodreads[1:100])
+    self.lane.seqsamplebad = "\n".join(badreads[1:100])
 
   def collect_lims_info(self):
     '''
@@ -354,6 +362,7 @@ class GenericFileProcessor(object):
         self.lane.rundate = date(2008, 1, 1)
       return
     self.lane.rundate = lims_fc.finish_date
+    self.lane.machine = lims_fc.instrument
     lims_lane = lims_fc.get_sample_lane(self.flowlane, self.libcode)
     if lims_lane != None:
       self.lane.usersampleid = lims_lane.user_sample_id
@@ -952,8 +961,9 @@ class FileProcessingManager(object):
     # metadata file.
     chksum = checksum_file(fname)
     if chksum != metadata['md5']:
-      LOGGER.warning("Md5sum not same as in metadata file. Quitting.")
-      sys.exit("Md5sum not same as in metadata file.")
+      ## Note we cannot assume this will be correct now that we are
+      ## postprocessing bam files to remove QC-fail reads.
+      LOGGER.warning("Md5sum not same as in metadata file.")
 
     # As the flowcell id is not known (i.e. is not available easily,
     # improvise flowcell id from run number

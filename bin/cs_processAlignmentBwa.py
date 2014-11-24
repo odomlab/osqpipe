@@ -301,7 +301,6 @@ class AlignProcessingManager(object):
     hnd     = AlignmentHandler(prog=aligner, params=params, genome=genome)
     fstatus = Status.objects.get(code='complete', authority=None)
     lane    = hnd.add(bedgz + bgrgz + wigsgz + bigwigs + [in_fn],
-                      total_reads=numreads,
                       final_status=fstatus)
 
     # Occasionally we process a bam file we're confident is completely

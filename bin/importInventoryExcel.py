@@ -172,26 +172,40 @@ class InventoryImporter(object):
     if barcode:  # If we have a barcode number we need to know the scheme
 
       # NEB and TruSeq barcodes are identical, at least up to TS_12.
-      if 'protocol' in rowdict and rowdict['protocol'].lower() in ('truseq', 'neb'):
+      if 'protocol' in rowdict:
+        prottag = re.sub(' ', '', rowdict['protocol'].lower())
+        if prottag in ('truseq', 'neb'):
 
-        # TruSeq adapters have standard names in the repository.
-        if rowdict['assaytype'].lower() == 'smrnaseq':
-          adapter = 'smRNA_TS_' + barcode   # smRNAseq
+          # TruSeq adapters have standard names in the repository.
+          if rowdict['assaytype'].lower() == 'smrnaseq':
+            adapter = 'smRNA_TS_' + barcode   # smRNAseq
 
-          # Often, linkerset is not given but it's easily guessed.
-          if 'linkerset' not in rowdict or rowdict['linkerset'] == '':
-            linkerset = 'TruSeqSmRNAIndex' + barcode
+            # Often, linkerset is not given but it's easily guessed.
+            if 'linkerset' not in rowdict or rowdict['linkerset'] == '':
+              linkerset = 'TruSeqSmRNAIndex' + barcode
+
+          else:
+            adapter = 'TS_' + barcode    # not smRNAseq
+
+            if int(barcode) > 12 and rowdict['protocol'].lower() == 'neb':
+              LOGGER.error('NEB barcode index greater than 12 used; confirm sequences match TruSeq!')
+              raise ValueError()
+
+        # FIXME the following protocol list should be simplified to
+        # reflect whatever we end up actually using.
+        elif prottag in ('agilentsureselectxt', 'sureselectxt', 'sureselect', 'xt'):
+          adapter = 'XT_' + barcode
+          if int(barcode) > 16:
+            LOGGER.error('SureSelectXT barcode index greater than 16 used.')
+            raise ValueError()
 
         else:
-          adapter = 'TS_' + barcode    # not smRNAseq
-
-          if int(barcode) > 12 and rowdict['protocol'].lower() == 'neb':
-            LOGGER.error('NEB barcode index greater than 12 used; confirm sequences match TruSeq!')
-            raise ValueError()
+          LOGGER.error('Uncertain which adapter scheme (e.g. TruSeq) has been used: %s',
+                       libcode)
+          raise ValueError()
           
       else:
-        LOGGER.error('Uncertain which adapter scheme (e.g. TruSeq) has been used: %s',
-                     libcode)
+        LOGGER.error('Protocol not specified in spreadsheet for library %s', libcode)
         raise ValueError()
       
     elif needs_adapter:

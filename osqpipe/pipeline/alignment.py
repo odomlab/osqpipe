@@ -18,6 +18,7 @@ from utilities import is_zipped, parse_repository_filename, \
     checksum_file, rezip_file
 from ..models import Filetype, Lane, Alignment, Alnfile, Facility, \
     Genome, Program, DataProvenance
+from samtools import BamToBedConverter
 from config import Config
 
 from progsum import ProgramSummary
@@ -71,16 +72,17 @@ class AlignmentHandler(object):
   def __init__(self, genome, prog, params='', headtrim=0, tailtrim=0):
     LOGGER.setLevel(logging.INFO)
 
-    # Program and parameters can be a list, but they must agree on
-    # their type. We allow an empty default params string for the sake
-    # of a simpler API.
-    if (type(prog) != type(params)) and (params != ''):
-      raise TypeError("Both prog and params arguments must be of the same"
-                      + " type: list, or string.")
-    if type(prog) is str:
+    # Program and parameters can be a list or scalar. Params elements
+    # should always be string; program can be either string or
+    # osqpipe.models.Program.
+    if all([ type(x) is not list for x in (prog, params) ]):
+
+      # Scalar arguments
       self.prog    = [ prog ]
       self.params  = [ params ]
     elif type(prog) is list:
+
+      # List arguments (params may be the default empty string)
       if len(prog) != len(params):
         if params == '': # handle the empty default.
           self.params = [ '' for _x in prog ]
@@ -90,8 +92,7 @@ class AlignmentHandler(object):
       self.prog    = prog
       self.params  = params
     else:
-      raise TypeError("The prog argument is neither a list nor a string (%s)."
-                      % type(prog))
+      raise TypeError("The params argument cannot be a list if prog is a scalar")
 
     self.genome  = genome
     self.headtrim = headtrim
@@ -134,48 +135,58 @@ class AlignmentHandler(object):
                      + " Loading against the wrong genome (%s)?" % self.genome)
 
     (code, facility, lanenum, _pipeline) = parse_repository_filename(bed)
-    lanes  = Lane.objects.filter(library__code=code)
-    facobj = Facility.objects.get(code=facility)
-    lanelist = [lane for lane in lanes
-                if lane.facility == facobj and lane.lanenum == lanenum]
-    if len(lanelist) == 0:
+    lanelist  = Lane.objects.filter(library__code=code, 
+                                    facility__code=facility, 
+                                    lanenum=lanenum)
+    if lanelist.count() == 0:
       raise ValueError("Could not find lane for '%s'" % (bed))
-    elif len(lanelist) > 1:
+    elif lanelist.count() > 1:
       raise ValueError(("Found multiple lanes for '%s': "
                        % (bed,)) + ", ".join([x.id for x in lanelist]))
     else:
       lane = lanelist[0]
-      (mapped, unique) = count_reads(bed)
-      gen = Genome.objects.get(code=self.genome)
 
-      # We don't save this yet because we're not currently within a
-      # transaction. Also note that total_reads is not yet set.
-      aln = Alignment(lane       = lane,
-                      genome     = gen,
-                      mapped     = mapped,
-                      munique    = unique,
-                      headtrim   = self.headtrim,
-                      tailtrim   = self.tailtrim)
-
-      # We need to detect the appropriate version. FIXME automatically
-      # add new versions to the program table?
+      aln = self._create_alignment(bed, lane)
 
     return (aln, lane)
 
-  def _add_data_provenance(self, aln):
-    '''
-    Update the alignment object with data provenance information.
-    '''
-    # As program may be made of comma separate list of programs,
-    # parse each if these individually and join the results
+  def _create_alignment(self, bed, lane):
+
+    (mapped, unique) = count_reads(bed)
+    gen = Genome.objects.get(code=self.genome)
+
+    # We don't save this yet because we're not currently within a
+    # transaction.
+    aln = Alignment(lane        = lane,
+                    genome      = gen,
+                    mapped      = mapped,
+                    munique     = unique,
+                    total_reads = lane.passedpf,
+                    headtrim    = self.headtrim,
+                    tailtrim    = self.tailtrim)
+    return (aln)
+
+  def _find_versioned_program(self, subprog, factor):
+
     try:
       althost = self.conf.althost
       assert(althost != '')
     except AttributeError, _err:
       althost = None
-    for num in range(len(self.prog)):
-      subprog = self.prog[num]
-      subprog.strip()
+
+    subprog.strip()
+
+    # FIXME come up with a better heuristic than this.
+    if subprog in ('reallocateReads', 'samtools') \
+          and factor \
+          and factor.name in self.conf.reallocation_factors:
+
+      # These programs used on the local server.
+      alignerinfo = ProgramSummary(subprog, path=self.conf.hostpath)
+        
+    else:
+
+      # bwa, maq, gsnap et al. as launched on cluster or remote alignment host.
       if althost is not None and subprog == self.conf.aligner:
         # Using the alternative alignment host.
         alignerinfo = ProgramSummary(subprog, ssh_host=althost,
@@ -186,13 +197,31 @@ class AlignmentHandler(object):
         alignerinfo = ProgramSummary(subprog, ssh_host=self.conf.cluster,
                                      ssh_user=self.conf.clusteruser,
                                      ssh_path=self.conf.clusterpath)
-      try:
-        prg = Program.objects.get(program=alignerinfo.program,
-                                  version=alignerinfo.version,
+    try:
+      prg = Program.objects.get(program=alignerinfo.program,
+                                version=alignerinfo.version,
                                   current=True)
-      except Program.DoesNotExist, _err:
-        raise StandardError("Unable to find current program in database: %s %s"
-                            % (self.prog, alignerinfo.version))
+    except Program.DoesNotExist, _err:
+      raise StandardError("Unable to find current program in database: %s %s"
+                          % (subprog, alignerinfo.version))
+    return prg
+
+  def _add_data_provenance(self, aln):
+    '''
+    Update the alignment object with data provenance information.
+    '''
+    # As program may be made of comma separate list of programs,
+    # parse each if these individually and join the results
+
+    for num in range(len(self.prog)):
+      subprog = self.prog[num]
+
+      # Support the use of string program names or Django Program
+      # objects.
+      if issubclass(str, type(subprog)):
+        prg = self._find_versioned_program(subprog, aln.lane.library.factor)
+      elif issubclass(Program, type(subprog)):
+        prg = subprog
 
       DataProvenance.objects.create(program      = prg,
                                     parameters   = self.params[num],
@@ -257,10 +286,18 @@ class AlignmentHandler(object):
         basefn = fnparts[0]
       LOGGER.debug("basefn: '%s'", basefn)
 
+      # Allow a little latitude when retrieving the file checksum (it
+      # may have been stored with or without the trailing .gz).
+      try:
+        chksum = chksums[fname]
+      except KeyError, _err:
+        chksum = chksums[basefn]
+
       # Attempt to save a file record to the database; it's important
       # to do this before moving files, in case there's a naming
       # collision.
-      alnfile = Alnfile.objects.create(filename=basefn, checksum=chksums[fname],
+      alnfile = Alnfile.objects.create(filename=basefn,
+                                       checksum=chksum,
                                        filetype=ftype,
                                        alignment=aln)
 
@@ -273,7 +310,7 @@ class AlignmentHandler(object):
       aln.lane.status = final_status
       aln.lane.save()
 
-  def add(self, files, final_status=None, total_reads=None):
+  def add(self, files, final_status=None):
 
     '''
     Process a list of filenames (files must exist on disk). The
@@ -290,7 +327,6 @@ class AlignmentHandler(object):
     # Find the appropriate alignment. Note that aln is not yet saved
     # in the database.
     (aln, lane) = self.aln_from_bedfile(bed)
-    aln.total_reads = lane.passedpf
 
     # Do some heavy lifting *outside* of our database transaction, to
     # avoid locking the db for extended periods.
@@ -318,4 +354,26 @@ class AlignmentHandler(object):
     # probably defunct though).
     return lane
 
+  def add_bam_to_lane(self, bam, lane, tc1=False, chrom_sizes=None):
+    '''
+    Generate a bed file from a bam file and add both to the given
+    lane. This method is typically used from within an ipython shell to
+    handle unusual cases outside the main pipeline. Note that genome
+    and data provenance info is passed in via the class attributes
+    prog and params.
+    '''
+    bam_to_bed = BamToBedConverter(tc1=tc1, chrom_sizes=chrom_sizes)
+    base       = os.path.splitext(bam)[0]
+    
+    bedtype = Filetype.objects.get(code='bed')
+    bed_fn  = base + bedtype.suffix
+    beds    = bam_to_bed.convert(bam, bed_fn)
+    chksums = dict( (fname, checksum_file(fname)) for fname in [bam] + beds )
 
+    # First bed file is the main one.
+    aln     = self._create_alignment(beds[0], lane)
+
+    if bedtype.gzip:
+      bedgz = [ rezip_file(bed) for bed in beds ]
+
+    self._save_to_repository([bam] + bedgz, chksums, aln)

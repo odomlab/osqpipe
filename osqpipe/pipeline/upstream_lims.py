@@ -139,7 +139,7 @@ class LimsLane(object):
     # itself. Note that the iter_lanes mechanism from LimsFlowCell
     # effectively makes these objects only safe to use as read-only.
     for key in ('lane', 'user_sample_id',
-                'user_email', 'genomics_sample_id'):
+                'user_emails', 'genomics_sample_id'):
       self.__dict__[key] = fields.get(key)
 
     # Dict of file location lists keyed by filetype string
@@ -366,7 +366,8 @@ class Lims(object):
     LOGGER.debug("LIMS: Pointing at REST API '%s'", uri)
 
     # Cache for downloaded data (see load_run).
-    self._run_details = {}
+    self._run_details  = {}
+    self._fcid_mapping = {}
 
     # Retrieve the boilerplate help page as a test.
     req = requests.get(self.uri)
@@ -404,12 +405,17 @@ class Lims(object):
     runid = self.run_id_from_flowcell(flowcell)
     return self.load_run(runid)
 
-  def run_id_from_flowcell(self, flowcell):
+  def run_id_from_flowcell(self, flowcell, requery=False):
     '''
     Runs a set of queries, up to a currently hard-coded time limit
     of about one month in the past, to map a flowcell ID onto a more
     canonical run ID.
     '''
+    # Check there isn't already some cached data for this flowcell ID.
+    if flowcell in self._fcid_mapping and not requery:
+      LOGGER.debug("Returning cached run_id for flowcell: %s", flowcell)
+      return self._fcid_mapping[flowcell]
+
     runid = None
     fib   = [1, 1]
 
@@ -441,6 +447,8 @@ class Lims(object):
       LOGGER.error("No run ID found corresponding to flowcell: %s", flowcell)
       raise StandardError("Unable to retrieve flowcell Run ID.")
 
+    self._fcid_mapping[flowcell] = runid
+
     return runid
 
   def load_run(self, run_id, requery=False):
@@ -455,6 +463,8 @@ class Lims(object):
       return LimsFlowCell(self._run_details[run_id])
 
     root = get_lims_run_details(self.uri, run_id)
+    people = User.objects.filter(is_active=True)
+    emails = munge_cruk_emails([x.email.lower() for x in people])
 
     # Now we pull out various bits of information and cache them for
     # later.
@@ -474,22 +484,17 @@ class Lims(object):
       # rather than fudging with a comma-separated string.
       lanedict = {
         'lane'             : int(lanenum),
-        'user_sample_id'   : ",".join([ x.text for x in
-                                        lanelib.findall('./sample/name')]),
         'genomics_sample_id' : lanelib.find('./slxId').text,
         }
 
       # There's some inconsistency in the LIMS output regarding where
       # the project element gets attached.
       try:
-        lanedict['user_email'] = \
-            lanelib.find('./project/owner/email').text
+        lanedict['user_emails'] = \
+            [ lanelib.find('./project/owner/email').text ]
       except AttributeError, _err:
-        try:
-          lanedict['user_email'] = \
-              lanelib.find('./sample/project/owner/email').text
-        except AttributeError, _err:
-          lanedict['user_email'] = None # Some lanes just don't have an email.
+        lanedict['user_emails'] = \
+            [ x.text for x in lanelib.findall('./sample/project/owner/email') ]
 
       # Store Lane-level data file info.
       filedict = {}
@@ -515,9 +520,19 @@ class Lims(object):
 
       # Store Sample-level (demultiplexed) data file info (FASTQ only
       # at the moment).
+      # Structure is:
+      #    sampledict = { libcode : [ FASTQ_filenames ] }
       sampledict = {}
       wanted = re.compile(r'Read \d+ FASTQ$')
       for sample_elem in lanelib.findall('./sample'):
+
+        try: # Don't record samples which are definitely not ours.
+          sample_user = sample_elem.find('./project/owner/email').text
+          if sample_user not in emails:
+            continue
+        except AttributeError, _err:
+          pass
+
         libcode = sample_elem.find('./name').text
         demux_list = sampledict.setdefault(libcode, [])
         for file_elem in sample_elem.findall('./file'):
@@ -530,6 +545,7 @@ class Lims(object):
             demux_list.append(newfile)
 
       lanedict['samples'] = sampledict
+      lanedict['user_sample_id'] = ",".join(sampledict.keys())
 
       lanes.append(lanedict)
 
@@ -537,11 +553,8 @@ class Lims(object):
     # demultiplexed FASTQ present for every sample in every lane, set
     # analysis_status to 'COMPLETE'. This needs to only check the lanes
     # we're actually interested in.
-    people = User.objects.filter(is_active=True)
-    emails = munge_cruk_emails([x.email.lower() for x in people])
     ourlanes = [ ldict for ldict in lanes
-                        if ldict['user_email'] is not None
-                       and ldict['user_email'] in emails ]
+                        if any(x in emails for x in ldict['user_emails']) ]
     demux_fastq = []
     lane_fastq  = []
     for ldict in ourlanes:

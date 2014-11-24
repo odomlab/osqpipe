@@ -86,7 +86,7 @@ def unzip_file(fname, dest=None, delete=True):
 
   # We use external gzip where available
   if spawn.find_executable('gzip', path=DBCONF.hostpath):
-    cmd = 'gzip -dc %s > %s' % (fname, dest)
+    cmd = 'gzip -dc %s > %s' % (bash_quote(fname), bash_quote(dest))
     call_subprocess(cmd, shell=True, path=DBCONF.hostpath)
 
   else:
@@ -127,7 +127,7 @@ def rezip_file(fname, dest=None, delete=True, compresslevel=6):
   # (really quite slow) built-in gzip module where necessary.
   LOGGER.info("GZip compressing file: %s", fname)
   if spawn.find_executable('gzip', path=DBCONF.hostpath):
-    cmd = 'gzip -%d -c %s > %s' % (compresslevel, fname, dest)
+    cmd = 'gzip -%d -c %s > %s' % (compresslevel, bash_quote(fname), bash_quote(dest))
     call_subprocess(cmd, shell=True, path=DBCONF.hostpath)
   else:
     LOGGER.warning("Using python gzip module, which may be quite slow.")

@@ -6,6 +6,7 @@ from django.http import Http404, HttpResponse
 from django.utils.translation import ugettext as _
 from django.shortcuts import get_object_or_404, redirect
 from django.views.generic.edit import FormMixin
+from collections import OrderedDict
 
 from models import Library, Project, Genome, Lane, Alnfile, Lanefile, QCfile, Peakfile
 from forms import SimpleSearchForm, LibrarySearchForm, LibraryProjectPicker
@@ -124,6 +125,25 @@ class GenomeListView(FilterMixin, FormListView):
     'sciname'     : 'scientific_name__icontains',
     'version'     : 'version__icontains',
     }
+
+class DefaultGenomeListView(MyListView):
+  context_object_name = 'genomes'
+  template_name       = 'repository/genome/list_defaults.html'
+  paginate_by         = 9999 # Short list should never really need pagination.
+  allow_empty         = True
+
+  def get_queryset(self):
+    self.queryset = Genome.objects.filter(code__in=CONFIG.genome_synonyms.values())
+    return super(DefaultGenomeListView, self).get_queryset()
+  
+  def get_context_data(self, *args, **kwargs):
+    '''Map genome synonyms to actual genome objects.'''
+    context = super(DefaultGenomeListView, self).get_context_data(*args, **kwargs)
+    syn     = CONFIG.genome_synonyms
+    gen     = dict( (x.code, x) for x in self.get_queryset() )
+    syn     = OrderedDict( (k, gen.setdefault(syn[k], '')) for k in sorted(syn) ) 
+    context['synonyms'] = syn
+    return context
 
 class LibrarySearchView(MyFormView):
   template_name = 'repository/library/search.html'
