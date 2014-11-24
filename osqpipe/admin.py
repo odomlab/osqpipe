@@ -99,7 +99,7 @@ class LaneAdmin(admin.ModelAdmin):
     (None,
      {'fields': ['library', 'facility', 'lanenum']}),
     ('Run Data',
-     {'fields': ['flowcell', 'runnumber', 'machine', 'rundate', 'paired', 'readlength']}),
+     {'fields': ['flowcell', 'flowlane', 'runnumber', 'machine', 'rundate', 'paired', 'readlength']}),
     ('LIMS Record',
      {'fields': ['genomicssampleid', 'usersampleid']}),
     ('QC Data',

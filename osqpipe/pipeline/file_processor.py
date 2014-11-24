@@ -126,12 +126,15 @@ class GenericFileProcessor(object):
         = parse_incoming_fastq_name(self.basename, ext='')
       self.flowlane = int(self.flowlane)
     except StandardError, _err:
-      if libcode is None or flowcell is None or flowlane is None:
+      if libcode is None or flowcell is None or flowlane is None or flowlane == 0:
         raise StandardError(
-          "%s; consider supplying lane identifying metadata manually." % _err)
+          "Problem identifying libcode/flowcell/flowlane:\n%s; consider supplying lane identifying metadata manually." % _err)
       self.libcode  = libcode
       self.flowcell = flowcell
       self.flowlane = flowlane
+
+    LOGGER.debug("Identified %s: %s (lane %d) from fastq filename.",
+                 self.libcode, self.flowcell, self.flowlane)
 
     try:
       self.library = Library.objects.get(code=self.libcode)
@@ -251,7 +254,7 @@ class GenericFileProcessor(object):
       self.lane = Lane(facility = facobj,
                        library  = self.library,
                        flowcell = self.flowcell,
-                       flowlane = self.flowlane,
+                       flowlane = int(self.flowlane),
                        lanenum  = Lane.objects.next_lane_number(self.library),
                        status   = newstatus)
 
@@ -317,13 +320,16 @@ class GenericFileProcessor(object):
       else:
         data = flds[1]
 
-      # FIXME better definition of keywords populating lane info would
-      # be good here.
       if keyword == 'good':
         goodreads.append(data)
       elif keyword == 'bad':
         badreads.append(data)
-      else:
+      elif keyword in ('machine','runnumber','reads','passedpf',
+                       'qualmean','qualstdev','qualmeanpf','qualstdevpf'):
+
+        # Note that we omit flowlane deliberately; it is no longer
+        # parsed correctly by summarizeFile (and is not all that
+        # desirable to change at this point in the code!)
 
         # This is a bit ugly. Is there a better way using Django?
         vars(self.lane)[keyword] = data
