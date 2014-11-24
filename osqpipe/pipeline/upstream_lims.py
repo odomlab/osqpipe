@@ -366,7 +366,8 @@ class Lims(object):
     LOGGER.debug("LIMS: Pointing at REST API '%s'", uri)
 
     # Cache for downloaded data (see load_run).
-    self._run_details = {}
+    self._run_details  = {}
+    self._fcid_mapping = {}
 
     # Retrieve the boilerplate help page as a test.
     req = requests.get(self.uri)
@@ -404,12 +405,17 @@ class Lims(object):
     runid = self.run_id_from_flowcell(flowcell)
     return self.load_run(runid)
 
-  def run_id_from_flowcell(self, flowcell):
+  def run_id_from_flowcell(self, flowcell, requery=False):
     '''
     Runs a set of queries, up to a currently hard-coded time limit
     of about one month in the past, to map a flowcell ID onto a more
     canonical run ID.
     '''
+    # Check there isn't already some cached data for this flowcell ID.
+    if flowcell in self._fcid_mapping and not requery:
+      LOGGER.debug("Returning cached run_id for flowcell: %s", flowcell)
+      return self._fcid_mapping[flowcell]
+
     runid = None
     fib   = [1, 1]
 
@@ -440,6 +446,8 @@ class Lims(object):
     if runid is None:
       LOGGER.error("No run ID found corresponding to flowcell: %s", flowcell)
       raise StandardError("Unable to retrieve flowcell Run ID.")
+
+    self._fcid_mapping[flowcell] = runid
 
     return runid
 

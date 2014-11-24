@@ -313,7 +313,7 @@ class GenericFileProcessor(object):
       flds = line.split()
       if flds[0] == "empty":
         LOGGER.warning("%s: no data", self.files[0])
-        self.lane.machine = "unknown"
+        self.lane.runnumber = 'unknown'
       keyword = flds[0]
       if len(flds) > 2:
         data = [ float(x) for x in flds[1:] ]
@@ -324,27 +324,28 @@ class GenericFileProcessor(object):
         goodreads.append(data)
       elif keyword == 'bad':
         badreads.append(data)
-      elif keyword in ('machine','runnumber','reads','passedpf',
+      elif keyword in ('runnumber','reads','passedpf',
                        'qualmean','qualstdev','qualmeanpf','qualstdevpf'):
 
         # Note that we omit flowlane deliberately; it is no longer
         # parsed correctly by summarizeFile (and is not all that
-        # desirable to change at this point in the code!)
+        # desirable to change at this point in the code!). Also,
+        # machine is now better identified via the upstream LIMS.
 
         # This is a bit ugly. Is there a better way using Django?
         vars(self.lane)[keyword] = data
         LOGGER.debug("LaneInfo: '%s' => '%s'", keyword, flds[1])
 
     pout.close()
-    if self.lane.machine is None:
-      LOGGER.error("No machine information parsed from file header.")
+    if self.lane.runnumber is None:
+      LOGGER.error("No runnumber information parsed from file header.")
       raise(Exception("Problem collecting information from file."))
-    if 'runnumber' in vars(self.lane):
-      chars_in_num = sum([ not x.isdigit() for x in self.lane.runnumber ])
-      if chars_in_num > 0:
-        # must be an old-style lane, with flow cell instead of run number
+#    if 'runnumber' in vars(self.lane):
+#      chars_in_num = sum([ not x.isdigit() for x in self.lane.runnumber ])
+#      if chars_in_num > 0:
+#        # must be an old-style lane, with flow cell instead of run number
 #        self.lane.flowcell = self.lane.runnumber
-        self.lane.runnumber = None
+#        self.lane.runnumber = None
     self.lane.seqsamplepf = "\n".join(goodreads[1:100])
     self.lane.seqsamplebad = "\n".join(badreads[1:100])
 
@@ -361,6 +362,7 @@ class GenericFileProcessor(object):
         self.lane.rundate = date(2008, 1, 1)
       return
     self.lane.rundate = lims_fc.finish_date
+    self.lane.machine = lims_fc.instrument
     lims_lane = lims_fc.get_sample_lane(self.flowlane, self.libcode)
     if lims_lane != None:
       self.lane.usersampleid = lims_lane.user_sample_id
