@@ -40,7 +40,7 @@ class ProgramSummary(object):
       predictedversion = self.initialize_local(program, path, versioncmd)
     else:
       predictedversion = self.initialize_remote(program, ssh_host, ssh_user,
-                                                ssh_path, versioncmd)
+                                                ssh_path, ssh_port, versioncmd)
 
     if version is not None and version != "":
       self.version = version
@@ -91,7 +91,7 @@ class ProgramSummary(object):
     return predictedversion
 
   def initialize_remote(self, program, ssh_host,
-                        ssh_user, ssh_path, versioncmd=None):
+                        ssh_user, ssh_path, ssh_port, versioncmd=None):
     '''
     Slightly more relaxed method, used by BwaDesktopJobSubmitter,
     to detect the version of the program available to ssh_user on the
@@ -102,7 +102,9 @@ class ProgramSummary(object):
     self.program = pprogram
     predictedversion = self.get_version(versioncmd=versioncmd,
                                         ssh_host=ssh_host,
-                                        ssh_user=ssh_user, ssh_path=ssh_path)
+                                        ssh_user=ssh_user,
+                                        ssh_path=ssh_path,
+                                        ssh_port=ssh_port)
     return predictedversion
 
   @staticmethod
@@ -123,7 +125,7 @@ class ProgramSummary(object):
       sys.exit("Error: Path for program %s can not be found!" % program)
 
   def get_version(self, versioncmd = None, ssh_host = None,
-                  ssh_user = None, ssh_path = None):
+                  ssh_user = None, ssh_path = None, ssh_port=None):
     '''
     Core entry method for the class. Figure out the version of the
     specified program which is available, either locally or on an SSH

@@ -191,12 +191,14 @@ class AlignmentHandler(object):
         # Using the alternative alignment host.
         alignerinfo = ProgramSummary(subprog, ssh_host=althost,
                                      ssh_user=self.conf.althostuser,
-                                     ssh_path=self.conf.althostpath)
+                                     ssh_path=self.conf.althostpath,
+                                     ssh_port=self.conf.althostport)
       else:
         # Using the compute cluster as standard.
         alignerinfo = ProgramSummary(subprog, ssh_host=self.conf.cluster,
                                      ssh_user=self.conf.clusteruser,
-                                     ssh_path=self.conf.clusterpath)
+                                     ssh_path=self.conf.clusterpath,
+                                     ssh_port=self.conf.clusterport)
     try:
       prg = Program.objects.get(program=alignerinfo.program,
                                 version=alignerinfo.version,

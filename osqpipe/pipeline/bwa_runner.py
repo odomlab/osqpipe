@@ -815,7 +815,8 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
     alignerinfo = ProgramSummary(conf.aligner,
                                  ssh_host=conf.althost,
                                  ssh_user=conf.althostuser,
-                                 ssh_path=conf.althostpath)
+                                 ssh_path=conf.althostpath,
+                                 ssh_port=conf.althostport)
 
     # Check that the version of aligner has been registered in
     # repository.
