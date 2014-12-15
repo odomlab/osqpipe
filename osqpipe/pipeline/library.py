@@ -85,12 +85,17 @@ class LibraryHandler(object):
   def _retrieve_cv(self, value, cls, user_key='controlled_name', **kwargs):
     '''Retrieve a database CV or create a new one if confirmed by the
     user. The default user key column is "controlled_name".'''
-    if self.fuzzy:
-      querykey = "%s__fuzzy" % user_key
-    else:
-      querykey = user_key
-    kwargs[querykey] = value
+    # Try to find an exact match first; fall back to fuzzy matching if
+    # that's desired.
+    kwargs[user_key] = value
     db_values = cls.objects.filter(**kwargs)
+
+    if len(db_values) == 0 and self.fuzzy:
+      querykey = "%s__fuzzy" % user_key
+      del kwargs[user_key]
+      kwargs[querykey] = value
+      db_values = cls.objects.filter(**kwargs)
+
     if len(db_values) == 0:
       db_value = cls(**{ user_key: value })
       self._add_if_confirmed(db_value, cls)
