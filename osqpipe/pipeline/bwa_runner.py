@@ -15,8 +15,10 @@ import grp
 import glob
 from pipes import quote
 from shutil import move
-from tempfile import gettempdir
 from distutils import spawn
+from socket import getfqdn, socket, AF_UNIX, SOCK_STREAM
+from tempfile import gettempdir, NamedTemporaryFile
+from getpass import getuser
 
 from utilities import call_subprocess, bash_quote, \
     is_zipped, set_file_permissions
@@ -141,6 +143,7 @@ class BsubCommand(SimpleCommand):
     if queue is not None:
       bsubcmd += ' -q %s' % queue
 
+    # The jobname attribute is also used to control LSF job array creation.
     if jobname is not None:
       bsubcmd += ' -J %s' % jobname
 
@@ -1183,4 +1186,147 @@ class MergeBwaRunner(BwaRunner):
     if rcp_target:
       self.copy_result(rcp_target, output_fn + ".bam")
       LOGGER.info("copied '%s' to '%s'", output_fn, rcp_target)
+
+##############################################################################
+##############################################################################
+
+class ClusterJobManager(object):
+  '''
+  Moderately abstract base class providing some methods and attributes
+  commonly used in higher-level cluster process management classes
+  (e.g. GsnapManager, LastzManager).
+  '''
+  __slots__ = ('namespace', 'submitter', 'runner', 'config',
+               'throttle', 'memsize', 'ssh_key', 'local_workdir')
+
+  def __init__(self, namespace=None, throttle=0, memsize=20,
+               ssh_key=None, local_workdir='.'):
+
+    self.config = Config()
+
+    if namespace is None:
+      self.namespace = str(os.getpid())
+    else:
+      self.namespace = namespace
+
+    # These will default to the config cluster working directory.
+    self.runner    = ClusterJobRunner()
+    self.submitter = ClusterJobSubmitter()
+
+    self.memsize   = memsize   # expressed in GB
+    self.throttle  = throttle
+    self.ssh_key   = ssh_key
+
+    local_workdir = os.path.abspath(local_workdir)
+    if not os.path.exists(local_workdir):
+      os.mkdir(local_workdir)
+    self.local_workdir = local_workdir
+
+  def cluster_file_exists(self, file):
+    '''
+    Test whether a file exists in the configured cluster working directory.
+    '''
+    cmd = ("if [ -e %s ]; then echo yes; else echo no; fi" % file)
+    LOGGER.debug(cmd)
+
+    # This runs the test command in the cluster working directory.
+    with self.runner.run_command(cmd) as ofh:
+      first_line = ofh.readline()
+      first_line = first_line.rstrip('\n')
+      
+    return first_line == 'yes'
+
+  def cluster_jobs_count(self):
+    '''
+    Return a count of the jobs currently running on the cluster for
+    the configured user.
+    '''
+    cmd = ("bjobs -u %s" % self.config.clusteruser)
+    LOGGER.debug(cmd)
+    count = 0
+
+    with self.runner.run_command(cmd) as ofh:
+      for line in ofh:
+        count += 1
+
+    # Account for the extra header line.
+    return count - 1
+  
+  def return_file_to_localhost(self, clusterout, outfile, execute=True):
+    '''
+    If execute is False, returns a command string that can be used to
+    transfer a cluster output files back to our local working
+    directory. If execute is True, the command will also be run on the
+    cluster.
+    '''
+    myhost = getfqdn()
+    myuser = getuser()
+    sshcmd = "scp"
+
+    # Transferring the files back to localhost requires an appropriate
+    # passwordless ssh key to be given access on our localhost. The
+    # alternative is some horrendous pexpect hack which is only a
+    # little more secure (see: sshSangerTunnel.py).
+    if self.ssh_key is not None:
+      sshcmd += " -i %s" % self.ssh_key
+
+    # Note that we need quoting of e.g. file paths containing
+    # spaces. Also, the initial './' allows filenames to contain
+    # colons.
+    sshcmd += (r' ./%s %s@%s:\"' % (clusterout, myuser, myhost)
+               + bash_quote(bash_quote(self.local_workdir)) + r'/%s\"' % outfile) 
+
+    if execute is True:
+      # This *should* die on failure.
+      self.runner.run_command(sshcmd)
+
+    return sshcmd
+
+  def wait_on_cluster(self, jobs, cleanup_cmd=None):
+    '''
+    Wait for the alignment jobs running on the cluster to contact a
+    designated socket file location to indicate that the jobs have
+    finished.
+    '''
+    # Set up a job to notify localhost that the cluster is finished.
+    with NamedTemporaryFile() as sobj:
+      socketfile = sobj.name
+
+    # The nc utility is pretty commonly installed; if it is not, this
+    # will not work.
+    LOGGER.info("Submitting monitor job to the cluster.")
+    cmd = "ssh"
+    if self.ssh_key is not None:
+      cmd += " -i %s" % self.ssh_key
+    cmd += (" %s@%s 'echo OK | nc -U %s'"
+            % (getuser(), getfqdn(), socketfile))
+    monjob = self.submitter.submit_command(cmd, depend_jobs=jobs,
+                                         auto_requeue=False)
+
+    # Optional clean-up job, typically used to delete temporary files.
+    if cleanup_cmd is not None:
+      LOGGER.info("Submitting clean-up job to the cluster.")
+      self.submitter.submit_command(cleanup_cmd,
+                                    depend_jobs=[monjob],
+                                    auto_requeue=False)
+
+    # Set up a socket server and wait for the cluster to get back to us.
+    LOGGER.info("Waiting on a reply from the cluster...")
+    sock = socket(AF_UNIX, SOCK_STREAM)
+    sock.bind(socketfile)
+    sock.listen(1)
+    (conn, _addr) = sock.accept()
+
+    message = ''
+    while 1:
+      data = conn.recv(1024)
+      if not data:
+        break
+      message += data
+    conn.close()
+    os.unlink(socketfile)
+
+    LOGGER.info("Cluster reply received: %s", message)
+
+    return
 

@@ -79,8 +79,8 @@ class LibraryHandler(object):
     if okay and not self.test_mode:
       thing.save()
     else:
-      sys.exit("%s CV term not recognised as valid." %
-               (thingcls.__name__))
+      sys.exit("%s CV term not recognised as valid (%s)." %
+               (thingcls.__name__, thing))
 
   def _retrieve_cv(self, value, cls, user_key='controlled_name', **kwargs):
     '''Retrieve a database CV or create a new one if confirmed by the
