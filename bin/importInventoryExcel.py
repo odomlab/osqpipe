@@ -9,12 +9,12 @@
 # (d) optionally update all metadata for libraries already found in the repository.
 
 import os
-import logging
 import re
 from xlrd import open_workbook
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO, DEBUG
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.pipeline.config import Config
 from osqpipe.models import Library
@@ -32,9 +32,9 @@ class InventoryImporter(object):
     self.libhandler = LibraryHandler(interactive=False, fuzzy=True,
                                      test_mode=test_mode)
     if verbose:
-      LOGGER.setLevel(logging.DEBUG)
+      LOGGER.setLevel(DEBUG)
     else:
-      LOGGER.setLevel(logging.INFO)
+      LOGGER.setLevel(INFO)
 
   def throw_exception(self, message, exceptionType=Exception):
     LOGGER.error(message)
@@ -283,6 +283,7 @@ class InventoryImporter(object):
 if __name__ == '__main__':
 
   import argparse
+  from logging import FileHandler, Formatter
 
   PARSER = argparse.ArgumentParser(
     description='Update the repository with information'
@@ -304,8 +305,8 @@ if __name__ == '__main__':
   ARGS = PARSER.parse_args()
 
   if ARGS.logfile:
-    HND  = logging.FileHandler(ARGS.logfile)
-    FRMT = logging.Formatter("[%(asctime)s]%(levelname)s: %(message)s")
+    HND  = FileHandler(ARGS.logfile)
+    FRMT = Formatter("[%(asctime)s]%(levelname)s: %(message)s")
     HND.setFormatter(FRMT)
     LOGGER.addHandler(HND)
 

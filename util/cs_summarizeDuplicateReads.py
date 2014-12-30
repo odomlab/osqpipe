@@ -6,15 +6,14 @@
 
 import sys
 import os
-import logging
 
 from fastq import FastqIO
 from histogram import Histogram
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO, DEBUG
+LOGGER = configure_logging(level=DEBUG)
 
-LOG_LEVEL = logging.DEBUG
 ISATTY = False
 ADAPTER = 'GATCGGAAGAGCTCGTATGCCGTCTTCTGCT'
 
@@ -25,12 +24,6 @@ def init():
   global ISATTY
   if (os.isatty(sys.stderr.fileno())):
     ISATTY = True
-  LOGGER.setLevel(LOG_LEVEL)
-  logfmt = "[%(asctime)s] %(levelname)s : %(message)s"
-  fmt = logging.Formatter(logfmt)
-  hdlrErr = logging.StreamHandler(sys.stderr)
-  hdlrErr.setFormatter(fmt)
-  LOGGER.addHandler(hdlrErr)
 
 def _init_reads():
   '''Initialise some variables.'''

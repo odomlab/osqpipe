@@ -6,7 +6,6 @@
 them in the database and move the files to the correct part of the
 repostory filesystem.'''
 
-import logging
 import os.path
 from shutil import move
 import re
@@ -70,7 +69,6 @@ class AlignmentHandler(object):
   __slots__ = ('params', 'prog', 'genome', 'headtrim', 'tailtrim', 'conf')
 
   def __init__(self, genome, prog, params='', headtrim=0, tailtrim=0):
-    LOGGER.setLevel(logging.INFO)
 
     # Program and parameters can be a list or scalar. Params elements
     # should always be string; program can be either string or

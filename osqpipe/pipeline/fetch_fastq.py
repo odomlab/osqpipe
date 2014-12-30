@@ -7,7 +7,6 @@
 import sys
 import os
 import os.path
-import logging
 import re
 
 from utilities import build_incoming_fastq_name, unzip_file, \
@@ -17,6 +16,7 @@ from ..models import Library
 from config import Config
 
 from setup_logs import configure_logging
+from logging import INFO, DEBUG
 LOGGER = configure_logging('fetch_fastq')
 
 ###############################################################################
@@ -42,9 +42,9 @@ class FQFileFetcher(object):
     self.lims    = lims
 
     if self.test_mode:
-      LOGGER.setLevel(logging.DEBUG)
+      LOGGER.setLevel(DEBUG)
     else:
-      LOGGER.setLevel(logging.INFO)
+      LOGGER.setLevel(INFO)
 
   def retrieve_fqfile(self, lfile, libname):
     '''

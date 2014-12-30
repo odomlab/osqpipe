@@ -8,7 +8,8 @@ desired, such behaviour needs to be embedded in the remote command
 itself.'''
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.bwa_runner import DesktopJobSubmitter, ClusterJobSubmitter

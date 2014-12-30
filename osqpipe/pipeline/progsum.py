@@ -9,10 +9,10 @@ import sys
 import os
 import subprocess
 import re
-import logging
 from distutils import spawn
 from setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO, DEBUG
+LOGGER = configure_logging('progsum')
 
 class ProgramSummary(object):
   """
@@ -32,9 +32,9 @@ class ProgramSummary(object):
 
     self.debug = debug
     if self.debug:
-      LOGGER.setLevel(logging.DEBUG)
+      LOGGER.setLevel(DEBUG)
     else:
-      LOGGER.setLevel(logging.INFO)
+      LOGGER.setLevel(INFO)
 
     if ssh_host is None:
       predictedversion = self.initialize_local(program, path, versioncmd)

@@ -4,12 +4,12 @@
 
 '''Script to add a lane-associated file to the repository.'''
 
-import logging
 import os.path
 from datetime import date
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO, DEBUG
+LOGGER = configure_logging(level=DEBUG)
 
 from osqpipe.pipeline.utilities import parse_repository_filename, checksum_file
 from osqpipe.models import Filetype, Lane, Lanefile, Facility
@@ -20,9 +20,6 @@ class RepoFileHandler(object):
 
   '''Class which is almost certainly overkill given the limited
   functionality left in this script, post-refactor.'''
-
-  def __init__(self):
-    LOGGER.setLevel(logging.DEBUG)
 
   @staticmethod
   def run(fns):

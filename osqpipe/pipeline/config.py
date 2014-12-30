@@ -98,7 +98,7 @@ class Config(object):
 
     if conffile is None:
       confname = 'osqpipe_config.xml'
-      LOGGER.info("Looking for config file %s...", confname)
+      LOGGER.debug("Looking for config file %s...", confname)
       for loc in os.curdir, os.path.expanduser("~"), "/etc", \
             os.environ.get("OSQPIPE_CONFDIR"):
         if loc is not None:

@@ -9,7 +9,8 @@ arise.'''
 from django.db import transaction
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.pipeline.upstream_lims import Lims
 from osqpipe.pipeline.lims_watcher import LimsWatcher

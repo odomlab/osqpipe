@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 
-"""This starts an SSH tunnel to a given host. If the SSH process ever
+"""
+This script starts an SSH tunnel to a given host. If the SSH process ever
 dies then this script will detect that and restart it. Runtime
-messages are sent to the system log."""
+messages are sent to the system log.
+
+Note that the code as written is not dependent on the osqpipe module;
+if possible we should try and keep it that way.
+"""
 
 import os
 from socket import socket, AF_INET, SOCK_STREAM

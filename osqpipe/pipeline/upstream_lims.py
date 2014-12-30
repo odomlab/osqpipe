@@ -7,7 +7,6 @@
 import sys
 import re
 import os.path
-import logging
 import weakref
 from datetime import date, timedelta
 import xml.etree.ElementTree as ET
@@ -19,6 +18,7 @@ from utilities import munge_cruk_emails
 from ..models import LibraryNameMap, User
 
 from setup_logs import configure_logging
+from logging import INFO, DEBUG
 LOGGER = configure_logging('lims')
 
 CONFIG = Config()
@@ -597,7 +597,7 @@ class Lims(object):
 ###############################################################################
 
 if __name__ == "__main__":
-  LOGGER.setLevel(logging.DEBUG)
+  LOGGER.setLevel(DEBUG)
   if len(sys.argv) < 2:
     print "usage: %s <flowcell>" % (os.path.basename(sys.argv[0]),)
   else:

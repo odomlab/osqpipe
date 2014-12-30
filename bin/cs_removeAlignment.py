@@ -9,11 +9,11 @@ repository.'''
 import sys
 import os
 import os.path
-import logging
 import getopt
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO, DEBUG
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.models import Project, Library, Lane, Alignment, Filetype, Facility
 from django.db import transaction
@@ -42,7 +42,7 @@ def get_options(argv):
       DUMP_LANE = True
     if key in ("-t", "--test"):
       TEST_MODE = True
-      LOGGER.setLevel(logging.DEBUG)
+      LOGGER.setLevel(DEBUG)
   return args
 
 def unlink_file(path):
@@ -123,7 +123,6 @@ def delete_laneAlignments(libcode, facility, lanenum, deltype=None):
 
 if __name__ == '__main__':
 
-  LOGGER.setLevel(logging.INFO)
   (LIBCODE, FACILITY, LANENUM) = get_options(sys.argv)
 
   delete_laneAlignments(LIBCODE, FACILITY, LANENUM, FILE_TYPE)

@@ -8,7 +8,8 @@ the repository, using bwa.'''
 import sys
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.pipeline.file_processor import FileProcessingManager
 

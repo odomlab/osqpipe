@@ -8,11 +8,10 @@ into the repository manually.
 '''
 
 import os
-import logging
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
-LOGGER.setLevel(logging.INFO)
+from logging import INFO, DEBUG
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.models import Lane
 from osqpipe.pipeline.file_processor import MiRFastqFileProc

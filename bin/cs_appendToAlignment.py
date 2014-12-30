@@ -6,13 +6,13 @@
 repository.'''
 
 import sys
-import logging
 import os.path
 from datetime import date
 from shutil import move
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.pipeline.utilities import parse_repository_filename, checksum_file
 from osqpipe.models import Filetype, Lane, Alignment, Alnfile, Facility, Library
@@ -93,8 +93,6 @@ def append(fname, library=None, facility=None, lanenum=None, genome=None):
 ###########################################################
 
 if __name__ == '__main__':
-
-  LOGGER.setLevel(logging.INFO)
 
   from argparse import ArgumentParser
 

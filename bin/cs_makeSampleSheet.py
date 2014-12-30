@@ -8,10 +8,9 @@ program. Note that the output will almost invariably need editing; the
 main benefit of running this script is its automated handling of
 adapter sequences.'''
 
-from logging import INFO
-
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.pipeline.utilities import build_incoming_fastq_name
 
@@ -27,7 +26,6 @@ class DemuxSheetMaker(object):
 
   def __init__(self, verbose=False):
     self.verbose = verbose
-    LOGGER.setLevel(INFO)
 
   def run(self, flowCellID, lane, libs, outfile):
     '''The main entry point for the class.'''

@@ -15,7 +15,8 @@ provides a handy summary of the lanes run and how they relate to the
 current contents of the repository.'''
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
 
 # All script code moved into our main pipeline library namespace.
 from osqpipe.pipeline.flowcell import FlowCellQuery

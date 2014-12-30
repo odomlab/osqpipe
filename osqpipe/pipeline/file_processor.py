@@ -8,7 +8,6 @@ the repository, using bwa.'''
 import sys
 import os
 import os.path
-import logging
 import re
 from datetime import date
 from shutil import move
@@ -28,6 +27,7 @@ from laneqc import LaneFastQCReport
 from django.db import transaction
 
 from setup_logs import configure_logging
+from logging import INFO, DEBUG
 LOGGER = configure_logging('file_processor')
 
 CONFIG = Config()
@@ -906,9 +906,9 @@ class FileProcessingManager(object):
     self.facility = facility
     self.force_paired_end = force_paired_end
     if self.test_mode:
-      LOGGER.setLevel(logging.DEBUG)
+      LOGGER.setLevel(DEBUG)
     else:
-      LOGGER.setLevel(logging.INFO)
+      LOGGER.setLevel(INFO)
     self.libtype2class = {
       'chipseq': {'.fq': ChIPFastqFileProc,
                   '.export': ChIPExportFileProc,

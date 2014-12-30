@@ -10,14 +10,14 @@ import sys
 import os
 import re
 from os.path import splitext
-import logging
 from pipes import quote
 from subprocess import CalledProcessError
 from shutil import move
 from tempfile import NamedTemporaryFile
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO, DEBUG
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.pipeline.utilities import call_subprocess, \
     set_file_permissions, rezip_file, parse_repository_filename
@@ -50,9 +50,9 @@ class AlignProcessingManager(object):
   def __init__(self, debug=False):
     self.debug = debug
     if self.debug:
-      LOGGER.setLevel(logging.DEBUG)
+      LOGGER.setLevel(DEBUG)
     else:
-      LOGGER.setLevel(logging.INFO)
+      LOGGER.setLevel(INFO)
     self.conf = Config()
 
   def _reallocate_reads(self, in_fn):

@@ -20,7 +20,8 @@ import sys
 import getopt
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.pipeline.fetch_mga import fetch_mga
 

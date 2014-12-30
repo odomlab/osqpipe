@@ -6,7 +6,8 @@
 a genome registered in the repository.'''
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.pipeline.fastq_aligner import FastqBwaAligner
 

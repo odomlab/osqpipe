@@ -6,7 +6,8 @@
 the library repository table.'''
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.pipeline.library import LibraryHandler
 from osqpipe.pipeline.config import Config

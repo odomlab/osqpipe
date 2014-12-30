@@ -36,10 +36,9 @@ from datetime import datetime
 from lxml import etree as ET
 from django.db import transaction
 
-import logging
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
-LOGGER.setLevel(logging.INFO)
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.models import Lane, Facility, Library, Status
 from osqpipe.pipeline.config import Config

@@ -18,10 +18,10 @@ import re # regular expressions module
 import glob # module for listing filenames with wildcards
 from pipes import quote
 import time
-from logging import WARNING
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO, WARNING
+LOGGER = configure_logging(level=INFO)
     
 from osqpipe.pipeline.bwa_runner import SplitBwaRunner
 

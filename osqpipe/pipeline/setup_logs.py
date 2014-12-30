@@ -12,8 +12,9 @@ import logging
 # circular dependencies here). Do not import anything into this module
 # without careful consideration (not even Config!).
 def configure_logging(name=None,
-                     handler=logging.StreamHandler(),
-                     formatter=None):
+                      handler=logging.StreamHandler(),
+                      formatter=None,
+                      level=logging.WARNING):  # defines the minimum log level
 
   '''Central configuration of all loggers. Provides default handlers
   and formatters, although these can be supplied as required.'''
@@ -32,10 +33,14 @@ def configure_logging(name=None,
 
   handler.setFormatter(formatter)
 
-  # In principle, we only want to add a handler to top-level
-  # loggers. In practice it's useful to add at least one handler to
-  # module-level loggers for debugging etc. FIXME this really needs sorting out.
-  if name == default:# or len(logger.handlers) == 0:
-    logger.addHandler(handler)
+  # In principle, we only want to add a single handler to top-level
+  # loggers; all other loggers inherit this handler. We also set to
+  # the lowest logging level requested.
+  def_log = logging.getLogger(default)
+  if len(def_log.handlers) == 0:
+    def_log.addHandler(handler)
+    def_log.setLevel(level)
+  else:
+    def_log.setLevel(min(def_log.level, level))
 
   return logger

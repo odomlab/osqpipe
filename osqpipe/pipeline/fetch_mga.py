@@ -25,11 +25,11 @@ from the Genologics LIMS.'''
 import sys
 import os
 import os.path
-import logging
 
 from upstream_lims import Lims
 
 from setup_logs import configure_logging
+from logging import INFO, DEBUG
 LOGGER = configure_logging('fetch_mga')
 
 TEST_MODE = False
@@ -41,9 +41,9 @@ def fetch_mga (flowcell, flowlane, destination, nameprefix):
 
   # start logging
   if TEST_MODE:
-    LOGGER.setLevel(logging.DEBUG)
+    LOGGER.setLevel(DEBUG)
   else:
-    LOGGER.setLevel(logging.INFO)
+    LOGGER.setLevel(INFO)
 
   # install lims
   lims = Lims()

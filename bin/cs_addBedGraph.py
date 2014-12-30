@@ -7,7 +7,6 @@ bedgraph files for those which need them.'''
 
 import os
 import os.path
-import logging
 from datetime import date
 from pipes import quote
 from shutil import move
@@ -15,7 +14,8 @@ from shutil import move
 from django.db import transaction
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.pipeline.utilities import call_subprocess, checksum_file, rezip_file
 from osqpipe.models import Filetype, Library, Lane, Alignment, Alnfile, Facility
@@ -32,7 +32,6 @@ class BedGraphCreator(object):
   __slots__ = ('testMode', 'conf', 'bedtype', 'bgrtype')
 
   def __init__(self, testMode=False):
-    LOGGER.setLevel(logging.INFO)
     self.testMode = testMode
     self.conf     = Config()
     self.bedtype  = Filetype.objects.get(code='bed')

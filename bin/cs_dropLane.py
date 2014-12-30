@@ -6,10 +6,10 @@
 facility and lane number. Note that files are unaffected.'''
 
 import sys
-import logging
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.models import Lane, Library, Alignment
 
@@ -59,7 +59,6 @@ def drop_lane(libcode, facility, lanenum):
 ###############################################################################
 
 if __name__ == '__main__':
-  LOGGER.setLevel(logging.INFO)
   (LIBCODE, FACILITY, LANENUM) = sys.argv[1:]
   drop_lane(LIBCODE, FACILITY, LANENUM)
   

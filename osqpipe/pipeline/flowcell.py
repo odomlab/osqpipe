@@ -8,7 +8,6 @@ the sequencing data (i.e. fastq file) and demultiplex if necessary.'''
 import sys
 import os
 import os.path
-import logging
 import re
 
 from utilities import parse_incoming_fastq_name, checksum_file, \
@@ -21,6 +20,7 @@ from ..models import Library, Lane, Status, LibraryNameMap, User
 from fetch_fastq import FQFileFetcher
 
 from setup_logs import configure_logging
+from logging import INFO, DEBUG
 LOGGER = configure_logging('flowcell')
 
 ###############################################################################
@@ -62,9 +62,9 @@ class FlowCellProcess(object):
     self.lims = lims
 
     if self.test_mode:
-      LOGGER.setLevel(logging.DEBUG)
+      LOGGER.setLevel(DEBUG)
     else:
-      LOGGER.setLevel(logging.INFO)
+      LOGGER.setLevel(INFO)
 
   def make_sample_sheet(self, libs, fname):
 
@@ -226,7 +226,7 @@ class FlowCellQuery(object):
                'lane_demuxed', 'lims')
 
   def __init__(self, flowcell_id, flow_lane=None, verbose=False, lims=None):
-    LOGGER.setLevel(logging.INFO)
+    LOGGER.setLevel(INFO)
     self.verbose = verbose
 
     # Map libcode to status

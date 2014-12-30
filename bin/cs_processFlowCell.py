@@ -6,7 +6,8 @@
 the sequencing data (i.e. fastq file) and demultiplex if necessary.'''
 
 from osqpipe.pipeline.setup_logs import configure_logging
-LOGGER = configure_logging()
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
 
 # All script code moved into our main pipeline library namespace.
 from osqpipe.pipeline.flowcell import FlowCellProcess

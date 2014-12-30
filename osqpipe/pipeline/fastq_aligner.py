@@ -6,13 +6,13 @@
 a genome registered in the repository.'''
 
 import os
-import logging
 
 from ..models import Library, Genome, Filetype
 from config import Config
 from bwa_runner import BwaClusterJobSubmitter, BwaDesktopJobSubmitter
 
 from setup_logs import configure_logging
+from logging import INFO, DEBUG
 LOGGER = configure_logging()
 
 class FastqAligner(object):
@@ -26,9 +26,9 @@ class FastqAligner(object):
     self.conf = Config()
     self.test_mode = test_mode
     if test_mode:
-      LOGGER.setLevel(logging.DEBUG)
+      LOGGER.setLevel(DEBUG)
     else:
-      LOGGER.setLevel(logging.INFO)
+      LOGGER.setLevel(INFO)
 
     # Default to saving the output in the current working directory.
     if finaldir is None:

@@ -6,7 +6,6 @@
 SolexaLIMS back-end MySQL database. Original version shamelessly
 stolen from Gord Brown's runNotifier script.'''
 
-import logging
 from utilities import munge_cruk_emails
 from upstream_lims import Lims, get_lims_run_history
 from config import Config
@@ -16,6 +15,7 @@ from ..models import Lane, Library, Status, Facility, User
 ################################################################################
 
 from setup_logs import configure_logging
+from logging import INFO, DEBUG
 LOGGER = configure_logging('lims_watcher')
 
 ################################################################################
@@ -33,9 +33,9 @@ class LimsWatcher(object):
 
   def __init__(self, lims=None, debug=False):
     if debug:
-      LOGGER.setLevel(logging.DEBUG)
+      LOGGER.setLevel(DEBUG)
     else:
-      LOGGER.setLevel(logging.INFO)
+      LOGGER.setLevel(INFO)
     self.conf = Config()
     self.missing_libraries = set()
     self.user_emails       = set()
