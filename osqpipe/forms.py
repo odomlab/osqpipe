@@ -36,6 +36,11 @@ class LibrarySearchForm(forms.Form):
   genomicsid = forms.CharField(required=False, label='Genomics SLX ID')
   flowcell   = forms.CharField(required=False, label='Flowcell ID')
 
+class LibraryEditForm(forms.Form):
+
+  bad          = forms.BooleanField(required=False, label='Library Failed')
+  comment      = forms.CharField(required=False, label='Comments', widget=forms.Textarea)
+
 class LibraryProjectPicker(forms.Form):
 
   projects = forms.ModelMultipleChoiceField(queryset=Project.objects.none(),

@@ -39,9 +39,10 @@
         &nbsp;&nbsp;( lanes: {% for lane in library.lane_set.all %}{{ lane.paired|yesno:"PE,SE" }} {% endfor %})
         {% endif %}
     </td></tr>
-    <tr><th>Comment: </th><td>{{ library.comment }}</td></tr>
-    <tr><th>Bad: </th><td>{{ library.bad|yesno }}</td></tr>
+    <tr><th>Notes: </th><td>{{ library.comment }}</td></tr>
+    <tr><th>Library failed: </th><td>{{ library.bad|yesno }}</td></tr>
   </table>
+  <p><a href="{% url "library-edit" slug=library.code %}">Edit Notes</a></p>
 
   <h2>Sequencing Lanes</h2>
   
@@ -78,9 +79,6 @@
   {% else %}
     No Sequencing Lanes found.
   {% endif %}
-{% comment %}
-   <p><a href="{% url "library-edit" pk=library.pk %}">Edit</a></p>
-{% endcomment %}
   {% else %}
   <p>No library provided.</p>
   {% endif %}

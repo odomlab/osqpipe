@@ -1,9 +1,11 @@
 from django.conf.urls import patterns, include, url
 from django.views.generic import DetailView, ListView, UpdateView, TemplateView
 from models import Project
-from views import ProjectListView, LibraryListView, GenomeListView, DefaultGenomeListView, \
+from views import ProjectListView, LibraryListView, \
+    GenomeListView, DefaultGenomeListView, \
     LibraryDetailView, LaneDetailView, QualplotDetailView, \
-    FileDownloadView, TempfileDownloadView, LibrarySearchView
+    FileDownloadView, TempfileDownloadView, LibrarySearchView, \
+    LibraryEditView
 from django.core.urlresolvers import reverse_lazy
 
 # Examples:
@@ -36,6 +38,10 @@ urlpatterns = patterns(
   url(r'^library/(?P<slug>\w+)$',
       LibraryDetailView.as_view(),
       name='library-detail',
+      ),
+  url(r'^library/(?P<slug>\w+)/edit$',
+      LibraryEditView.as_view(),
+      name='library-edit',
       ),
   url(r'^lane/(?P<pk>\d+)$',
       LaneDetailView.as_view(),

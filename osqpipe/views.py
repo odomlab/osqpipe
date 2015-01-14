@@ -1,4 +1,5 @@
 import os
+import re
 
 from urllib import urlencode
 
@@ -9,7 +10,8 @@ from django.views.generic.edit import FormMixin
 from collections import OrderedDict
 
 from models import Library, Project, Genome, Lane, Alnfile, Lanefile, QCfile, Peakfile
-from forms import SimpleSearchForm, LibrarySearchForm, LibraryProjectPicker
+from forms import SimpleSearchForm, LibrarySearchForm, LibraryEditForm,\
+    LibraryProjectPicker
 
 from django.utils.encoding import smart_str
 from django.contrib.auth.views import login as django_login, logout as django_logout
@@ -22,7 +24,8 @@ from qualplot import plot_pfqual_values, plot_all_qual_values
 from pipeline.config import Config
 from mimetypes import guess_type
 
-from viewclasses import MyListView, MyDetailView, MyFormView, FilterMixin, FormListView, RestrictedFileDownloadView
+from viewclasses import MyListView, MyDetailView, MyFormView, FilterMixin,\
+    FormListView, RestrictedFileDownloadView
 
 CONFIG = Config()
 
@@ -175,6 +178,60 @@ class LibrarySearchView(MyFormView):
 
     return super(LibrarySearchView, self).get(request, *args, **kwargs)
 
+class LibraryEditView(MyFormView):
+
+  model         = Library
+  slug_field    = 'code'
+  template_name = 'repository/library/edit.html'
+  form_class    = LibraryEditForm
+
+  def post(self, request, *args, **kwargs):
+
+    # From ProcessFormMixin
+    form_class = self.get_form_class()
+    self.form = self.get_form(form_class)
+
+    # Process the form data here, set an appropriate message.
+    if self.form.is_valid():
+      library  = get_object_or_404(self.model, code=self.kwargs['slug'])
+      library.comment = self.form.cleaned_data['comment']
+      library.bad     = self.form.cleaned_data['bad']
+      library.save()
+    else:
+      messages.error(request, "Error in library form submission.")
+
+    return redirect(self.get_success_url())
+
+  def get_success_url(self):
+    return reverse('library-detail', kwargs={'slug':self.kwargs['slug']})
+
+  def get(self, request, *args, **kwargs):
+
+    self.object = get_object_or_404(self.model, code=self.kwargs['slug'])
+
+    # Per-project user authorization.
+    allowed_users = [ person for project in self.object.projects.all()
+                             for person  in project.people.all() ]
+    if self.request.user not in allowed_users:
+      return redirect('denied')
+
+    # Hard links to edit pages will set the parent breadcrumbs
+    # correctly.
+    self.request.session['session_library'] = self.object.code
+
+    return super(LibraryEditView, self).get(request, *args, **kwargs)
+
+  def get_form_kwargs(self):
+
+    kwargs   = super(LibraryEditView, self).get_form_kwargs()
+
+    library = get_object_or_404(self.model, code=self.kwargs['slug']) # FIXME dupe
+
+    # Prior data.
+    kwargs['initial'] = dict( (key, vars(library)[key]) for key in ('comment','bad') )
+    
+    return kwargs
+  
 class LibraryDetailView(FormMixin, MyDetailView):
   context_object_name = 'library'
   template_name       = 'repository/library/detail.html'
