@@ -17,6 +17,8 @@
     </form>
   </div>
 
+  <div class="library_table">
+  <form action="{% url "library-edit" slug=library.code %}">
   <table class="horizontal">
     <tr><th>Library code: </th><td>{{ library.code }}</td></tr>
     <tr><th>Requested Genome: </th>
@@ -42,7 +44,9 @@
     <tr><th>Notes: </th><td>{{ library.comment }}</td></tr>
     <tr><th>Library failed: </th><td>{{ library.bad|yesno }}</td></tr>
   </table>
-  <p><a href="{% url "library-edit" slug=library.code %}">Edit Notes</a></p>
+  <input type="submit" value="Edit Notes"/>
+  </form>
+  </div>
 
   <h2>Sequencing Lanes</h2>
   

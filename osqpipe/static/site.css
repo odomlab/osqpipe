@@ -282,3 +282,15 @@ span.current-page {
     margin-bottom: 0em;
     margin-top: 2em;
 }
+
+.library_table {
+    width: 30em;
+}
+
+.library_table table {
+    width: 100%;
+}
+
+.library_table input {
+    float: right;
+}
