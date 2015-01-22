@@ -177,7 +177,7 @@ class InventoryImporter(object):
         if prottag in ('truseq', 'neb'):
 
           # TruSeq adapters have standard names in the repository.
-          if rowdict['assaytype'].lower() == 'smrnaseq':
+          if rowdict['assaytype'].lower() in ('smrnaseq', 'rip-smrnaseq'):
             adapter = 'smRNA_TS_' + barcode   # smRNAseq
 
             # Often, linkerset is not given but it's easily guessed.

@@ -80,7 +80,7 @@ class FastqAligner(object):
       raise StandardError("No sequencing lanes found for library: %s"
                           % (library,))
 
-    if lib.libtype.code == 'smrnaseq':
+    if lib.libtype.code in ('smrnaseq', 'ripsmrnaseq'):
       # SmallRNA-seq uses fasta files from the reaper/tally pipeline.
       wanted_filetype = 'fa'
     else:
