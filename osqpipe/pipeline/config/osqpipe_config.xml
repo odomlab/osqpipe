@@ -3,7 +3,7 @@
   <section name="Host">
     <option name="user">fnc-odompipe</option>
     <option name="datahost">uk-cri-lsrv01</option>
-    <option name="group">odompipe</option>
+    <option name="group">dolab</option>
     <option name="defaultproject">all</option>
   </section>
   <section name="Cluster">
