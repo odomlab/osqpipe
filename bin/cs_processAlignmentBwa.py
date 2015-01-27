@@ -187,7 +187,7 @@ class AlignProcessingManager(object):
         LOGGER.warn("Unable to create bigWig file: %s", err)
     return bigwigs
     
-  def run(self, in_fn, genome, reallocate, relaxed=False):
+  def run(self, in_fn, genome, reallocate, aligner, relaxed=False):
 
     '''Given a bam file name, run the file conversions and store all
     files in the repository (input bam file included).'''
@@ -213,7 +213,8 @@ class AlignProcessingManager(object):
     numreads = self.check_bam_vs_lane_fastq(in_fn, relaxed)
 
     # Set aligner, later passed as argument to AlignmentHandler.
-    aligner = self.conf.aligner
+    if aligner is None:
+      aligner = self.conf.aligner
     params  = ''
   
     # In the case of PolIII/TFIIIC libraries, assume that the bam file
@@ -332,7 +333,10 @@ if __name__ == '__main__':
                       help='The genome used for the alignment. Use only if different from one provided in library.')
 
   PARSER.add_argument('-r', '--reallocate', dest='reallocate', action='store_true', required=False,
-                      help='Re-allocates non-unique reads.')
+                      help='Re-allocates non-unique reads. Forces the script to ignore the --aligner option, below.')
+
+  PARSER.add_argument('-a', '--aligner', dest='aligner', type=str, required=False,
+                      help='The program used to generate the alignment. The default is bwa.')
 
   PARSER.add_argument('--relaxed', dest='relaxed', action='store_true', required=False,
                       help='Ignore validation errors (e.g., mismatches'
@@ -342,4 +346,4 @@ if __name__ == '__main__':
 
   APM = AlignProcessingManager(debug=ARGS.debug)
 
-  APM.run(ARGS.file, ARGS.genome, ARGS.reallocate, ARGS.relaxed)
+  APM.run(ARGS.file, ARGS.genome, ARGS.reallocate, ARGS.aligner, ARGS.relaxed)
