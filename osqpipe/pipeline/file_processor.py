@@ -169,7 +169,7 @@ class GenericFileProcessor(object):
     if self.library.barcode != None:
       hlen = len(self.library.barcode)
       tmpnam = fname+".tmp"
-      cmd = ('trim_fastq', '-h', str(hlen), fname, tmpnam)
+      cmd = ('trimFastq', '-h', str(hlen), fname, tmpnam)
       LOGGER.debug(" ".join(cmd))
       if not self.test_mode:
         call_subprocess(cmd, path=CONFIG.hostpath)
@@ -205,6 +205,26 @@ class GenericFileProcessor(object):
       newoutfiles.append(fastq)
       self.tempfiles.append(fname)
     self.outfiles = newoutfiles
+
+  def trim_fastq(self):
+    '''
+    Trim the fastq file as specified by the trimhead and trimtail
+    options.
+    '''
+    tnames = []
+    for fname in self.outfiles:
+      (base, ext) = os.path.splitext(fname)
+      headtrim = int(self.options.get('trimhead', 0))
+      tailtrim = int(self.options.get('trimtail', 0))
+      trimname = "%s_h%d_t%d%s" % (base, headtrim, tailtrim, ext)
+      cmd = ('trimFastq', '-h', str(headtrim),
+                          '-t', str(tailtrim), fname, trimname)
+      LOGGER.debug(" ".join(cmd))
+      if not self.test_mode:
+        call_subprocess(cmd, path=CONFIG.hostpath)
+      tnames.append(trimname)
+      self.tempfiles.append(trimname)
+    return tnames
 
   def convert_solexa2phred(self):
     '''
@@ -561,29 +581,6 @@ class ChIPQseqFileProc(GenericFileProcessor):
   '''
   Processor for ChIP-Seq qseq files.
   '''
-  def __init__(self, **kwargs):
-    super(ChIPQseqFileProc, self).__init__(**kwargs)
-
-  def trim_fastq(self):
-    '''
-    Trim the fastq file as specified by the trimhead and trimtail
-    options.
-    '''
-    tnames = []
-    for fname in self.outfiles:
-      (base, ext) = os.path.splitext(fname)
-      headtrim = int(self.options.get('trimhead', 0))
-      tailtrim = int(self.options.get('trimtail', 0))
-      trimname = "%s_h%d_t%d%s" % (base, headtrim, tailtrim, ext)
-      cmd = ('trim_fastq', '--head', str(headtrim),
-                          '--tail', str(tailtrim), fname, trimname)
-      LOGGER.debug(" ".join(cmd))
-      if not self.test_mode:
-        call_subprocess(cmd, path=CONFIG.hostpath)
-      tnames.append(trimname)
-      self.tempfiles.append(trimname)
-    return tnames
-
   def post_process(self):
     '''
     Convert to fastq format, strip barcode, trim fastq, align, collect metadata.
@@ -626,9 +623,6 @@ class ChIPFastqFileProc(ChIPQseqFileProc):
   '''
   Processor for ChIP-Seq fastq files.
   '''
-  def __init__(self, **kwargs):
-    super(ChIPFastqFileProc, self).__init__(**kwargs)
-
   def post_process(self):
     '''
     Convert to phred scoring if required, trim fastq, align, collect metadata.
@@ -660,13 +654,37 @@ class ChIPMaqFileProc(GenericFileProcessor):
 
 ###############################################################################
 
+class MNaseFastqFileProc(GenericFileProcessor):
+  '''
+  Processor for MNase-Seq fastq files.
+  '''
+  def post_process(self):
+    '''
+    Convert to phred scoring if required, trim fastq, align, collect metadata.
+    '''
+    self.outfiles = self.files[:]
+    if self.options.get('convert', False):
+      self.convert_solexa2phred()
+    else:
+      LOGGER.info("Assuming quality values in Sanger format.")
+    if 'trimhead' in self.options or 'trimtail' in self.options:
+      tfiles = self.trim_fastq()
+    else:
+      tfiles = self.outfiles[:]
+    for fname in tfiles:
+      set_file_permissions(CONFIG.group, fname)
+    self.kick_off_alignment(tfiles)
+    self.collect_lims_info()
+    self.collect_lane_info("-f")
+    return Status.objects.get(code='alignment', authority=None)
+
+
+###############################################################################
+
 class BisulphiteFileProc(ChIPQseqFileProc):
   '''
   Processor for Bisulphite-Seq qseq files.
   '''
-  def __init__(self, **kwargs):
-    super(BisulphiteFileProc, self).__init__(**kwargs)
-
   def kick_off_alignment(self, tfiles):  # Using something like Bismark here?
     raise NotImplementedError()
 
@@ -685,13 +703,10 @@ class BisulphiteFileProc(ChIPQseqFileProc):
 
 ###############################################################################
 
-class BisulphiteFastQFileProc(ChIPQseqFileProc):
+class BisulphiteFastqFileProc(ChIPQseqFileProc):
   '''
   Processor for Bisulphite-Seq fastq files.
   '''
-  def __init__(self, **kwargs):
-    super(BisulphiteFastQFileProc, self).__init__(**kwargs)
-
   def kick_off_alignment(self, tfiles):  # Using something like Bismark here?
     raise NotImplementedError()
 
@@ -947,8 +962,9 @@ class FileProcessingManager(object):
       'ripsmrnaseq': {'.fq': MiRFastqFileProc,
                    '.export': MiRExportFileProc,
                    '.qseq': MiRQseqFileProc},
+      'mnase': {'.fq': MNaseFastqFileProc},
       'bisulphite': {'.qseq': BisulphiteFileProc,
-                     '.fq': BisulphiteFastQFileProc},
+                     '.fq': BisulphiteFastqFileProc},
       'bisulph-smrna': {'.fq': MiRFastqFileProc, # Frye lab. Obsolete?
                         '.export': MiRExportFileProc,
                         '.qseq': MiRQseqFileProc}
