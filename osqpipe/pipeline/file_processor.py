@@ -962,7 +962,7 @@ class FileProcessingManager(object):
       'ripsmrnaseq': {'.fq': MiRFastqFileProc,
                    '.export': MiRExportFileProc,
                    '.qseq': MiRQseqFileProc},
-      'mnase': {'.fq': MNaseFastqFileProc},
+      'mnaseseq': {'.fq': MNaseFastqFileProc},
       'bisulphite': {'.qseq': BisulphiteFileProc,
                      '.fq': BisulphiteFastqFileProc},
       'bisulph-smrna': {'.fq': MiRFastqFileProc, # Frye lab. Obsolete?
