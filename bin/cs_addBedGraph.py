@@ -17,7 +17,7 @@ from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 
-from osqpipe.pipeline.utilities import call_subprocess, checksum_file, rezip_file
+from osqpipe.pipeline.utilities import call_subprocess, checksum_file, rezip_file, set_file_permissions
 from osqpipe.models import Filetype, Library, Lane, Alignment, Alnfile, Facility
 from osqpipe.pipeline.config import Config
 
@@ -69,6 +69,7 @@ class BedGraphCreator(object):
                       alignment=aln)
         bgrFN = rezip_file(bgrFN)
         move(bgrFN, bgr.repository_file_path)
+        set_file_permissions(self.conf.group, bgr.repository_file_path)
         bgr.save()
 
   def run(self):

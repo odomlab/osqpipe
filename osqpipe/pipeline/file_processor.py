@@ -528,6 +528,7 @@ class GenericFileProcessor(object):
         # (Update: this is no longer the case now that both are
         # subtypes of Datafile).
         move(fname, dest)
+        set_file_permissions(CONFIG.group, dest)
 
         # Get the read length directly from the fastq file.
         if fobj.filetype.code == 'fq':

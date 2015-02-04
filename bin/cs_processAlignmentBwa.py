@@ -100,6 +100,7 @@ class AlignProcessingManager(object):
       try:
         LOGGER.info("Storing new chromosome sizes file as %s", fnchrlen)
         move(tmpfile.name, fnchrlen)
+        set_file_permissions(self.conf.group, fnchrlen)
       except Exception, err:
         LOGGER.warning("Attempt to store chromosome sizes file"
                        + " as %s failed: %s", fnchrlen, err)

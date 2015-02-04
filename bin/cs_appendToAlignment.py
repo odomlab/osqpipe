@@ -14,7 +14,7 @@ from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 
-from osqpipe.pipeline.utilities import parse_repository_filename, checksum_file
+from osqpipe.pipeline.utilities import parse_repository_filename, checksum_file, set_file_permissions
 from osqpipe.models import Filetype, Lane, Alignment, Alnfile, Facility, Library
 from django.db import transaction
 from osqpipe.pipeline.config import Config
@@ -43,6 +43,7 @@ def _save_file_to_database(fname, aln, chksum):
   destname = afile.repository_file_path
   LOGGER.debug("Moving %s to %s", fname, destname)
   move(fname, destname)
+  set_file_permissions(CONFIG.group, destname)
 
   LOGGER.info("Added '%s' to '%s'", fname, aln.lane.library.code)
 

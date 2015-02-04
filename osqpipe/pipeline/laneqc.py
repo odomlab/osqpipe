@@ -12,7 +12,7 @@ from pkg_resources import Requirement, resource_filename
 from django.db import transaction
 from ..models import Program, LaneQC, QCfile, Filetype, Lanefile, DataProvenance
 from progsum import ProgramSummary
-from utilities import checksum_file, call_subprocess, rezip_file
+from utilities import checksum_file, call_subprocess, rezip_file, set_file_permissions
 from config import Config
 from setup_logs import configure_logging
 
@@ -112,6 +112,7 @@ class LaneQCReport(object):
       if ftype.gzip and os.path.splitext(fname)[1] != CONFIG.gzsuffix:
         fpath = rezip_file(fpath)
       move(fpath, fobj.repository_file_path)
+      set_file_permissions(CONFIG.group, fobj.repository_file_path)
 
   def __exit__(self, exctype, excvalue, traceback):
     if self._delete_workdir:

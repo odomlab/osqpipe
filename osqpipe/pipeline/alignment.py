@@ -14,7 +14,7 @@ import gzip
 from django.db import transaction
 
 from utilities import is_zipped, parse_repository_filename, \
-    checksum_file, rezip_file
+    checksum_file, rezip_file, set_file_permissions
 from ..models import Filetype, Lane, Alignment, Alnfile, Facility, \
     Genome, Program, DataProvenance
 from samtools import BamToBedConverter
@@ -305,6 +305,7 @@ class AlignmentHandler(object):
       destname = alnfile.repository_file_path
       LOGGER.debug("mv %s %s", fname, destname)
       move(fname, destname)
+      set_file_permissions(self.conf.group, destname)
 
     if final_status is not None:
       aln.lane.status = final_status
