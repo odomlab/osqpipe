@@ -60,7 +60,7 @@ def is_zipped(fname):
       LOGGER.warn("Uncompressed file masquerading as gzipped: %s", fname)
     return False
 
-def unzip_file(fname, dest=None, delete=True):
+def unzip_file(fname, dest=None, delete=True, overwrite=False):
   '''
   Unzip a file. If a destination filename is not supplied, we strip
   the suffix from the gzipped file, raising an error if the filename
@@ -81,8 +81,11 @@ def unzip_file(fname, dest=None, delete=True):
 
   # We refuse to overwrite existing output files.
   if os.path.exists(dest):
-    raise IOError("Gzip output file already exists; cannot continue: %s"
-                  % (dest,))
+    if overwrite:
+      os.unlink(dest)
+    else:
+      raise IOError("Gzip output file already exists; cannot continue: %s"
+                    % (dest,))
 
   # We use external gzip where available
   if spawn.find_executable('gzip', path=DBCONF.hostpath):
@@ -103,7 +106,7 @@ def unzip_file(fname, dest=None, delete=True):
 
   return dest
 
-def rezip_file(fname, dest=None, delete=True, compresslevel=6):
+def rezip_file(fname, dest=None, delete=True, compresslevel=6, overwrite=False):
   '''
   Compress a file using gzip.
   '''
@@ -120,8 +123,11 @@ def rezip_file(fname, dest=None, delete=True, compresslevel=6):
   # Check the gzipped file doesn't already exist (can cause gzip to
   # hang waiting for user confirmation).
   if os.path.exists(dest):
-    raise StandardError(
-      "Output gzipped file already exists. Will not overwrite %s." % dest)
+    if overwrite:
+      os.unlink(dest)
+    else:
+      raise StandardError(
+        "Output gzipped file already exists. Will not overwrite %s." % dest)
 
   # Again, using external gzip where available but falling back on the
   # (really quite slow) built-in gzip module where necessary.
