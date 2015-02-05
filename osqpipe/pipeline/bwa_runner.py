@@ -1223,6 +1223,23 @@ class ClusterJobManager(object):
       os.mkdir(local_workdir)
     self.local_workdir = local_workdir
 
+  def submit_command(self, cmd, *args, **kwargs):
+    '''
+    Submit a command to be run via bsub on the cluster. Returns the ID
+    of the launched job. To wait on the completion of the submitted
+    job, see the wait_on_cluster method.
+    '''
+    return self.submitter.submit_command(cmd, *args, **kwargs)
+
+  def run_command(self, cmd, *args, **kwargs):
+    '''
+    Run a command directly on the cluster head node, waiting for the
+    result to be returned. Returns a file descriptor containing the
+    stdout of the job. This method is typically used for commands
+    which should complete almost immediately.
+    '''
+    return self.runner.run_command(cmd, *args, **kwargs)
+
   def cluster_file_exists(self, file):
     '''
     Test whether a file exists in the configured cluster working directory.

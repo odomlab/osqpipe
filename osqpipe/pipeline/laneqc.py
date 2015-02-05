@@ -12,7 +12,7 @@ from pkg_resources import Requirement, resource_filename
 from django.db import transaction
 from ..models import Program, LaneQC, QCfile, Filetype, Lanefile, DataProvenance
 from progsum import ProgramSummary
-from utilities import checksum_file, call_subprocess, rezip_file
+from utilities import checksum_file, call_subprocess, rezip_file, set_file_permissions
 from config import Config
 from setup_logs import configure_logging
 
@@ -65,6 +65,7 @@ class LaneQCReport(object):
   def __enter__(self):
     if self.workdir is None:
       self.workdir = mkdtemp()
+      LOGGER.debug("Working directory is %s", self.workdir)
       self._delete_workdir = True
     return self
 
@@ -111,7 +112,12 @@ class LaneQCReport(object):
       # Zip up the file if necessary.
       if ftype.gzip and os.path.splitext(fname)[1] != CONFIG.gzsuffix:
         fpath = rezip_file(fpath)
-      move(fpath, fobj.repository_file_path)
+      dest    = fobj.repository_file_path
+      destdir = os.path.dirname(dest)
+      if not os.path.exists(destdir):
+        os.makedirs(destdir)
+      move(fpath, dest)
+      set_file_permissions(CONFIG.group, dest)
 
   def __exit__(self, exctype, excvalue, traceback):
     if self._delete_workdir:
@@ -126,15 +132,30 @@ class LaneFastQCReport(LaneQCReport):
   '''Specific LaneQCReport subclass implementing fastqc report
   generation. See the superclass for usage notes.'''
 
-  def __init__(self, program_name='fastqc', *args, **kwargs):
+  def __init__(self, fastqs=None, program_name='fastqc', *args, **kwargs):
+    '''
+    The fastqs attribute is to allow callers to override Lane objects
+    which have no fastq files attached; for example, when loading
+    external data from public repositories such as GEO or
+    ArrayExpress, we want to store the FastQC report but not the
+    originial fastq files. In such cases the fastq files should be
+    passed in alongside the Lane object.
+    '''
     super(LaneFastQCReport, self).\
         __init__(program_name=program_name, *args, **kwargs)
+    self.fastqs = fastqs
 
   def generate(self):
-    lanefiles = Lanefile.objects.filter(lane=self.lane,
-                                        filetype__code='fq')
-    assert(len(lanefiles) > 0)
-    fns = [ x.repository_file_path for x in lanefiles ]
+
+    if self.fastqs is not None:
+      LOGGER.debug('Using the provided fastq files.')
+      fns = self.fastqs
+    else:
+      LOGGER.debug('Using the fastq files stored in the repository.')
+      lanefiles = Lanefile.objects.filter(lane=self.lane,
+                                          filetype__code='fq')
+      assert(len(lanefiles) > 0)
+      fns = [ x.repository_file_path for x in lanefiles ]
 
     self.run_fastqc(fns)
     self.postprocess_results(fns)
@@ -172,6 +193,10 @@ class LaneFastQCReport(LaneQCReport):
 
       fname = os.path.split(fpath)[1]
       fname = re.sub(r'\.gz$', '', fname)
+
+      # FastQC strips '.fastq' but not '.fq', so we only remove the former here.
+      fname = re.sub(r'\.fastq$', '', fname)
+
       base  =  "%s_fastqc" % fname
       bpath = os.path.join(self.workdir, base)
 

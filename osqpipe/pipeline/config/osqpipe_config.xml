@@ -3,7 +3,7 @@
   <section name="Host">
     <option name="user">fnc-odompipe</option>
     <option name="datahost">uk-cri-lsrv01</option>
-    <option name="group">odompipe</option>
+    <option name="group">dolab</option>
     <option name="defaultproject">all</option>
   </section>
   <section name="Cluster">
@@ -57,6 +57,7 @@
     </option>
     <option name="nonquant_libtypes"><!-- Libtypes for which wig/bgr/bw file creation is inappropriate. -->
       <value>bisulph-smrna</value>
+      <value>genome</value>
     </option>
     <option name="core_facility_code">CRI</option>
     <option name="core_ready_status">core pipeline complete</option>
