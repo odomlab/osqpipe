@@ -13,7 +13,7 @@ from shutil import move
 
 from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO, DEBUG
-LOGGER = configure_logging(level=DEBUG)
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.models import Library, Lane, Alignment, Lanefile,\
     Alnfile, Facility, Genome, Status, Filetype, Program, DataProvenance
@@ -247,12 +247,11 @@ class ExternalDataHandler(object):
     self._save_aln_to_database(aln, alnfiles, progname, progvers)
 
   def _check_file_zipped(self, fname, fobj):
+    # Logging currently handled by the utilities module.
     zipped = is_zipped(fname)
     if fobj.filetype.gzip and not zipped:
-      LOGGER.info("GZipping file %s...", fname)
       fname = rezip_file(fname, overwrite=True)
     elif not fobj.filetype.gzip and zipped:
-      LOGGER.info("UnGZipping file %s...", fname)
       fname = unzip_file(fname, overwrite=True)
     return fname
 
