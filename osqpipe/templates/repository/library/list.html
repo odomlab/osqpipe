@@ -127,7 +127,7 @@ function toggleAll(name, newClass) {
             <td><a class="tooltip static" href="#">{{ aln.genome|truncatechars:10 }}<span class="tooltip-classic">Aligned&nbsp;Genome:&nbsp;{{ aln.genome.scientific_name.split|join:"&nbsp;" }}&nbsp;({{ aln.genome.common_name.split|join:"&nbsp;" }})</span></td>
             <td>{% for prov in aln.provenance.all|sortby:"rank_index" %}{{ prov.program }} {% endfor %}</td>
             <td><a class="tooltip static" href="#">{{ aln.mapped_percent|floatformat:"0" }}%<span class="tooltip-classic">All&nbsp;aligned&nbsp;reads</span></a>
-               (<a class="tooltip static" href="#">{{ aln.munique_percent|floatformat:"0" }}%<span class="tooltip-classic">Unique&nbsp;aligned&nbsp;reads</span></a>)</td>
+               (<a class="tooltip static" href="#">{{ aln.munique_percent|floatformat:"0" }}%<span class="tooltip-classic">Uniquely&nbsp;aligned&nbsp;reads</span></a>)</td>
             <td>{% for file in aln.alnfile_set.all|sortby:"filetype" %}
                   {% if file.filetype|lower in linked_filetypes %}
                     <a href="{% url "file-download" cls=file|to_class_name|lower pk=file.pk %}">{{file.filetype}}</a>
