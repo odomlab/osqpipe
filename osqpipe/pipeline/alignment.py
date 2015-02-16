@@ -66,9 +66,9 @@ class AlignmentHandler(object):
   '''Class designed to manage the insertion of alignment-related files
   into the repository.'''
 
-  __slots__ = ('params', 'prog', 'genome', 'headtrim', 'tailtrim', 'conf')
+  __slots__ = ('params', 'prog', 'progvers', 'genome', 'headtrim', 'tailtrim', 'conf')
 
-  def __init__(self, genome, prog, params='', headtrim=0, tailtrim=0):
+  def __init__(self, genome, prog, params='', progvers=None, headtrim=0, tailtrim=0):
 
     # Program and parameters can be a list or scalar. Params elements
     # should always be string; program can be either string or
@@ -78,17 +78,34 @@ class AlignmentHandler(object):
       # Scalar arguments
       self.prog    = [ prog ]
       self.params  = [ params ]
+
+      # FIXME consider throwing an error here if progvers is already a list.
+      self.progvers = [ progvers ]
+
     elif type(prog) is list:
 
-      # List arguments (params may be the default empty string)
-      if len(prog) != len(params):
+      # List arguments (params may be the default empty string;
+      # progvers may simply by a scalar None)
+      self.prog    = prog
+
+      if len(prog) == len(params):
+        self.params  = params
+      else:
         if params == '': # handle the empty default.
           self.params = [ '' for _x in prog ]
         else:
           raise ValueError("Lengths of prog and params list arguments"
                            + " must match.")
-      self.prog    = prog
-      self.params  = params
+  
+      if len(prog) == len(progvers):
+        self.progvers = progvers
+      else:
+        if progvers is None: # handle the empty default.
+          self.progvers = [ None for _x in prog ]
+        else:
+          raise ValueError("Lengths of prog and progvers list arguments"
+                           + " must match.")
+
     else:
       raise TypeError("The params argument cannot be a list if prog is a scalar")
 
@@ -164,15 +181,23 @@ class AlignmentHandler(object):
                     tailtrim    = self.tailtrim)
     return (aln)
 
-  def _find_versioned_program(self, subprog, factor):
+  def _find_versioned_program(self, subprog, factor, subvers=None):
 
+    subprog = subprog.strip()
+    subvers = subvers.strip()
+
+    # If the version has been pre-specified, just use that.
+    if subvers is not None:
+      prg = self._retrieve_program_object(program=subprog,
+                                          version=subvers)
+      return prg
+
+    # If no version specified, look for the program on cluster or althost.
     try:
       althost = self.conf.althost
       assert(althost != '')
     except AttributeError, _err:
       althost = None
-
-    subprog.strip()
 
     # FIXME come up with a better heuristic than this.
     if subprog in ('reallocateReads', 'samtools') \
@@ -197,13 +222,18 @@ class AlignmentHandler(object):
                                      ssh_user=self.conf.clusteruser,
                                      ssh_path=self.conf.clusterpath,
                                      ssh_port=self.conf.clusterport)
+    prg = self._retrieve_program_object(program=alignerinfo.program,
+                                        version=alignerinfo.version)
+    return prg
+
+  def _retrieve_program_object(self, program, version):
     try:
-      prg = Program.objects.get(program=alignerinfo.program,
-                                version=alignerinfo.version,
-                                  current=True)
+      prg = Program.objects.get(program=program,
+                                version=version,
+                                current=True)
     except Program.DoesNotExist, _err:
       raise StandardError("Unable to find current program in database: %s %s"
-                          % (subprog, alignerinfo.version))
+                          % (program, version))
     return prg
 
   def _add_data_provenance(self, aln):
@@ -215,11 +245,12 @@ class AlignmentHandler(object):
 
     for num in range(len(self.prog)):
       subprog = self.prog[num]
+      subvers = self.progvers[num]
 
       # Support the use of string program names or Django Program
       # objects.
       if issubclass(str, type(subprog)):
-        prg = self._find_versioned_program(subprog, aln.lane.library.factor)
+        prg = self._find_versioned_program(subprog, aln.lane.library.factor, subvers)
       elif issubclass(Program, type(subprog)):
         prg = subprog
 
