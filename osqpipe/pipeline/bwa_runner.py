@@ -130,15 +130,35 @@ class BsubCommand(SimpleCommand):
     # the unix signals which result in a dump ("man 7 signal") for a
     # full listing.
     qval = "-Q 'all ~0'" if auto_requeue else ''
+    try:
+      group = self.conf.clustergroup
+      if group != '':
+        group = '-G ' + group
+    except AttributeError:
+      group = ''
 
-    bsubcmd = (("PYTHONPATH=%s OSQPIPE_CONFDIR=%s bsub -R 'rusage[mem=%d]' -r"
-           + " -o %s/%%J.stdout -e %s/%%J.stderr %s")
+    resources = 'rusage[mem=%d]' % mem
+    memreq    = ''
+
+    # Sanger cluster (farm3) has a stricter set of requirements which
+    # are not supported by our local cluster. Quelle surprise.
+    try:
+      provider = self.conf.clusterprovider
+      if provider[:3].lower() == 'san':
+        resources = ('select[mem>%d] ' % mem) + resources
+        memreq    = '-M %d' % mem
+    except AttributeError:
+      pass
+
+    bsubcmd = (("PYTHONPATH=%s OSQPIPE_CONFDIR=%s bsub -R '%s'"
+           + " %s -r -o %s/%%J.stdout -e %s/%%J.stderr %s %s")
            % (python_path,
               osqpipe_confdir,
-              mem,
+              resources, memreq,
               self.conf.clusterstdoutdir,
               self.conf.clusterstdoutdir,
-              qval))
+              qval,
+              group))
 
     if queue is not None:
       bsubcmd += ' -q %s' % queue
@@ -304,7 +324,7 @@ class RemoteJobRunner(JobRunner):
         path = ":".join(path)
       pathdef = "PATH=%s" % path
 
-    cmd = ("ssh -p %s %s@%s \"cd %s && %s %s\""
+    cmd = ("ssh -p %s %s@%s \"source /etc/profile; cd %s && %s %s\""
            % (str(self.remote_port),
               self.remote_user,
               self.remote_host,
