@@ -22,6 +22,7 @@ from distutils import spawn
 import threading
 from config import Config
 from setup_logs import configure_logging
+from functools import wraps
 
 ###########################################################################
 # N.B. we want no dependencies on the postgresql database in this
@@ -446,3 +447,22 @@ def parse_incoming_fastq_name(fname, ext='.fq'):
                         % fname)
   return (matchobj.group(*range(1, 5)))
 
+def memoize(func):
+  '''
+  Convenience function to memoize functions as necessary. May be of
+  interest as a decorator for use with e.g. is_zipped(),
+  checksum_file() etc. so that they can be called multiple times in
+  defensively-written code but only actually read the file once.
+
+  See
+  https://technotroph.wordpress.com/2012/04/05/memoize-it-the-python-way/
+  for discussion. Also note that python 3.2 and above have built-in
+  memoization (functools.lru_cache).
+  '''
+  cache = {}
+  @wraps(func)
+  def wrap(*args):
+    if args not in cache:
+      cache[args] = func(*args)
+    return cache[args]
+  return wrap
