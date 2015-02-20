@@ -184,10 +184,10 @@ class AlignmentHandler(object):
   def _find_versioned_program(self, subprog, factor, subvers=None):
 
     subprog = subprog.strip()
-    subvers = subvers.strip()
 
     # If the version has been pre-specified, just use that.
     if subvers is not None:
+      subvers = subvers.strip()
       prg = self._retrieve_program_object(program=subprog,
                                           version=subvers)
       return prg
