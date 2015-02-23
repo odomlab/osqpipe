@@ -13,7 +13,7 @@ from shutil import move
 
 from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO, DEBUG
-LOGGER = configure_logging(level=DEBUG)
+LOGGER = configure_logging(level=INFO)
 
 from osqpipe.models import Library, Lane, Alignment, Lanefile,\
     Alnfile, Facility, Genome, Status, Filetype, Program, DataProvenance
@@ -209,7 +209,7 @@ class ExternalDataHandler(object):
 
     return (aln, alnfiles)
 
-  def add(self, bam, fastqs=None, progname='bwa'):
+  def add(self, bam, fastqs=None, progname='bwa', progvers=None):
     '''
     Main entry point for the class.
     '''
@@ -244,15 +244,14 @@ class ExternalDataHandler(object):
     lane.mapped = aln.mapped
     lane.save()
 
-    self._save_aln_to_database(aln, alnfiles, progname)
+    self._save_aln_to_database(aln, alnfiles, progname, progvers)
 
   def _check_file_zipped(self, fname, fobj):
+    # Logging currently handled by the utilities module.
     zipped = is_zipped(fname)
     if fobj.filetype.gzip and not zipped:
-      LOGGER.info("GZipping file %s...", fname)
       fname = rezip_file(fname, overwrite=True)
     elif not fobj.filetype.gzip and zipped:
-      LOGGER.info("UnGZipping file %s...", fname)
       fname = unzip_file(fname, overwrite=True)
     return fname
 
@@ -281,26 +280,29 @@ class ExternalDataHandler(object):
         set_file_permissions(self.config.group, dest)
 
   @transaction.commit_on_success
-  def _save_aln_to_database(self, aln, alnfiles, progname):
+  def _save_aln_to_database(self, aln, alnfiles, progname, progvers):
     # Handle the alignment.
     aln.save()
     for alf in alnfiles.values():
       alf.alignment = aln # ensure alignment_id has been set.
       alf.save()
       
-    alignerinfo = ProgramSummary(progname,
-                                 ssh_host=self.config.cluster,
-                                 ssh_user=self.config.clusteruser,
-                                 ssh_path=self.config.clusterpath,
-                                 ssh_port=self.config.clusterport)
+    if progvers == None:
+      alignerinfo = ProgramSummary(progname,
+                                   ssh_host=self.config.cluster,
+                                   ssh_user=self.config.clusteruser,
+                                   ssh_path=self.config.clusterpath,
+                                   ssh_port=self.config.clusterport)
+      progname = alignerinfo.program
+      progvers = alignerinfo.version
 
     try:
-      program = Program.objects.get(program=alignerinfo.program,
-                                    version=alignerinfo.version,
+      program = Program.objects.get(program=progname,
+                                    version=progvers,
                                     current=True)
     except Program.DoesNotExist, _err:
       raise StandardError("Unable to find current program in database: %s %s"
-                          % (progname, alignerinfo.version))
+                          % (progname, progvers))
 
     DataProvenance.objects.create(program      = program,
                                   parameters   = '',
@@ -371,6 +373,12 @@ if __name__ == '__main__':
                       help='The name of the aligner used to generate the bam file. The'
                       + ' version will be that found in the pipeline cluster $PATH')
 
+  PARSER.add_argument('--program-version', dest='progvers', type=str, default=None,
+                      help='The version of the aligner program used. The default behaviour'
+                      + ' is to connect to our cluster and find this out automatically;'
+                      + ' this option is provided for those all-too-frequent occasions'
+                      + ' nowadays when the cluster is unavailable.')
+
   ARGS = PARSER.parse_args()
 
   HND = ExternalDataHandler(libcode   = ARGS.library,
@@ -386,4 +394,5 @@ if __name__ == '__main__':
 
   HND.add(bam      = ARGS.bam,
           fastqs   = ARGS.fastqs,
-          progname = ARGS.program)
+          progname = ARGS.program,
+          progvers = ARGS.progvers)

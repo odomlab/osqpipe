@@ -188,7 +188,7 @@ class AlignProcessingManager(object):
         LOGGER.warn("Unable to create bigWig file: %s", err)
     return bigwigs
     
-  def run(self, in_fn, genome, reallocate, aligner, relaxed=False):
+  def run(self, in_fn, genome, reallocate, aligner, alignvers, relaxed=False):
 
     '''Given a bam file name, run the file conversions and store all
     files in the repository (input bam file included).'''
@@ -300,7 +300,8 @@ class AlignProcessingManager(object):
     # simply wrap this in a nested transaction because the
     # AlignmentHandler computes file checksums (outside of its
     # transaction) and that takes time.
-    hnd     = AlignmentHandler(prog=aligner, params=params, genome=genome)
+    hnd     = AlignmentHandler(prog=aligner, progvers=alignvers,
+                               params=params, genome=genome)
     fstatus = Status.objects.get(code='complete', authority=None)
     lane    = hnd.add(bedgz + bgrgz + wigsgz + bigwigs + [in_fn],
                       final_status=fstatus)
@@ -339,6 +340,12 @@ if __name__ == '__main__':
   PARSER.add_argument('-a', '--aligner', dest='aligner', type=str, required=False,
                       help='The program used to generate the alignment. The default is bwa.')
 
+  PARSER.add_argument('--aligner-version', dest='alignvers', type=str, default=None,
+                      help='The version of the aligner program used. The default behaviour'
+                      + ' is to connect to our cluster and find this out automatically;'
+                      + ' this option is provided for those all-too-frequent occasions'
+                      + ' nowadays when the cluster is unavailable.')
+
   PARSER.add_argument('--relaxed', dest='relaxed', action='store_true', required=False,
                       help='Ignore validation errors (e.g., mismatches'
                       + ' between numbers of reads in bam and fastq files.')
@@ -347,4 +354,4 @@ if __name__ == '__main__':
 
   APM = AlignProcessingManager(debug=ARGS.debug)
 
-  APM.run(ARGS.file, ARGS.genome, ARGS.reallocate, ARGS.aligner, ARGS.relaxed)
+  APM.run(ARGS.file, ARGS.genome, ARGS.reallocate, ARGS.aligner, ARGS.alignvers, ARGS.relaxed)

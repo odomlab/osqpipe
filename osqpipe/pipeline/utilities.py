@@ -89,6 +89,7 @@ def unzip_file(fname, dest=None, delete=True, overwrite=False):
                     % (dest,))
 
   # We use external gzip where available
+  LOGGER.info("Uncompressing gzipped file: %s", fname)
   if spawn.find_executable('gzip', path=DBCONF.hostpath):
     cmd = 'gzip -dc %s > %s' % (bash_quote(fname), bash_quote(dest))
     call_subprocess(cmd, shell=True, path=DBCONF.hostpath)
