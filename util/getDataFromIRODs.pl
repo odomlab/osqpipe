@@ -36,15 +36,17 @@ sub getFileInIRODs {
 	my $filefull = &filePathInIRODs($file);
 	print STDERR "File: $filefull\n";
 	if(&isFileInIRODs($filefull)) {
-		if(!-f "$destination/$file") {
-			my $cmd = "iget $filefull - | samtools view -b -F 0xF00 - > $destination/$file";
+   	        my $outfile = $file;
+	        $outfile =~ s/\.cram \z/\.bam/ixms;
+		if(!-f "$destination/$outfile") {
+			my $cmd = "iget $filefull - | samtools view -b -F 0xF00 - > $destination/$outfile";
 			print STDERR "$cmd\n";
 			system($cmd);
 		}
 		else {
-			print STDERR "$file exists in destination. Skipping!\n";
+			print STDERR "$outfile exists in destination. Skipping!\n";
 		}
-		if(-f "$destination/$file") {
+		if(-f "$destination/$outfile") {
 			return 1;
 		}
 		else {
@@ -77,6 +79,7 @@ sub getMetaDataForFileInIRODs {
 
 	my $filefull = &filePathInIRODs($file);
 	my $metafile = "$destination/$file.meta";
+	$metafile =~ s/\.cram.meta \z/\.bam.meta/ixms;
 	my $cmd = "imeta ls -d $filefull > $metafile";
 	system($cmd);
 	if(-f $metafile) {
@@ -121,8 +124,8 @@ foreach my $lane (@lanes) {
         FILE:
 	foreach my $file(@files) {
 
-	        # I think we're only interested in .bam and associated metadata; remove the next line if I'm wrong (TFR).
-   	        next FILE unless $file =~ /\.bam$/i;
+	        # We're only interested in .bam/.cram and associated metadata.
+   	        next FILE unless $file =~ /\.(bam|cram)$/i;
 		print "Fetching $file ...\n";
 		&getFileInIRODs($file,$repository);
 		print "Fetching metadata for $file ...\n";
