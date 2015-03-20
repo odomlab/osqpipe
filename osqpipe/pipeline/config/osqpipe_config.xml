@@ -12,7 +12,7 @@
     <option name="clusteruser">fnc-odompipe</option>
     <option name="clusterstdoutdir">/lustre/dolab/fnc-odompipe/pipeline/stdout/</option>
     <option name="clusterworkdir">/lustre/dolab/fnc-odompipe/pipeline/tmp/</option>
-    <option name="clusterpath">/home/fnc-odompipe/production/bin:/home/fnc-odompipe/software/external/bin:/platform/lsf/7.0/linux2.6-glibc2.3-x86_64/bin/:/usr/local/bin:/usr/bin:/bin</option>
+    <option name="clusterpath">/home/fnc-odompipe/production/bin:/home/fnc-odompipe/software/external/bin:/platform/lsf/7.0/linux2.6-glibc2.3-x86_64/bin/:/usr/local/bin:/usr/bin:/bin:/lustre/dolab/rayner01/bin</option>
     <option name="clustergenomedir">/lustre/dolab/fnc-odompipe/genomes</option>
     <option name="clusterqueue">dolab</option>
     <option name="splitbwarunlog">/home/fnc-odompipe/pipeline/log/cs_runBwaWithSplit_fnc-odompipe.log</option>
@@ -20,7 +20,8 @@
 <!-- Uncomment the following and set it if it differs at all from clusterworkdir:
     <option name="transferdir">/lustre/dolab/fnc-odompipe/pipeline/tmp/</option> -->
   </section>
-<!-- Uncomment the following and set appropriately if the main compute cluster is out of action.
+<!-- Uncomment the following and set appropriately if the main compute cluster is out of action. -->
+<!--
   <section name="AlternativeAlignmentHost">
     <option name="althost">magellan.cri.camres.org</option>
     <option name="althostport">22</option>
@@ -30,7 +31,8 @@
     <option name="althostgenomedir">/Users/rayner01/Scratch_Area/genomes</option>
     <option name="althostnumthreads">10</option>
     <option name="althostsshkey">/Users/rayner01/.ssh/id_rsa_open</option>
-  </section> -->
+  </section>
+-->
   <section name="Lims">
     <option name="lims_rest_uri">http://genomicsequencing.cruk.cam.ac.uk:8080/glsintapi</option>
   </section>
