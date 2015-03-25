@@ -950,12 +950,12 @@ class SplitBwaRunner(BwaRunner):
     self.commands = {
       'SPLIT'       : "split -l %s %s %s", # split -l size file.fq prefix
       'BWA_SE'      : "%s aln %s %s | %s samse %s %s - %s"
-                                + " | %s view -b -S -u -"
-                                + " | %s sort - - > %s && rm %s",
+                                + " | %s view -b -S -u - > %s.unsorted"
+                                + " && %s sort %s.unsorted %s && rm %s %s.unsorted",
       'BWA_PE1'     : "%s aln %s %s > %s",
       'BWA_PE2'     : "%s sampe %s %s %s %s %s %s"
-                                + " | %s view -b -S -u -"
-                                + " | %s sort - - > %s && rm %s %s %s %s",
+                                + " | %s view -b -S -u - > %s.unsorted"
+                                + " && %s sort %s.unsorted %s && rm %s %s %s %s %s.unsorted",
       'MERGE'       : "python %s --loglevel %d %s %s %s %s",
       'MERGE_RCP'   : "python %s --loglevel %d %s %s --rcp %s %s %s",
       }
@@ -1028,12 +1028,14 @@ class SplitBwaRunner(BwaRunner):
                               bash_quote(fqname),
                               bash_quote(fq_files2[current]),
                               self.samtools_prog,
+                              out,
                               self.samtools_prog,
                               out,
+                              bash_quote(fqname),
                               bash_quote(sai_file1),
                               bash_quote(sai_file2),
                               bash_quote(fqname),
-                              bash_quote(fq_files2[current]))
+                              bash_quote(fq_files2[current]), out)
 
         LOGGER.info("starting bwa step1 on '%s'", fqname)
         jobid_sai1 = self._submit_lsfjob(cmd, jobname1, sleep=current)
@@ -1058,9 +1060,11 @@ class SplitBwaRunner(BwaRunner):
                             genome,
                             bash_quote(fqname),
                             self.samtools_prog,
+                            out,
                             self.samtools_prog,
                             out,
-                            bash_quote(fqname))
+                            bash_quote(fqname),
+                            bash_quote(fqname), out)
         LOGGER.info("starting bwa on '%s'", fqname)
         LOGGER.debug(cmd)
         jobid_bam = self._submit_lsfjob(cmd, jobname_bam, sleep=current)
