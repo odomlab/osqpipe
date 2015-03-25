@@ -35,6 +35,7 @@ class LibrarySearchForm(forms.Form):
   antibody   = forms.CharField(required=False)
   genomicsid = forms.CharField(required=False, label='Genomics SLX ID')
   flowcell   = forms.CharField(required=False, label='Flowcell ID')
+  accession  = forms.CharField(required=False, label='Public Accession')
 
 class LibraryEditForm(forms.Form):
 

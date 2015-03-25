@@ -71,6 +71,7 @@ class LibraryListView(FilterMixin, FormListView):
     'individual' : 'individual__icontains',
     'genomicsid' : 'lane__genomicssampleid__icontains',
     'flowcell'   : 'lane__flowcell__icontains',
+    'accession'  : 'lane__external_records__accession__icontains',
     }
 
   def get(self, request, *args, **kwargs):
