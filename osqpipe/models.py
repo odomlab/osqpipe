@@ -234,6 +234,7 @@ class Library(models.Model):
   paired       = models.BooleanField(default=False)
   adapter      = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True)
   comment      = models.TextField(null=True, blank=True)
+  adapter2     = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True)
 
   objects      = LibraryManager()
 
