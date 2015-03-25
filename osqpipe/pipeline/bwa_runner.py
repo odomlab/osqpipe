@@ -465,12 +465,15 @@ class ClusterJobSubmitter(RemoteJobRunner):
                        *args, **kwargs)
 
     jobid_pattern = re.compile(r"Job\s+<(\d+)>\s+is\s+submitted\s+to")
-    for line in pout:
-      matchobj = jobid_pattern.search(line)
-      if matchobj:
-        return int(matchobj.group(1))
+    if not self.test_mode:
+      for line in pout:
+        matchobj = jobid_pattern.search(line)
+        if matchobj:
+          return int(matchobj.group(1))
 
-    raise ValueError("Unable to parse bsub output for job ID.")
+      raise ValueError("Unable to parse bsub output for job ID.")
+    else:
+      return 0 # Test mode only.
 
 class ClusterJobRunner(RemoteJobRunner):
 
@@ -631,6 +634,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     else:
       noccflag = ''
 
+    # FIXME assumes path on localhost is same as path on cluster.
     progpath = spawn.find_executable('cs_runBwaWithSplit.py', path=self.conf.clusterpath)
 
     # Next, submit the actual jobs on the actual cluster.
@@ -880,6 +884,8 @@ class BwaRunner(object):
     # the remote command.
     self.bwa_prog      = 'bwa'
     self.samtools_prog = 'samtools'
+
+    # FIXME assumes path on localhost is same as path on cluster.
     self.merge_prog    = spawn.find_executable('cs_runBwaWithSplit_Merge.py',
                                                path=self.conf.clusterpath)
     self.logfile       = self.conf.splitbwarunlog
@@ -944,9 +950,12 @@ class SplitBwaRunner(BwaRunner):
     self.commands = {
       'SPLIT'       : "split -l %s %s %s", # split -l size file.fq prefix
       'BWA_SE'      : "%s aln %s %s | %s samse %s %s - %s"
-                                + " | %s view -b -S -u - > %s && rm %s",
+                                + " | %s view -b -S -u -"
+                                + " | %s sort - - > %s && rm %s",
       'BWA_PE1'     : "%s aln %s %s > %s",
-      'BWA_PE2'     : "%s sampe %s %s %s %s %s %s | %s view -b -S -u - > %s && rm %s %s %s %s",
+      'BWA_PE2'     : "%s sampe %s %s %s %s %s %s"
+                                + " | %s view -b -S -u -"
+                                + " | %s sort - - > %s && rm %s %s %s %s",
       'MERGE'       : "python %s --loglevel %d %s %s %s %s",
       'MERGE_RCP'   : "python %s --loglevel %d %s %s --rcp %s %s %s",
       }
@@ -1019,6 +1028,7 @@ class SplitBwaRunner(BwaRunner):
                               bash_quote(fqname),
                               bash_quote(fq_files2[current]),
                               self.samtools_prog,
+                              self.samtools_prog,
                               out,
                               bash_quote(sai_file1),
                               bash_quote(sai_file2),
@@ -1047,6 +1057,7 @@ class SplitBwaRunner(BwaRunner):
                             self.bwa_prog, self.nocc,
                             genome,
                             bash_quote(fqname),
+                            self.samtools_prog,
                             self.samtools_prog,
                             out,
                             bash_quote(fqname))
@@ -1123,7 +1134,7 @@ class MergeBwaRunner(BwaRunner):
     self.group   = group
     self._configure_logging(self.__class__.__name__, LOGGER)
     self.commands = {
-      'MERGE' : "%s merge - %s | %s sort - %s",
+      'MERGE' : "%s merge %s %s", # assumes sorted input bams.
       'COPY'  : "scp -p -q %s %s",
       'DONE'  : "ssh %s touch %s/%s.done",
       }
@@ -1149,10 +1160,10 @@ class MergeBwaRunner(BwaRunner):
       LOGGER.warn("renaming file: %s", input_fns[0])
       move(input_fns[0], output_fnfull)
     else:
-      cmd = (self.commands['MERGE'] % (self.samtools_prog,
-                          " ".join([ bash_quote(x) for x in input_fns]),
-                          self.samtools_prog,
-                          bash_quote(output_fn)))
+      cmd = (self.commands['MERGE']
+             % (self.samtools_prog,
+                bash_quote(output_fnfull),
+                " ".join([ bash_quote(x) for x in input_fns])))
       LOGGER.debug(cmd)
       pout = call_subprocess(cmd, shell=True,
                             tmpdir=self.conf.clusterworkdir,
