@@ -916,7 +916,7 @@ class BwaRunner(object):
     gid = grp.getgrnam(group).gr_gid
     os.chown(path, -1, gid)
     os.chmod(path,
-             stat.S_IRUSR|stat.S_IWUSR|stat.S_IRGRP|stat.S_IWGRP|stat.S_IROTH)
+             stat.S_IRUSR|stat.S_IWUSR|stat.S_IRGRP)
 
 ##############################################################################
 
