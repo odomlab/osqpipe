@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# $Id: lastz_pipeline.py 3490 2014-12-30 18:08:19Z tfrayner $
+# $Id: lastz_pipeline.py 3533 2015-03-31 14:56:41Z tfrayner $
 
 '''
 A script designed to automate the process of creating axtNet files for
@@ -70,7 +70,7 @@ class LastzAligner(ClusterJobManager):
                length_limit=None, linear_gap='loose', local_tempdir=None,
                resume=False, *args, **kwargs):
 
-    super(LastzAligner, self).super(*args, **kwargs)
+    super(LastzAligner, self).__init__(*args, **kwargs)
 
     self.from_genome  = from_genome
     self.to_genome    = to_genome
