@@ -49,6 +49,7 @@ class ControlledVocab(models.Model):
 class Adapter(ControlledVocab):
   code         = models.CharField(max_length=32, unique=True)
   sequence     = models.CharField(max_length=32, null=True, blank=True)
+  protocol     = models.CharField(max_length=32)
 
   _controlled_field = 'code'
   

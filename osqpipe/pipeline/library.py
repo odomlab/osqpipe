@@ -217,6 +217,9 @@ class LibraryHandler(object):
       if 'linkerset' in keys and keys['linkerset']:
         keys['linkerset'] = self._retrieve_cv(keys['linkerset'], Linkerset)
 
+      if 'adapter2' in keys and keys['adapter2']:
+        keys['adapter2'] = self._retrieve_cv(keys['adapter2'], Adapter)
+
     except SystemExit, err:
       err = "Unable to load library %s: %s" % (code, err)
       if self.interactive:
