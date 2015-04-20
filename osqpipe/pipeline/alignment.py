@@ -97,11 +97,11 @@ class AlignmentHandler(object):
           raise ValueError("Lengths of prog and params list arguments"
                            + " must match.")
   
-      if len(prog) == len(progvers):
-        self.progvers = progvers
+      if progvers is None: # handle the empty default.
+        self.progvers = [ None for _x in prog ]
       else:
-        if progvers is None: # handle the empty default.
-          self.progvers = [ None for _x in prog ]
+        if len(prog) == len(progvers):
+          self.progvers = progvers
         else:
           raise ValueError("Lengths of prog and progvers list arguments"
                            + " must match.")

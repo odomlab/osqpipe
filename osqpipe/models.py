@@ -352,7 +352,7 @@ class Lane(models.Model):
   qualstdev    = dbarray.FloatArrayField(null=True)
   summaryurl   = models.CharField(max_length=1024, null=True, blank=True)
   genomicssampleid = models.CharField(max_length=32, null=True, blank=True)
-  usersampleid     = models.CharField(max_length=512, null=True, blank=True)
+  usersampleid     = models.CharField(max_length=1024, null=True, blank=True)
   notes        = models.TextField(null=True, blank=True)
   failed       = models.BooleanField(default=False)
   runnumber    = models.CharField(null=True, blank=True, max_length=255)
