@@ -512,9 +512,11 @@ class Lims(object):
             LOGGER.debug('Classifying LIMS file artifact %s as %s',
                          fdesig, ftype)
             ftype_list = filedict.setdefault(ftype, [])
+            md5elem = file_elem.find('./checksum')
+            md5sum  = None if md5elem is None else md5elem.text
             newfile = LimsLaneFile(uri=file_elem.find('./url').text,
                                    filetype=ftype,
-                                   md5sum=file_elem.find('./checksum').text,
+                                   md5sum=md5sum,
                                    lims_id=str(file_elem.attrib['fileLimsId']))
             ftype_list.append(newfile)
             break
@@ -541,9 +543,11 @@ class Lims(object):
           fdesig = file_elem.find('./artifactName').text
           if wanted.search(fdesig) is not None:
             LOGGER.debug('Found demultiplexed FASTQ file %s', fdesig)
+            md5elem = file_elem.find('./checksum')
+            md5sum  = None if md5elem is None else md5elem.text
             newfile = LimsLaneFile(uri=file_elem.find('./url').text,
                                    filetype='FASTQ',
-                                   md5sum=file_elem.find('./checksum').text,
+                                   md5sum=md5sum,
                                    lims_id=str(file_elem.attrib['fileLimsId']))
             demux_list.append(newfile)
 

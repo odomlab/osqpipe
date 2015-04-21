@@ -130,9 +130,9 @@ class FQFileFetcher(object):
     else:
 
       # Compare the md5sum against those available in upstream LIMS.
-      if not self.test_mode:
+      if not self.test_mode and lfile.md5sum is not None:
         md5 = checksum_file(target, unzip=False)
-        if lfile.md5sum is not None and md5 != lfile.md5sum:
+        if md5 != lfile.md5sum:
           raise StandardError("File md5sum (%s) disagrees with upstream LIMS (%s): %s"
                               % (md5, lfile.md5sum, target))
 
