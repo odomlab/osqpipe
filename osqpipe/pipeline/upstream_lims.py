@@ -104,10 +104,11 @@ class LimsLaneFile(object):
   '''
   Thin class used to hold file information from the LIMS.
   '''
-  def __init__(self, uri, lims_id, filetype):
+  def __init__(self, uri, lims_id, filetype, md5sum=None):
     self.uri     = uri
     self.lims_id = lims_id
     self.filetype = filetype
+    self.md5sum   = md5sum
 
   def __getattribute__(self, key):
     '''Wrap attribute retrieval to seamlessly deref any weakref.ref links.'''
@@ -513,6 +514,7 @@ class Lims(object):
             ftype_list = filedict.setdefault(ftype, [])
             newfile = LimsLaneFile(uri=file_elem.find('./url').text,
                                    filetype=ftype,
+                                   md5sum=file_elem.find('./checksum').text,
                                    lims_id=str(file_elem.attrib['fileLimsId']))
             ftype_list.append(newfile)
             break
@@ -541,6 +543,7 @@ class Lims(object):
             LOGGER.debug('Found demultiplexed FASTQ file %s', fdesig)
             newfile = LimsLaneFile(uri=file_elem.find('./url').text,
                                    filetype='FASTQ',
+                                   md5sum=file_elem.find('./checksum').text,
                                    lims_id=str(file_elem.attrib['fileLimsId']))
             demux_list.append(newfile)
 

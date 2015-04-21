@@ -123,22 +123,22 @@ class FQFileFetcher(object):
     LOGGER.debug("Downloading LIMS file ID %s to %s", lfile.lims_id, target)
     if not self.test_mode:
       self.lims.get_file_by_id(lfile.lims_id, target)
-      if compressed:
-        target = unzip_file(target)
       set_file_permissions(self.conf.group, target)
+
     if not os.path.exists(target) and not self.test_mode:
       LOGGER.error("Failed to retrieve file '%s'", dst)
     else:
 
-      # I'm not clear what we gain by calculating the MD5 sums
-      # here. FIXME maybe compare them against the MD5s available in
-      # LIMS? Beware these may be for the gzipped files though.
-      md5fn = target + ".md5"
+      # Compare the md5sum against those available in upstream LIMS.
       if not self.test_mode:
-        md5 = checksum_file(target)
-        with open(md5fn, 'wb') as md5out:
-          md5out.write(md5 + "\n")
-        set_file_permissions(self.conf.group, md5fn)
+        md5 = checksum_file(target, unzip=False)
+        if lfile.md5sum is not None and md5 != lfile.md5sum:
+          raise StandardError("File md5sum (%s) disagrees with upstream LIMS (%s): %s"
+                              % (md5, lfile.md5sum, target))
+
+    # Only uncompress once we've checked the md5sum.
+    if compressed and not self.test_mode:
+      target = unzip_file(target)
 
     self.targets.add(target)
     LOGGER.info("Downloaded file to %s", target)

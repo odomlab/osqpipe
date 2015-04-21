@@ -162,7 +162,7 @@ def _checksum_fileobj(fileobj, blocksize=65536):
 
   return hasher.hexdigest()
 
-def checksum_file(fname):
+def checksum_file(fname, unzip=True):
   '''
   Calculate the MD5 checksum for a file. Handles gzipped files by
   decompressing on the fly (i.e., the returned checksum is of the
@@ -170,7 +170,7 @@ def checksum_file(fname):
   '''
   # FIXME consider piping from external gzip (where available) rather
   # than using gzip module?
-  if is_zipped(fname):
+  if is_zipped(fname) and unzip:
     with gzip.open(fname, 'rb') as fileobj:
       md5 = _checksum_fileobj(fileobj)
   else:
