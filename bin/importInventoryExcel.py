@@ -174,6 +174,7 @@ class InventoryImporter(object):
       # NEB and TruSeq barcodes are identical, at least up to TS_12.
       if 'protocol' in rowdict:
         prottag = re.sub(' ', '', rowdict['protocol'].lower())
+        print 'Prottag=%s' % prottag
         if prottag in ('truseq', 'neb'):
 
           # TruSeq adapters have standard names in the repository.
@@ -190,8 +191,8 @@ class InventoryImporter(object):
             if int(barcode) > 12 and rowdict['protocol'].lower() == 'neb':
               LOGGER.error('NEB barcode index greater than 12 used; confirm sequences match TruSeq!')
               raise ValueError()
-        elif prottag in ('trueseqlt'):
-          adapter = 'TSLT_' + barcode
+        elif prottag in ('truseqlt'):
+          adapter = 'TSLT_%d' % int(barcode)
 
         # FIXME the following protocol list should be simplified to
         # reflect whatever we end up actually using.
