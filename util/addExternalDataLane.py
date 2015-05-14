@@ -330,8 +330,11 @@ if __name__ == '__main__':
   PARSER.add_argument('-l', '--library', dest='library', type=str, required=True,
                       help='The library code with which the data should be associated.')
 
-  PARSER.add_argument('-n', '--lanenum', dest='lanenum', type=int, required=False,
-                      help='The number of the lane to store (or update) in the repository.')
+  PARSER.add_argument('-n', '--lanenum', dest='lanenum', type=int, default=1,
+                      help='The number of the lane to store (or update) in the repository.'
+                      + ' By default the script will add new alignments to lane number 1.'
+                      + ' If this lane is already present in the database then the input'
+                      + ' fastq file(s) will be ignored.')
 
   PARSER.add_argument('-b', '--bam', dest='bam', type=str, required=True,
                       help='The name of the bam file to load into the repository.')

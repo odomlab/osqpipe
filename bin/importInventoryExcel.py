@@ -109,7 +109,7 @@ class InventoryImporter(object):
     known = ('sort', 'libraryid', 'assaytype', 'experiment', 'genome',
              'strain', 'tissue', 'cellline', 'tissueprocessing', 'projects',
              'individual', 'sex', 'factor', 'antibody', 'lotnumber', 'condition',
-             'barcode', 'barcodetype', 'linkerset', 'pairedend', 'protocol',
+             'barcode', 'barcode2', 'barcodetype', 'linkerset', 'pairedend', 'protocol',
              'notes', 'status', 'replicate', 'biopsyid', 'solexaid',
              'sequencingrunsatcri:', 'sequencingrunsatsanger:',
              'total#ofmappedreadsobtained:',
@@ -159,14 +159,14 @@ class InventoryImporter(object):
 
     return optvals
 
-  def munge_barcode_info(self, rowdict, libcode):
+  def munge_barcode_info(self, rowdict, libcode, code_column='barcode'):
 
     adapter = linkerset = None
 
     (barcode, needs_adapter) = self.extract_barcode_int('barcodetype', rowdict)
     if not barcode:
-      (barcode, needs_adapter) = self.extract_barcode_int('barcode',
-                                                        rowdict, needs_adapter)
+      (barcode, needs_adapter) = self.extract_barcode_int(code_column,
+                                                          rowdict, needs_adapter)
 
     # Handle failures, inconsistencies and other corner cases.
     if barcode:  # If we have a barcode number we need to know the scheme
@@ -174,6 +174,7 @@ class InventoryImporter(object):
       # NEB and TruSeq barcodes are identical, at least up to TS_12.
       if 'protocol' in rowdict:
         prottag = re.sub(' ', '', rowdict['protocol'].lower())
+        print 'Prottag=%s' % prottag
         if prottag in ('truseq', 'neb'):
 
           # TruSeq adapters have standard names in the repository.
@@ -190,6 +191,8 @@ class InventoryImporter(object):
             if int(barcode) > 12 and rowdict['protocol'].lower() == 'neb':
               LOGGER.error('NEB barcode index greater than 12 used; confirm sequences match TruSeq!')
               raise ValueError()
+        elif prottag in ('truseqlt'):
+          adapter = 'TSLT_%d' % int(barcode)
 
         # FIXME the following protocol list should be simplified to
         # reflect whatever we end up actually using.
@@ -198,6 +201,9 @@ class InventoryImporter(object):
           if int(barcode) > 16:
             LOGGER.error('SureSelectXT barcode index greater than 16 used.')
             raise ValueError()
+
+        elif prottag in ('nextera', 'nexteraxt'):
+          adapter = 'NXT_N' + barcode
 
         else:
           LOGGER.error('Uncertain which adapter scheme (e.g. TruSeq) has been used: %s',
@@ -266,7 +272,13 @@ class InventoryImporter(object):
 
     # Munge the barcode/barcodetype/protocol info into an adapter string.
     try:
-      (optvals['adapter'], optvals['linkerset']) = self.munge_barcode_info(rowdict, libcode)
+      (optvals['adapter'],  optvals['linkerset']) = \
+          self.munge_barcode_info(rowdict, libcode, code_column='barcode')
+      (optvals['adapter2'], discarded)            = \
+          self.munge_barcode_info(rowdict, libcode, code_column='barcode2')
+      if discarded is not None:
+        raise ValueError("Unexpectedly identified a linkerset (%s) while parsing adapter2." % discarded)
+
     except ValueError, err:
       LOGGER.error("Barcode parsing failed for library %s. Skipping.", libcode)
       return

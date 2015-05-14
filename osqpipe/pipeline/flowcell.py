@@ -120,19 +120,11 @@ class FlowCellProcess(object):
         if matchobj2:
           LOGGER.info("lost %s reads", matchobj2.group(1))
 
-    # Calculate MD5 checksums. I'm honestly not clear what we actually
-    # use these files for? FIXME
     for fname in fnset:
-      md5   = checksum_file(fname)
-      md5fn = fname + ".md5"
-      with open(md5fn, 'wb') as md5out:
-        md5out.write(md5 + "\n")
       set_file_permissions(self.conf.group, fname)
-      set_file_permissions(self.conf.group, md5fn)
 
     # Delete the sample sheet.
     os.unlink(sheet)
-    # report results
 
   def run(self, flowcell, flowlane=None, fcq=None):
     '''The main entry point for the class.'''

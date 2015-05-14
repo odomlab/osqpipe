@@ -35,6 +35,7 @@
     <tr><th>Barcode: </th><td>{{ library.barcode }}</td></tr>
     <tr><th>Linkerset: </th><td>{{ library.linkerset }}</td></tr>
     <tr><th>Adapter: </th><td>{{ library.adapter }}{% if library.adapter %} (sequence: {{ library.adapter.sequence }}){% endif %}</td></tr>
+    <tr><th>Adapter2: </th><td>{{ library.adapter2 }}{% if library.adapter2 %} (sequence: {{ library.adapter2.sequence }}){% endif %}</td></tr>
     <tr><th>Experiment: </th><td>{{ library.chipsample }}</td></tr>
     <tr><th>Single or Paired-End: </th><td>{{ library.paired|yesno:"PE,SE" }}
         {% if library.lane_set.all.count > 0 %}

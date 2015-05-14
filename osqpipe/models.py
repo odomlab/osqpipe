@@ -49,6 +49,7 @@ class ControlledVocab(models.Model):
 class Adapter(ControlledVocab):
   code         = models.CharField(max_length=32, unique=True)
   sequence     = models.CharField(max_length=32, null=True, blank=True)
+  protocol     = models.CharField(max_length=32)
 
   _controlled_field = 'code'
   
@@ -234,6 +235,7 @@ class Library(models.Model):
   paired       = models.BooleanField(default=False)
   adapter      = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True)
   comment      = models.TextField(null=True, blank=True)
+  adapter2     = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True)
 
   objects      = LibraryManager()
 
@@ -350,7 +352,7 @@ class Lane(models.Model):
   qualstdev    = dbarray.FloatArrayField(null=True)
   summaryurl   = models.CharField(max_length=1024, null=True, blank=True)
   genomicssampleid = models.CharField(max_length=32, null=True, blank=True)
-  usersampleid     = models.CharField(max_length=512, null=True, blank=True)
+  usersampleid     = models.CharField(max_length=1024, null=True, blank=True)
   notes        = models.TextField(null=True, blank=True)
   failed       = models.BooleanField(default=False)
   runnumber    = models.CharField(null=True, blank=True, max_length=255)

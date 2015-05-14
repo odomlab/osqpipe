@@ -11,7 +11,7 @@ from django import forms
 
 #############################################
 class AdapterAdmin(admin.ModelAdmin):
-  list_display = ('__unicode__', 'sequence')
+  list_display = ('__unicode__', 'sequence', 'protocol')
   search_fields = ('code', 'sequence')
 
 admin.site.register(Adapter, AdapterAdmin)
