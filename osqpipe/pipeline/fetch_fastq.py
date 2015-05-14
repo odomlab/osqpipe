@@ -110,14 +110,25 @@ class FQFileFetcher(object):
                                     lfile.lane.flowcell.fcid,
                                     lfile.lane.lane,
                                     flowpair)
+
+    # If the final file has already been downloaded we skip the download.
+    target = os.path.join(self.destination, dst)
+    if os.path.exists(target):
+      LOGGER.warning("Destination file '%s' exists. Cannot overwrite.", target)
+      return
+
     compressed = False
     if os.path.splitext(lfile.uri)[1] == self.conf.gzsuffix:
       compressed = True
       dst += self.conf.gzsuffix
     target = os.path.join(self.destination, dst)
+
+    # We also refuse to download over an intermediary gzipped
+    # file. This is more likely to be an error so we raise an
+    # exception here. If the file is good it should have been
+    # uncompressed already.
     if os.path.exists(target):
-      LOGGER.warning("Output file '%s' exists. Cannot overwrite.", target)
-      return
+      raise StandardError("Download location '%s' exists. Cannot overwrite." % target)
 
     # We download these over http now.
     LOGGER.debug("Downloading LIMS file ID %s to %s", lfile.lims_id, target)
