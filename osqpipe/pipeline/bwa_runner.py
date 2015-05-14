@@ -21,7 +21,7 @@ from tempfile import gettempdir, NamedTemporaryFile
 from getpass import getuser
 
 from utilities import call_subprocess, bash_quote, \
-    is_zipped, set_file_permissions
+    is_zipped, set_file_permissions, parse_repository_filename
 from config import Config
 
 from setup_logs import configure_logging
@@ -29,7 +29,7 @@ LOGGER = configure_logging('bwa_runner')
 
 ##############################################################################
 
-def make_bam_name(fqname):
+def make_bam_name_without_extension(fqname):
 
   """Creates bam file basename out of Odom/Carroll lab standard fq
   filename. Note that this function does not append '.bam' to the
@@ -735,7 +735,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
     LOGGER.info("Copying files to the alignment server.")
     destnames = self.job.transfer_data(filenames, destnames)
 
-    outfnbase = make_bam_name(destnames[0])
+    outfnbase = make_bam_name_without_extension(destnames[0])
     outfnfull = outfnbase + '.bam'
 
     tempfiles = destnames + [ outfnfull ]
@@ -1116,7 +1116,7 @@ class SplitBwaRunner(BwaRunner):
       LOGGER.error("Too many files specified.")
       sys.exit("Unexpected number of files passed to script.")
     (job_ids, bam_files) = self.run_bwas(genome, paired, fq_files, fq_files2)
-    bam_fn = make_bam_name(files[0])
+    bam_fn = "%s.bam" % make_bam_name_without_extension(files[0])
 
     self.queue_merge(bam_files, job_ids, bam_fn, rcp_target)
 
@@ -1155,14 +1155,13 @@ class MergeBwaRunner(BwaRunner):
 
   def merge_files(self, output_fn, input_fns):
     """Merges list of bam files"""
-    output_fnfull = output_fn + ".bam"
     if len(input_fns) == 1:
       LOGGER.warn("renaming file: %s", input_fns[0])
-      move(input_fns[0], output_fnfull)
+      move(input_fns[0], output_fn)
     else:
       cmd = (self.commands['MERGE']
              % (self.samtools_prog,
-                bash_quote(output_fnfull),
+                bash_quote(output_fn),
                 " ".join([ bash_quote(x) for x in input_fns])))
       LOGGER.debug(cmd)
       pout = call_subprocess(cmd, shell=True,
@@ -1170,8 +1169,8 @@ class MergeBwaRunner(BwaRunner):
                             path=self.conf.clusterpath)
       for line in pout:
         LOGGER.warn("SAMTOOLS: %s", line[:-1])
-    if not os.path.isfile(output_fnfull):
-      LOGGER.error("expected output file '%s' cannot be found.", output_fnfull)
+    if not os.path.isfile(output_fn):
+      LOGGER.error("expected output file '%s' cannot be found.", output_fn)
       sys.exit("File access error.")
     if self.group:
       self.set_file_permissions(self.group, output_fn)
@@ -1210,13 +1209,71 @@ class MergeBwaRunner(BwaRunner):
       os.unlink(fname)
     return
 
+  def picard_cleanup(self, output_fn, input_fn):
+    '''
+    Run picard CleanSam, AddOrReplaceReadGroups,
+    FixMateInformation. Note that this method relies on the presence
+    of a wrapper shell script named 'picard' in the path.
+    '''
+    output_base = os.path.splitext(output_fn)[0]
+    cleaned_fn  = "%s_cleaned.bam" % output_base
+    rgadded_fn  = "%s_rg.bam" % output_base
+
+    (libcode, facility, lanenum, _pipeline) = parse_repository_filename(output_fn)
+
+    # Some options are universal. Consider also adding QUIET=true, VERBOSITY=ERROR
+    common_args = ('VALIDATION_STRINGENCY=LENIENT',
+                   'TMP_DIR=%s' % self.conf.clusterworkdir)
+
+    # Run CleanSam
+    cmd = ('picard', 'CleanSam',
+           'INPUT=%s'  % input_fn,
+           'OUTPUT=%s' % cleaned_fn) + common_args
+    call_subprocess(cmd, tmpdir=self.conf.clusterworkdir, path=self.conf.clusterpath)
+    if self.cleanup:
+      os.unlink(input_fn)
+
+    # Run AddOrReplaceReadGroups
+    cmd = ('picard', 'AddOrReplaceReadGroups',
+           'INPUT=%s'  % cleaned_fn,
+           'OUTPUT=%s' % rgadded_fn,
+           'RGLB=%s'   % libcode,
+           'RGSM=%s'   % libcode, # sample name?
+           'RGCN=%s'   % facility,
+           'RGPU=%d'   % int(lanenum),
+           'RGPL=illumina') + common_args
+    call_subprocess(cmd, tmpdir=self.conf.clusterworkdir, path=self.conf.clusterpath)
+    if self.cleanup:
+      os.unlink(cleaned_fn)
+    
+    # Run FixMateInformation
+    cmd = ('picard', 'FixMateInformation',
+           'ASSUME_SORTED=true',
+           'INPUT=%s'  % rgadded_fn,
+           'OUTPUT=%s' % output_fn) + common_args
+    call_subprocess(cmd, tmpdir=self.conf.clusterworkdir, path=self.conf.clusterpath)
+    if self.cleanup:
+      os.unlink(rgadded_fn)
+    
+    if self.group:
+      self.set_file_permissions(self.group, output_fn)
+
   def run(self, input_fns, output_fn, rcp_target=None):
-    '''Main entry point for the class.'''
-    LOGGER.info("merging '%s' into '%s'", ", ".join(input_fns), output_fn)
-    self.merge_files(output_fn, input_fns)
-    LOGGER.info("merged '%s' into '%s'", ", ".join(input_fns), output_fn)
+    '''
+    Main entry point for the class.
+    '''
+    merge_fn = "%s_dirty.bam" % os.path.splitext(output_fn)[0]
+
+    LOGGER.info("merging '%s' into '%s'", ", ".join(input_fns), merge_fn)
+    self.merge_files(merge_fn, input_fns)
+    LOGGER.info("merged '%s' into '%s'", ", ".join(input_fns), merge_fn)
+
+    LOGGER.info("running picard cleanup on '%s'", merge_fn)
+    self.picard_cleanup(output_fn, merge_fn)
+    LOGGER.info("ran picard cleanup on '%s' creating '%s'", merge_fn, output_fn)
+
     if rcp_target:
-      self.copy_result(rcp_target, output_fn + ".bam")
+      self.copy_result(rcp_target, output_fn)
       LOGGER.info("copied '%s' to '%s'", output_fn, rcp_target)
 
 ##############################################################################
