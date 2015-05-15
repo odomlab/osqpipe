@@ -21,7 +21,7 @@ from tempfile import gettempdir, NamedTemporaryFile
 from getpass import getuser
 
 from utilities import call_subprocess, bash_quote, \
-    is_zipped, set_file_permissions, parse_repository_filename
+    is_zipped, set_file_permissions, BamPostProcessor
 from config import Config
 
 from setup_logs import configure_logging
@@ -807,7 +807,15 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
                 num_threads,
                 outfnbase))
 
-    # This is invariant PE vs. SE.
+    # This is invariant PE vs. SE. First, run our standard picard cleanup:
+    postproc = BamPostProcessor(input_fn=outfnfull, output_fn=outfnfull,
+                                tmpdir=self.conf.althostworkdir)
+    cmd += (" && %s && rm %s"
+            % (" ".join(postproc.clean_sam()), outfnfull))
+    cmd += (" && %s && rm %s"
+            % (" ".join(postproc.add_or_replace_read_groups()), postproc.cleaned_fn))
+    cmd += (" && %s && rm %s"
+            % (" ".join(postproc.fix_mate_information()), postproc.rgadded_fn))
 
     # We generate verbose logging here to better monitor file transfers.
     cmd += (" && scp -v -i %s %s %s@%s:%s"
@@ -1219,45 +1227,26 @@ class MergeBwaRunner(BwaRunner):
     FixMateInformation. Note that this method relies on the presence
     of a wrapper shell script named 'picard' in the path.
     '''
-    output_base = os.path.splitext(output_fn)[0]
-    cleaned_fn  = "%s_cleaned.bam" % output_base
-    rgadded_fn  = "%s_rg.bam" % output_base
-
-    (libcode, facility, lanenum, _pipeline) = parse_repository_filename(output_fn)
-
-    # Some options are universal. Consider also adding QUIET=true, VERBOSITY=ERROR
-    common_args = ('VALIDATION_STRINGENCY=LENIENT',
-                   'TMP_DIR=%s' % self.conf.clusterworkdir)
+    postproc = BamPostProcessor(input_fn=input_fn, output_fn=output_fn,
+                                tmpdir=self.conf.clusterworkdir)
 
     # Run CleanSam
-    cmd = ('picard', 'CleanSam',
-           'INPUT=%s'  % input_fn,
-           'OUTPUT=%s' % cleaned_fn) + common_args
-    call_subprocess(cmd, tmpdir=self.conf.clusterworkdir, path=self.conf.clusterpath)
+    call_subprocess(postproc.clean_sam(),
+                    tmpdir=self.conf.clusterworkdir, path=self.conf.clusterpath)
     if self.cleanup:
       os.unlink(input_fn)
 
     # Run AddOrReplaceReadGroups
-    cmd = ('picard', 'AddOrReplaceReadGroups',
-           'INPUT=%s'  % cleaned_fn,
-           'OUTPUT=%s' % rgadded_fn,
-           'RGLB=%s'   % libcode,
-           'RGSM=%s'   % libcode, # sample name?
-           'RGCN=%s'   % facility,
-           'RGPU=%d'   % int(lanenum),
-           'RGPL=illumina') + common_args
-    call_subprocess(cmd, tmpdir=self.conf.clusterworkdir, path=self.conf.clusterpath)
+    call_subprocess(postproc.add_or_replace_read_groups(),
+                    tmpdir=self.conf.clusterworkdir, path=self.conf.clusterpath)
     if self.cleanup:
-      os.unlink(cleaned_fn)
+      os.unlink(postproc.cleaned_fn)
     
     # Run FixMateInformation
-    cmd = ('picard', 'FixMateInformation',
-           'ASSUME_SORTED=true',
-           'INPUT=%s'  % rgadded_fn,
-           'OUTPUT=%s' % output_fn) + common_args
-    call_subprocess(cmd, tmpdir=self.conf.clusterworkdir, path=self.conf.clusterpath)
+    call_subprocess(postproc.fix_mate_information(),
+                    tmpdir=self.conf.clusterworkdir, path=self.conf.clusterpath)
     if self.cleanup:
-      os.unlink(rgadded_fn)
+      os.unlink(postproc.rgadded_fn)
     
     if self.group:
       self.set_file_permissions(self.group, output_fn)
