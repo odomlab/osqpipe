@@ -20,25 +20,36 @@ from osqpipe.pipeline.utilities import BamPostProcessor, call_subprocess, \
     set_file_permissions, checksum_file
 from osqpipe.pipeline.samtools import count_bam_reads
 
+from django.db import transaction
+
 CONFIG = Config()
 
-def run_picard(libcode, facility, lanenum=None):
+@transaction.commit_on_success
+def replace_repo_file(bam, newbam):
 
-  if lanenum is None:
-    bams = Alnfile.objects.filter(alignment__lane__library__code=libcode,
-                                  alignment__lane__facility__code=facility,
-                                  filetype__code='bam')
-  else:
-    bams = Alnfile.objects.filter(alignment__lane__library__code=libcode,
-                                  alignment__lane__facility__code=facility,
-                                  lane__lanenum=lanenum,
-                                  filetype__code='bam')
+  set_file_permissions(CONFIG.group, newbam)
+  checksum = checksum_file(newbam, unzip=False)
+  bam.checksum = checksum
+  os.unlink(bam.repository_file_path)
+  move(newbam, bam.repository_file_path)
+  bam.save()
+
+def run_picard(libcode, facility, lanenum=None, genome=None):
+
+  bams = Alnfile.objects.filter(alignment__lane__library__code=libcode,
+                                alignment__lane__facility__code=facility,
+                                filetype__code='bam')
+  if lanenum is not None:
+    bams = bams.filter(alignment__lane__lanenum=lanenum)
+  if genome is not None:
+    bams = bams.filter(alignment__genome__code=genome)
 
   if len(bams) == 0:
     raise StandardError("Unable to find matching bam file in the repository.")
 
   for bam in bams:
-    oldsum   = checksum_file(bam.repository_file_path)
+    LOGGER.info("Confirming file checksum: %s", bam.filename)
+    oldsum   = checksum_file(bam.repository_file_path, unzip=False)
     if oldsum != bam.checksum:
       raise ValueError(("MD5 checksum of bam file on disk (%s) does not agree"
                         + " with stored repository value (%s): %s")
@@ -48,13 +59,16 @@ def run_picard(libcode, facility, lanenum=None):
                                 output_fn=newbam)
 
     # Run CleanSam
+    LOGGER.info("Running CleanSam...")
     call_subprocess(postproc.clean_sam(), path=CONFIG.hostpath)
 
     # Run AddOrReplaceReadGroups
+    LOGGER.info("Running AddOrReplaceReadGroups...")
     call_subprocess(postproc.add_or_replace_read_groups(), path=CONFIG.hostpath)
     os.unlink(postproc.cleaned_fn)
 
     # Run FixMateInformation
+    LOGGER.info("Running FixMateInformation...")
     call_subprocess(postproc.fix_mate_information(), path=CONFIG.hostpath)
     os.unlink(postproc.rgadded_fn)
 
@@ -62,18 +76,17 @@ def run_picard(libcode, facility, lanenum=None):
     newcount = count_bam_reads(newbam)
 
     # FIXME total_reads should be total reads in bam, not in fastq.
-    if newcount != bam.alignment.total_reads:
+    oldcount = bam.alignment.total_reads
+    if bam.alignment.lane.paired:
+      oldcount = oldcount * 2
+    if newcount != oldcount:
       raise ValueError(("Read count in cleaned bam file (%d) does not agree"
                         + " with total_reads in repository (%d): %s")
-                       % (newcount, bam.alignment.total_reads, newbam))
+                       % (newcount, oldcount, newbam))
 
     # Clean up and replace the old bam file with the new one.
-    set_file_permissions(CONFIG.group, newbam)
-    checksum = checksum_file(newbam)
-    os.unlink(bam.repository_file_path)
-    move(newbam, bam.repository_file_path)
-    bam.checksum = checksum
-    bam.save()
+    LOGGER.info("Replacing old bam file with new: %s", bam.repository_file_path)
+    replace_repo_file(bam, newbam)
 
 if __name__ == '__main__':
 
@@ -86,12 +99,15 @@ if __name__ == '__main__':
                       help='The code of the library to process.')
 
   PARSER.add_argument('-f', '--facility', dest='facility', type=str, default='CRI',
-                      help='The code of the sequencing facility (default=CRI)')
+                      help='The code of the sequencing facility (default=CRI).')
+
+  PARSER.add_argument('-g', '--genome', dest='genome', type=str, required=False,
+                      help='The genome code used for the alignments of interest.')
 
   PARSER.add_argument('-n', '--lanenum', dest='lanenum', type=int, required=False,
                       help='The (optional) lane number to which processing should be restricted.')
 
   ARGS = PARSER.parse_args()
 
-  run_picard(ARGS.libcode, ARGS.facility, ARGS.lanenum)
+  run_picard(ARGS.libcode, ARGS.facility, ARGS.lanenum, ARGS.genome)
     
