@@ -174,7 +174,6 @@ class InventoryImporter(object):
       # NEB and TruSeq barcodes are identical, at least up to TS_12.
       if 'protocol' in rowdict:
         prottag = re.sub(' ', '', rowdict['protocol'].lower())
-        print 'Prottag=%s' % prottag
         if prottag in ('truseq', 'neb'):
 
           # TruSeq adapters have standard names in the repository.
