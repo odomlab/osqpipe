@@ -9,7 +9,7 @@ import os
 
 from ..models import Library, Genome, Filetype
 from config import Config
-from bwa_runner import BwaClusterJobSubmitter, BwaDesktopJobSubmitter
+from bwa_runner import BwaClusterJobSubmitter, BwaDesktopJobSubmitter, TophatClusterJobSubmitter
 
 from setup_logs import configure_logging
 from logging import INFO, DEBUG
@@ -176,6 +176,60 @@ class FastqBwaAligner(FastqAligner):
     bsub.submit(filenames=filepaths, auto_requeue=False,
                 destnames=destnames,
                 is_paired=paired, cleanup=cleanup, nocc=nocc)
+
+    LOGGER.info("Jobs submitted.")
+
+class FastqTophatAligner(FastqAligner):
+
+  '''Class used to handle alignments using the tophat2 external
+  binary. This is currently coded to use tophat2 running on a cluster via
+  the TophatClusterJobSubmitter class.'''
+
+  def _call_aligner(self, filepaths, genome, destnames=None,
+                    nocc=None, cleanup=True, *args, **kwargs):
+
+    '''Method used to dispatch cs_runTophatWithSplit.py processes on the
+    cluster.'''
+
+    if nocc is not None:
+      LOGGER.warning("Unsupported nocc argument passed to FastqTophatAligner.")
+
+    if len(filepaths) == 1:
+      LOGGER.info("Launching single-end sequencing alignment.")
+      paired = False
+    elif len(filepaths) == 2:
+      LOGGER.info("Launching paired-end sequencing alignment.")
+      paired = True
+    else:
+      raise ValueError("Wrong number of files passed to aligner.")
+
+    if destnames is None:
+      destnames = [os.path.basename(x) for x in filepaths]
+
+    # The alternative alignment host mechanism is currently
+    # unsupported for tophat2 alignments (for lack of development time).
+    num_threads = 1
+    try:
+      althost = self.conf.althost
+      assert(althost != '')
+    except AttributeError, _err:
+      althost = None
+    if althost is None:
+      jobclass = TophatClusterJobSubmitter
+    else:
+      raise ValueError("Currently unable to run tophat2 jobs via the"
+                       + " alternative alignment host mechanism.")
+
+    # Build path to genome index on the alignment host/cluster.
+    genome_path = jobclass.build_genome_index_path(genome)
+
+    bsub = jobclass(test_mode=self.test_mode,
+                    genome=genome_path,
+                    finaldir=self.finaldir,
+                    num_threads=num_threads)
+    bsub.submit(filenames=filepaths, auto_requeue=False,
+                destnames=destnames,
+                is_paired=paired, cleanup=cleanup)
 
     LOGGER.info("Jobs submitted.")
 

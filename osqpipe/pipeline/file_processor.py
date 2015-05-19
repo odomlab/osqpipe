@@ -19,7 +19,7 @@ from utilities import parse_incoming_fastq_name, call_subprocess, \
 from config import Config
 from ..models import Filetype, Library, Lane, Lanefile, Facility, \
     Status, LibraryNameMap
-from fastq_aligner import FastqBwaAligner
+from fastq_aligner import FastqBwaAligner, FastqTophatAligner
 from upstream_lims import Lims
 from fetch_mga import fetch_mga
 from laneqc import LaneFastQCReport
@@ -444,10 +444,19 @@ class GenericFileProcessor(object):
     if str(self.library.factor) in CONFIG.reallocation_factors:
       nocc = CONFIG.nonuniquereads
 
-    # FIXME we need to remove 'incoming' as hardcoded here.
-    aligner = FastqBwaAligner(test_mode=self.test_mode,
-                              finaldir=os.path.join(CONFIG.repositorydir,
-                                                    'incoming'))
+    # FIXME we ought to remove 'incoming' as hardcoded here.
+    repo_incoming = os.path.join(CONFIG.repositorydir, 'incoming')
+
+    # If RNA-Seq, align using tophat2. If not, use our default bwa.
+    if self.library.libtype.code == 'rnaseq':
+      aligner = FastqTophatAligner(test_mode=self.test_mode,
+                                   finaldir=repo_incoming)
+      if nocc is not None:
+        LOGGER.warning("Unsupported attempt to run tophat2 with read reallocation.")
+    else:
+      aligner = FastqBwaAligner(test_mode=self.test_mode,
+                                finaldir=repo_incoming)
+    
     aligner.align_standalone(filepaths=tfiles,
                              genome=self.library.genome,
                              nocc=nocc,

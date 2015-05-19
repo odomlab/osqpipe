@@ -2,11 +2,10 @@
 #
 # $Id$
 
-""" Run BWA using Split to improve speed """
-__author__ = "Margus Lukk"
-__date__ = "05 Mar 2012"
-__version__ = "0.2"
-__credits__ = "Adjusted from cs_runMaqWithSplit written by Gordon Brown."
+""" Run Tophat2 using Split to improve speed """
+__author__ = "Tim Rayner"
+__date__ = "19 May 2015"
+__version__ = "0.1"
 
 # Known bugs: 
 # 
@@ -24,7 +23,7 @@ from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO, WARNING
 LOGGER = configure_logging(level=INFO)
     
-from osqpipe.pipeline.bwa_runner import BwaAlignmentManager
+from osqpipe.pipeline.bwa_runner import TophatAlignmentManager
 
 ##################  M A I N   P R O G R A M  ######################
 
@@ -57,28 +56,22 @@ if __name__ == '__main__':
   PARSER.add_argument('--cleanup', dest='cleanup', action='store_true',
                       help='Delete all temporary files.')
 
-  PARSER.add_argument('--n_occ', dest='nocc', type=str,
-                      help='Number of occurrences of non-unique reads to keep.')
-# Currently unused:
-#  PARSER.add_argument('--bwaoptions', type=str, dest='bwaoptions',
-#                      help='BWA options as a string.')
-
   PARSER.add_argument('-d', '--debug', dest='debug', action='store_true',
                       help='Turn on debugging output.')
 
   ARGS = PARSER.parse_args()
 
-  BSUB = BwaAlignmentManager(debug      = ARGS.debug,
-                             cleanup    = ARGS.cleanup,
-                             loglevel   = ARGS.loglevel,
-                             reads      = ARGS.reads,
-                             group      = ARGS.group,
-                             nocc       = ARGS.nocc,
-                             merge_prog = spawn.find_executable('cs_runBwaWithSplit_Merge.py',
-                                                                path=os.environ['PATH']))
+  # The standard merge we use following a bwa run will also work
+  # perfectly well for the tophat2 outputs.
+  BSUB = TophatAlignmentManager(debug      = ARGS.debug,
+                                cleanup    = ARGS.cleanup,
+                                loglevel   = ARGS.loglevel,
+                                reads      = ARGS.reads,
+                                group      = ARGS.group,
+                                nocc       = ARGS.nocc,
+                                merge_prog = spawn.find_executable('cs_runBwaWithSplit_Merge.py',
+                                                                    path=os.environ['PATH']))
 
   BSUB.split_and_align(files      = ARGS.files,
                        genome     = ARGS.genome,
                        rcp_target = ARGS.rcp)
-
-  

@@ -20,7 +20,7 @@ from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO, WARNING
 LOGGER = configure_logging(level=INFO)
 
-from osqpipe.pipeline.bwa_runner import MergeBwaRunner
+from osqpipe.pipeline.bwa_runner import BwaAlignmentManager
 
 ################################################################################
 
@@ -63,13 +63,13 @@ if __name__ == '__main__':
 
   ARGS = PARSER.parse_args()
 
-  BSUB = MergeBwaRunner(debug      = ARGS.debug,
-                        cleanup    = ARGS.cleanup,
-                        loglevel   = ARGS.loglevel,
-                        group      = ARGS.group)
+  BSUB = BwaAlignmentManager(debug      = ARGS.debug,
+                             cleanup    = ARGS.cleanup,
+                             loglevel   = ARGS.loglevel,
+                             group      = ARGS.group)
 
-  BSUB.run(input_fns  = ARGS.infiles,
-           output_fn  = ARGS.outfile,
-           rcp_target = ARGS.rcp)
+  BSUB.merge_alignments(input_fns  = ARGS.infiles,
+                        output_fn  = ARGS.outfile,
+                        rcp_target = ARGS.rcp)
 
   

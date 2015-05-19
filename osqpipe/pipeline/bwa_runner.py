@@ -709,6 +709,87 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
 
 ##############################################################################
 
+class TophatClusterJobSubmitter(AlignmentJobRunner):
+  '''
+  Class representing the submission of a tophat2 job to the
+  cluster. This class works similarly to BwaClusterJobSubmitter.
+  '''
+  def __init__(self, *args, **kwargs):
+    self.job = ClusterJobSubmitter(*args, **kwargs)
+    super(TophatClusterJobSubmitter, self).__init__(*args, **kwargs)
+
+  def submit(self, filenames, is_paired=False, destnames=None, cleanup=True,
+              *args, **kwargs):
+    '''
+    Actually submit the job. The optional destnames argument can be
+    used to name files on the cluster differently to the source. This
+    is occasionally useful.
+    '''
+    paired_sanity_check(filenames, is_paired)
+
+    # First, copy the files across and uncompress on the server.
+    LOGGER.info("Copying files to the cluster.")
+    destnames = self.job.transfer_data(filenames, destnames)
+
+    # Next, create flag for cleanup
+    if cleanup:
+      cleanupflag = '--cleanup'
+    else:
+      cleanupflag = ''
+
+    # FIXME assumes path on localhost is same as path on cluster.
+    progpath = spawn.find_executable('cs_runTophatWithSplit.py', path=self.conf.clusterpath)
+
+    # Next, submit the actual jobs on the actual cluster.
+    fnlist = " ".join([ quote(x) for x in destnames ])
+    cmd = ("python %s --loglevel %d %s --rcp %s:%s %s %s"
+            % (progpath,
+            LOGGER.getEffectiveLevel(),
+            cleanupflag,
+            self.conf.datahost,
+            self.finaldir,
+            self.genome,
+            fnlist))
+
+    LOGGER.info("Submitting bwa job to cluster.")
+    self.job.submit_command(cmd, *args, **kwargs)
+
+  @classmethod
+  def build_genome_index_path(cls, genome, *args, **kwargs):
+
+    conf = Config()
+
+    from progsum import ProgramSummary
+    from ..models import Program
+
+    # Get information about default aligner, check that the program is
+    # in path and try to predict its version.
+    alignerinfo = ProgramSummary('bowtie2',
+                                 ssh_host=conf.cluster,
+                                 ssh_port=conf.clusterport,
+                                 ssh_user=conf.clusteruser,
+                                 ssh_path=conf.clusterpath)
+    indexdir = None
+
+    # Check that the version of aligner has been registered in
+    # repository.
+    try:
+      Program.objects.get(program=alignerinfo.program,
+                          version=alignerinfo.version,
+                          current=True)
+      indexdir = "%s-%s" % ('bowtie', alignerinfo.version)
+
+    except Program.DoesNotExist, _err:
+      sys.exit(("""Aligner "%s" version "%s" found at path "%s" """
+               % (alignerinfo.program, alignerinfo.version, alignerinfo.path))
+               + "not recorded as current in repository! Quitting.")
+
+    gpath = cls.genome_path(genome, indexdir, conf.clustergenomedir)
+
+    return gpath
+
+##############################################################################
+
 class BwaDesktopJobSubmitter(AlignmentJobRunner):
 
   '''An alternative means of submitting an alignment job to a remote
@@ -875,33 +956,39 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
 ##############################################################################
 ##############################################################################
 
-class BwaRunner(object):
+class AlignmentManager(object):
+  '''
+  Parent class handling various functions required by scripts
+  running BWA or other aligners across multiple parallel alignments
+  (and merging their output) on the cluster.
+  '''
+  __slots__ = ('conf', 'samtools_prog', 'group', 'cleanup', 'loglevel',
+               'split_read_count', 'bsub', 'merge_prog', 'logfile', 'debug')
 
-  '''Parent class handling various functions required by scripts
-  running BWA across multiple parallel alignments (and merging their
-  output) on the cluster.'''
-
-  __slots__ = ('conf', 'bwa_prog', 'samtools_prog',
-               'merge_prog', 'logfile', 'debug')
-
-  def __init__(self, debug=True):
+  def __init__(self, merge_prog=None, cleanup=False, group=None,
+               split_read_count=1000000,
+               loglevel=logging.WARNING, debug=True):
 
     self.conf = Config()
 
-    # These are now identified by passing in self.conf.clusterpath to
-    # the remote command.
-    self.bwa_prog      = 'bwa'
     self.samtools_prog = 'samtools'
-
-    # FIXME assumes path on localhost is same as path on cluster.
-    self.merge_prog    = spawn.find_executable('cs_runBwaWithSplit_Merge.py',
-                                               path=self.conf.clusterpath)
+    
+    # The merge_prog argument *must* be set when calling split_and_align.
+    self.merge_prog    = merge_prog
     self.logfile       = self.conf.splitbwarunlog
+    self.bsub          = JobSubmitter()
+    self.split_read_count   = split_read_count
+
+    self.cleanup       = cleanup
+    self.group         = group
     self.debug         = debug
+    self._configure_logging(self.__class__.__name__, LOGGER)
+    LOGGER.setLevel(loglevel)
 
   def _configure_logging(self, name, logger=LOGGER):
-    """Configures the logs to be saved in self.logfile"""
-
+    '''
+    Configures the logs to be saved in self.logfile.
+    '''
     if self.debug:
       logger.setLevel(logging.DEBUG) # log everything on debug level
     else:
@@ -918,64 +1005,16 @@ class BwaRunner(object):
     hdlr.setLevel(min(logger.getEffectiveLevel(), logging.WARN))
     logger.addHandler(hdlr)
 
-  @staticmethod
-  def set_file_permissions(group, path):
-    """Sets group for path"""
-    gid = grp.getgrnam(group).gr_gid
-    os.chown(path, -1, gid)
-    os.chmod(path,
-             stat.S_IRUSR|stat.S_IWUSR|stat.S_IRGRP)
-
-##############################################################################
-
-class SplitBwaRunner(BwaRunner):
-
-  '''Class used to launch the initial file splitting and bwa
-  alignments. This class also submits a job dependent on the outputs
-  of those alignments, which in turn merges the outputs to generate
-  the final bam file.'''
-
-  # N.B. we allow creation of a __dict__ in this class since __slots__
-  # is already used in the superclass.
-
-  def __init__(self, cleanup=False, loglevel=logging.WARNING, reads=1000000,
-                group=None, nocc=None, *args, **kwargs):
-    super(SplitBwaRunner, self).__init__(*args, **kwargs)
-    self.cleanup = cleanup
-    self.reads   = reads
-    self.group   = group
-    self._configure_logging(self.__class__.__name__, LOGGER)
-    LOGGER.setLevel(loglevel)
-
-    if nocc:
-      self.nocc = "-n %s" % (nocc,)
-    else:
-      self.nocc = ''
-
-    self.bsub=JobSubmitter()
-    # Each of these is called from within a python process which has
-    # itself had PATH set appropriately.
-    self.commands = {
-      'SPLIT'       : "split -l %s %s %s", # split -l size file.fq prefix
-      'BWA_SE'      : "%s aln %s %s | %s samse %s %s - %s"
-                                + " | %s view -b -S -u - > %s.unsorted"
-                                + " && %s sort %s.unsorted %s && rm %s %s.unsorted",
-      'BWA_PE1'     : "%s aln %s %s > %s",
-      'BWA_PE2'     : "%s sampe %s %s %s %s %s %s"
-                                + " | %s view -b -S -u - > %s.unsorted"
-                                + " && %s sort %s.unsorted %s && rm %s %s %s %s %s.unsorted",
-      'MERGE'       : "python %s --loglevel %d %s %s %s %s",
-      'MERGE_RCP'   : "python %s --loglevel %d %s %s --rcp %s %s %s",
-      }
-
   def split_fq(self, fastq_fn):
-    """Splits fastq file to 1M read per file using linux command line split"""
-
-    LOGGER.debug("splitting fq file %s to %s per file ", fastq_fn, self.reads)
+    '''
+    Splits fastq file to self.split_read_count reads per file using
+    linux command line split for speed.
+    '''
+    LOGGER.debug("splitting fq file %s to %s per file ", fastq_fn, self.split_read_count)
 
     fastq_fn_suffix = fastq_fn + '-'
-    cmd = self.commands['SPLIT'] % (self.reads*4, quote(fastq_fn),
-                                    quote(fastq_fn_suffix))
+    cmd = ("split -l %s %s %s" # split -l size file.fq prefix
+           % (self.split_read_count*4, quote(fastq_fn), quote(fastq_fn_suffix)))
     call_subprocess(cmd, shell=True,
                    tmpdir=self.conf.clusterworkdir,
                    path=self.conf.clusterpath)
@@ -994,9 +1033,40 @@ class SplitBwaRunner(BwaRunner):
       LOGGER.info("Unlinking fq file '%s'", fastq_fn)
     return fq_files
 
-  def _submit_lsfjob(self, command, jobname, depend=None, sleep=0, mem=8000):
-    """ Executes command in LSF cluster """
+  def queue_merge(self, bam_files, depend, bam_fn, rcp_target):
+    '''
+    Submits samtools job for merging list of bam files to LSF cluster.
+    '''
+    assert( self.merge_prog is not None )
+    input_files = " ".join(bam_files) # singly-bash-quoted
+    LOGGER.debug("Entering queue_merge with input_files=%s", input_files)
 
+    # The self.merge_prog command is assumed to be a python script
+    # conforming to the set of arguments supported by
+    # cs_runBwaWithSplit_Merge.py. We call 'python' here to pick up
+    # the python in our path rather than the python in the merge_prog
+    # script shebang line.
+    cmd = ("python %s --loglevel %d"
+           % self.merge_prog, LOGGER.getEffectiveLevel())
+    if rcp_target:
+      cmd += " --rcp %s" % (rcp_target,)
+    if self.cleanup:
+      cmd += " --cleanup"
+    if self.group:
+      cmd += " --group %s" % (self.group,)
+    cmd += " %s %s" % (bash_quote(bam_fn), input_files)
+
+    LOGGER.info("Preparing bwa merge on '%s'", input_files)
+    LOGGER.debug(cmd)
+
+    jobname = bam_files[0].split("_")[0] + "bam"
+    jobid = self._submit_lsfjob(cmd, jobname, depend, mem=10000)
+    LOGGER.debug("got job id '%s'", jobid)
+
+  def _submit_lsfjob(self, command, jobname, depend=None, sleep=0, mem=8000):
+    '''
+    Executes command in LSF cluster.
+    '''
     jobid = self.bsub.submit_command(command, jobname=jobname,
                                      depend_jobs=depend, mem=mem,
                                      path=self.conf.clusterpath,
@@ -1005,173 +1075,24 @@ class SplitBwaRunner(BwaRunner):
                                      sleep=sleep)
     return '' if jobid is None else jobid
 
-  def run_bwas(self, genome, paired, fq_files, fq_files2):
-    """Submits bwa alignment jobs for list of fq files to LSF cluster"""
+  def split_and_align(self, *args, **kwargs):
+    '''
+    Method used to launch the initial file splitting and bwa
+    alignments. This class also submits a job dependent on the outputs
+    of those alignments, which in turn merges the outputs to generate
+    the final bam file.
+    '''
+    raise NotImplementedError()
 
-    job_ids = []
-    out_names = []
-    current = 0
-    # splits the fq_file by underscore and returns first element which
-    # in current name
-    for fqname in fq_files:
-      donumber = fqname.split("_")[0]
-      out = bash_quote(fqname + ".bam")
-      out_names.append(out)
-      jobname_bam = "%s_%s_bam" % (donumber, current)
-
-      if paired:
-        jobname1 = "%s_%s_sai1" % (donumber, current)
-        jobname2 = "%s_%s_sai2" % (donumber, current)
-        sai_file1 = "%s.sai" % fqname
-        sai_file2 = "%s.sai" % fq_files2[current]
-        cmd = self.commands['BWA_PE1'] % (self.bwa_prog, genome,
-                             bash_quote(fqname),
-                             bash_quote(sai_file1))
-        cmd2 = self.commands['BWA_PE1'] % (self.bwa_prog, genome,
-                              bash_quote(fq_files2[current]),
-                              bash_quote(sai_file2))
-        cmd3 = self.commands['BWA_PE2'] % (self.bwa_prog, self.nocc, genome,
-                              bash_quote(sai_file1),
-                              bash_quote(sai_file2),
-                              bash_quote(fqname),
-                              bash_quote(fq_files2[current]),
-                              self.samtools_prog,
-                              out,
-                              self.samtools_prog,
-                              out,
-                              bash_quote(fqname),
-                              bash_quote(sai_file1),
-                              bash_quote(sai_file2),
-                              bash_quote(fqname),
-                              bash_quote(fq_files2[current]), out)
-
-        LOGGER.info("starting bwa step1 on '%s'", fqname)
-        jobid_sai1 = self._submit_lsfjob(cmd, jobname1, sleep=current)
-        LOGGER.debug("got job id '%s'", jobid_sai1)
-        LOGGER.info("starting bwa step1 on '%s'", fq_files2[current])
-        jobid_sai2 = self._submit_lsfjob(cmd2, jobname2, sleep=current)
-        LOGGER.debug("got job id '%s'", jobid_sai2)
-
-        if jobid_sai1 and jobid_sai2:
-          LOGGER.info("preparing bwa step2 on '%s'", fqname)
-          jobid_bam = self._submit_lsfjob(cmd3, jobname_bam,
-                                          (jobid_sai1, jobid_sai2), sleep=current)
-          LOGGER.debug("got job id '%s'", jobid_bam)
-          job_ids.append(jobid_bam)
-        else:
-          LOGGER.error("bjob submission for bwa step1 for '%s' or '%s' failed!",
-                       fqname, fq_files2[current])
-      else:
-        cmd = self.commands['BWA_SE'] % (self.bwa_prog, genome,
-                            bash_quote(fqname),
-                            self.bwa_prog, self.nocc,
-                            genome,
-                            bash_quote(fqname),
-                            self.samtools_prog,
-                            out,
-                            self.samtools_prog,
-                            out,
-                            bash_quote(fqname),
-                            bash_quote(fqname), out)
-        LOGGER.info("starting bwa on '%s'", fqname)
-        LOGGER.debug(cmd)
-        jobid_bam = self._submit_lsfjob(cmd, jobname_bam, sleep=current)
-        LOGGER.debug("got job id '%s'", jobid_bam)
-        job_ids.append(jobid_bam)
-      current += 1
-
-    return (job_ids, out_names)
-
-  def queue_merge(self, bam_files, depend, bam_fn, rcp_target):
-    """Submits samtools job for merging list of bam files to LSF cluster"""
-    input_files = " ".join(bam_files) # singly-bash-quoted
-    LOGGER.debug("Entering queue_merge with input_files=%s", input_files)
-    cleanup = ""
-    group = ""
-    cmd = ""
-    jobname = bam_files[0].split("_")[0] + "bam"
-
-    if self.cleanup:
-      cleanup = "--cleanup"
-
-    if self.group:
-      group = "--group %s" % (self.group,)
-
-    if rcp_target:
-      cmd = self.commands['MERGE_RCP'] % (self.merge_prog,
-                                          LOGGER.getEffectiveLevel(),
-                                          cleanup, group, rcp_target,
-                                          bash_quote(bam_fn), input_files)
-    else:
-      cmd = self.commands['MERGE'] % (self.merge_prog,
-                                      LOGGER.getEffectiveLevel(),
-                                      cleanup, group,
-                                      bash_quote(bam_fn), input_files)
-
-    LOGGER.info("Preparing bwa merge on '%s'", input_files)
-    LOGGER.debug(cmd)
-    jobid = self._submit_lsfjob(cmd, jobname, depend, mem=10000)
-    LOGGER.debug("got job id '%s'", jobid)
-
-  def run(self, files, genome, rcp_target=None):
-
-    '''Main entry point for the class.'''
-
-    fq_files = self.split_fq(files[0])
-    paired = False
-    if len(files) == 2:
-      fq_files2 = self.split_fq(files[1])
-      paired = True
-    elif len(files) == 1:
-      fq_files2 = None
-    else:
-      LOGGER.error("Too many files specified.")
-      sys.exit("Unexpected number of files passed to script.")
-    (job_ids, bam_files) = self.run_bwas(genome, paired, fq_files, fq_files2)
-    bam_fn = "%s.bam" % make_bam_name_without_extension(files[0])
-
-    self.queue_merge(bam_files, job_ids, bam_fn, rcp_target)
-
-##############################################################################
-
-class MergeBwaRunner(BwaRunner):
-
-  '''Class used to merge a set of bam files into a single output bam
-  file.'''
-
-  def __init__(self, cleanup=False, loglevel=logging.WARNING,
-               group=None, *args, **kwargs):
-    super(MergeBwaRunner, self).__init__(*args, **kwargs)
-    self.cleanup = cleanup
-    self.group   = group
-    self._configure_logging(self.__class__.__name__, LOGGER)
-    self.commands = {
-      'MERGE' : "%s merge %s %s", # assumes sorted input bams.
-      'COPY'  : "scp -p -q %s %s",
-      'DONE'  : "ssh %s touch %s/%s.done",
-      }
-    LOGGER.setLevel(loglevel)
-
-  @staticmethod
-  def input_files_exist(input_fns):
-    """Checks if input files exist"""
-    okay = True
-    for fname in input_fns:
-      if not os.path.exists(fname):
-        LOGGER.error("missing expected file '%s', cannot continue.", fname)
-        okay = False
-      elif not os.path.isfile(fname):
-        LOGGER.error("file '%s' is not a regular file, cannot continue.", fname)
-        okay = False
-    return okay
-
-  def merge_files(self, output_fn, input_fns):
-    """Merges list of bam files"""
+  def _merge_files(self, output_fn, input_fns):
+    '''
+    Merges list of bam files.
+    '''
     if len(input_fns) == 1:
       LOGGER.warn("renaming file: %s", input_fns[0])
       move(input_fns[0], output_fn)
     else:
-      cmd = (self.commands['MERGE']
+      cmd = ("%s merge %s %s" # assumes sorted input bams.
              % (self.samtools_prog,
                 bash_quote(output_fn),
                 " ".join([ bash_quote(x) for x in input_fns])))
@@ -1185,7 +1106,7 @@ class MergeBwaRunner(BwaRunner):
       LOGGER.error("expected output file '%s' cannot be found.", output_fn)
       sys.exit("File access error.")
     if self.group:
-      self.set_file_permissions(self.group, output_fn)
+      set_file_permissions(self.group, output_fn)
     if self.cleanup:
       for fname in input_fns:
 
@@ -1195,9 +1116,11 @@ class MergeBwaRunner(BwaRunner):
           os.unlink(fname)
 
   def copy_result(self, target, fname):
-    """Copies file to target location"""
+    '''
+    Copies file to target location.
+    '''
     qname = bash_quote(fname)
-    cmd = self.commands['COPY'] % (qname, target)
+    cmd = "scp -p -q %s %s" % (qname, target)
     LOGGER.debug(cmd)
     pout = call_subprocess(cmd, shell=True,
                           tmpdir=self.conf.clusterworkdir,
@@ -1212,7 +1135,7 @@ class MergeBwaRunner(BwaRunner):
     flds = target.split(":")
     if len(flds) == 2: # there's a machine and path
       fn_base = os.path.basename(qname)
-      cmd = self.commands['DONE'] % (flds[0], flds[1], bash_quote(fn_base))
+      cmd = "ssh %s touch %s/%s.done" % (flds[0], flds[1], bash_quote(fn_base))
       LOGGER.debug(cmd)
       call_subprocess(cmd, shell=True,
                      tmpdir=self.conf.clusterworkdir,
@@ -1249,16 +1172,17 @@ class MergeBwaRunner(BwaRunner):
       os.unlink(postproc.rgadded_fn)
     
     if self.group:
-      self.set_file_permissions(self.group, output_fn)
+      set_file_permissions(self.group, output_fn)
 
-  def run(self, input_fns, output_fn, rcp_target=None):
+  def merge_alignments(self, input_fns, output_fn, rcp_target=None):
     '''
-    Main entry point for the class.
+    Method used to merge a set of bam files into a single output bam
+    file.
     '''
     merge_fn = "%s_dirty.bam" % os.path.splitext(output_fn)[0]
 
     LOGGER.info("merging '%s' into '%s'", ", ".join(input_fns), merge_fn)
-    self.merge_files(merge_fn, input_fns)
+    self._merge_files(merge_fn, input_fns)
     LOGGER.info("merged '%s' into '%s'", ", ".join(input_fns), merge_fn)
 
     LOGGER.info("running picard cleanup on '%s'", merge_fn)
@@ -1268,6 +1192,221 @@ class MergeBwaRunner(BwaRunner):
     if rcp_target:
       self.copy_result(rcp_target, output_fn)
       LOGGER.info("copied '%s' to '%s'", output_fn, rcp_target)
+
+##############################################################################
+
+class BwaAlignmentManager(AlignmentManager):
+  '''
+  Subclass of AlignmentManager implementing the bwa-specific
+  components of our primary alignment pipeline.
+  '''
+  def __init__(self, nocc=None, *args, **kwargs):
+    super(BwaAlignmentManager, self).__init__(*args, **kwargs)
+
+    # These are now identified by passing in self.conf.clusterpath to
+    # the remote command.
+    self.bwa_prog      = 'bwa'
+
+    if nocc:
+      self.nocc = "-n %s" % (nocc,)
+    else:
+      self.nocc = ''
+    
+  def run_bwas(self, genome, paired, fq_files, fq_files2):
+    '''
+    Submits bwa alignment jobs for list of fq files to LSF cluster.
+    '''
+    job_ids = []
+    out_names = []
+    current = 0
+    # splits the fq_file by underscore and returns first element which
+    # in current name
+    for fqname in fq_files:
+      donumber = fqname.split("_")[0]
+      out = bash_quote(fqname + ".bam")
+      out_names.append(out)
+      jobname_bam = "%s_%s_bam" % (donumber, current)
+
+      if paired:
+        jobname1 = "%s_%s_sai1" % (donumber, current)
+        jobname2 = "%s_%s_sai2" % (donumber, current)
+        sai_file1 = "%s.sai" % fqname
+        sai_file2 = "%s.sai" % fq_files2[current]
+
+        # Run bwa aln
+        cmd1 = "%s aln %s %s > %s" % (self.bwa_prog, genome,
+                                      bash_quote(fqname),
+                                      bash_quote(sai_file1))
+        cmd2 = "%s aln %s %s > %s" % (self.bwa_prog, genome,
+                                      bash_quote(fq_files2[current]),
+                                      bash_quote(sai_file2))
+
+        # Run bwa sampe
+        cmd3  = ("%s sampe %s %s %s %s %s %s"
+                 % (self.bwa_prog, self.nocc, genome, bash_quote(sai_file1),
+                    bash_quote(sai_file2), bash_quote(fqname), bash_quote(fq_files2[current])))
+
+        # Convert to bam
+        cmd3 += (" | %s view -b -S -u - > %s.unsorted" % (self.samtools_prog, out))
+
+        # Sort the bam
+        cmd3 += (" && %s sort %s.unsorted %s" % (self.samtools_prog, out, bash_quote(fqname)))
+
+        # Cleanup
+        cmd3 += (" && rm %s %s %s %s %s.unsorted"
+                 % (bash_quote(sai_file1), bash_quote(sai_file2),
+                    bash_quote(fqname), bash_quote(fq_files2[current]), out))
+
+        LOGGER.info("starting bwa step1 on '%s'", fqname)
+        jobid_sai1 = self._submit_lsfjob(cmd1, jobname1, sleep=current)
+        LOGGER.debug("got job id '%s'", jobid_sai1)
+        LOGGER.info("starting bwa step1 on '%s'", fq_files2[current])
+        jobid_sai2 = self._submit_lsfjob(cmd2, jobname2, sleep=current)
+        LOGGER.debug("got job id '%s'", jobid_sai2)
+
+        if jobid_sai1 and jobid_sai2:
+          LOGGER.info("preparing bwa step2 on '%s'", fqname)
+          jobid_bam = self._submit_lsfjob(cmd3, jobname_bam,
+                                          (jobid_sai1, jobid_sai2), sleep=current)
+          LOGGER.debug("got job id '%s'", jobid_bam)
+          job_ids.append(jobid_bam)
+        else:
+          LOGGER.error("bjob submission for bwa step1 for '%s' or '%s' failed!",
+                       fqname, fq_files2[current])
+      else:
+
+        # Run bwa aln
+        cmd  = ("%s aln %s %s" % (self.bwa_prog, genome, bash_quote(fqname)))
+
+        # Run bwa samse
+        cmd += (" | %s samse %s %s - %s" % (self.bwa_prog, self.nocc,
+                                            genome, bash_quote(fqname)))
+        # Convert to bam
+        cmd += (" | %s view -b -S -u - > %s.unsorted" % (self.samtools_prog, out))
+
+        # Sort the output bam
+        cmd += (" && %s sort %s.unsorted %s" % (self.samtools_prog,
+                                                out, bash_quote(fqname)))
+        # Clean up
+        cmd += (" && rm %s %s.unsorted" % (bash_quote(fqname), out))
+        
+        LOGGER.info("starting bwa on '%s'", fqname)
+        LOGGER.debug(cmd)
+        jobid_bam = self._submit_lsfjob(cmd, jobname_bam, sleep=current)
+        LOGGER.debug("got job id '%s'", jobid_bam)
+        job_ids.append(jobid_bam)
+      current += 1
+
+    return (job_ids, out_names)
+
+  def split_and_align(self, files, genome, rcp_target=None):
+    '''
+    Method used to launch the initial file splitting and bwa
+    alignments. This class also submits a job dependent on the outputs
+    of those alignments, which in turn merges the outputs to generate
+    the final bam file.
+    '''
+    assert( self.merge_prog is not None )
+    fq_files = self.split_fq(files[0])
+    paired = False
+    if len(files) == 2:
+      fq_files2 = self.split_fq(files[1])
+      paired = True
+    elif len(files) == 1:
+      fq_files2 = None
+    else:
+      LOGGER.error("Too many files specified.")
+      sys.exit("Unexpected number of files passed to script.")
+
+    (job_ids, bam_files) = self.run_bwas(genome, paired, fq_files, fq_files2)
+
+    bam_fn = "%s.bam" % make_bam_name_without_extension(files[0])
+    self.queue_merge(bam_files, job_ids, bam_fn, rcp_target)
+
+class TophatAlignmentManager(AlignmentManager):
+  '''
+  Subclass of AlignmentManager implementing the tophat2-specific
+  components of our primary alignment pipeline.
+  '''
+  def __init__(self, *args, **kwargs):
+    super(TophatAlignmentManager, self).__init__(*args, **kwargs)
+
+    # These are now identified by passing in self.conf.clusterpath to
+    # the remote command.
+    self.tophat_prog   = 'tophat2'
+    
+  def run_tophat(self, genome, paired, fq_files, fq_files2):
+    '''
+    Submits tophat2 alignment jobs for list of fq files to LSF cluster.
+    '''
+    job_ids = []
+    out_names = []
+    current = 0
+
+    for fqname in fq_files:
+      donumber = fqname.split("_")[0]
+      out = bash_quote(fqname + ".bam")
+      out_names.append(out)
+      jobname_bam = "%s_%s_bam" % (donumber, current)
+
+      # Run tophat2. The no-coverage-search option is required when
+      # splitting the fastq file across multiple cluster nodes. The
+      # fr-firststrand library type is the Odom lab default. Consider
+      # using -p option to ask for more threads FIXME.
+      cmd  = ("%s --no-coverage-search --library-type fr-firststrand -o %s %s %s"
+               % (self.tophat_prog, jobname_bam, genome, bash_quote(fqname)))
+      if paired:
+        cmd += " %s" % (bash_quote(fq_files2[current]),)
+
+      # Merge the mapped and unmapped outputs, clean out unwanted
+      # secondary alignments. Tophat2 sorts the output bams by default.
+      strippedbam = "%s.partial" % out
+      cmd += (" && %s view -b -F 0x100 -o %s %s"
+               % (self.samtools_prog, strippedbam,
+                   os.path.join(jobname_bam, 'accepted_hits.bam')))
+      cmd += (" && %s merge %s %s %s"
+               % (self.samtools_prog, out, strippedbam,
+                  os.path.join(jobname_bam, 'unmapped.bam')))
+
+      # Clean up
+      cmd += (" && rm -r %s %s %s" % (jobname_bam, strippedbam, bash_quote(fqname)))
+      if paired:
+        cmd += " %s" % (bash_quote(fq_files2[current]),)
+        
+      LOGGER.info("starting tophat2 on '%s'", fqname)
+      LOGGER.debug(cmd)
+      jobid_bam = self._submit_lsfjob(cmd, jobname_bam, sleep=current)
+      LOGGER.debug("got job id '%s'", jobid_bam)
+      job_ids.append(jobid_bam)
+
+      current += 1
+
+    return (job_ids, out_names)
+    
+  def split_and_align(self, files, genome, rcp_target=None):
+    '''
+    Method used to launch the initial file splitting and bwa
+    alignments. This class also submits a job dependent on the outputs
+    of those alignments, which in turn merges the outputs to generate
+    the final bam file.
+    '''
+    assert( self.merge_prog is not None )
+    fq_files = self.split_fq(files[0])
+    paired = False
+    if len(files) == 2:
+      fq_files2 = self.split_fq(files[1])
+      paired = True
+    elif len(files) == 1:
+      fq_files2 = None
+    else:
+      LOGGER.error("Too many files specified.")
+      sys.exit("Unexpected number of files passed to script.")
+      
+    (job_ids, bam_files) = self.run_tophat(genome, paired, fq_files, fq_files2)
+
+    bam_fn = "%s.bam" % make_bam_name_without_extension(files[0])
+    self.queue_merge(bam_files, job_ids, bam_fn, rcp_target)
+
 
 ##############################################################################
 ##############################################################################
