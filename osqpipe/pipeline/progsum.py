@@ -160,11 +160,13 @@ class ProgramSummary(object):
           version = vmatch.group(1)
       if version is not None:
         if re.search(r'\.', version):
-          # Pull out trailing -\d+ if the version contains periods. This
-          # is in part to allow tally/reaper version strings ("13-274"
-          # => "13-274") while not overcomplicating bwa/samtools
-          # version strings ("0.1.19-44428cd" => "0.1.19")
-          version = re.sub(r'-\d+$', '', version)
+          # If the version contains periods, remove any leading or
+          # trailing \d+- or -\d+. This is in part to allow
+          # tally/reaper version strings ("13-274" => "13-274") while
+          # not overcomplicating bwa/samtools version strings
+          # ("0.1.19-44428cd" => "0.1.19") or, indeed, the 
+          # output of bowtie2 ("2-2.2.4" => "2.2.4").
+          version = [ x for x in version.split('-') if re.search('\\.', x) ][0]
         return version
     return None
 

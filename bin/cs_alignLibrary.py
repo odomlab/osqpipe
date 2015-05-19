@@ -9,7 +9,8 @@ from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 
-from osqpipe.pipeline.fastq_aligner import FastqBwaAligner
+from osqpipe.pipeline.fastq_aligner import FastqBwaAligner, FastqTophatAligner
+from osqpipe.models import Library
 
 if __name__ == '__main__':
 
@@ -44,7 +45,11 @@ if __name__ == '__main__':
 
   # Using a subclass to define the external program will allow us to
   # tailor this to other aligners in future.
-  BWA = FastqBwaAligner(test_mode=ARGS.testMode)
+  library = Library.objects.get(code=ARGS.library)
+  if library.libtype.code == 'rnaseq':
+    BWA = FastqTophatAligner(test_mode=ARGS.testMode)
+  else:
+    BWA = FastqBwaAligner(test_mode=ARGS.testMode)
   
   BWA.align(library = ARGS.library,
             facility = ARGS.facility,

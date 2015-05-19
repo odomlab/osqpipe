@@ -751,7 +751,7 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
             self.genome,
             fnlist))
 
-    LOGGER.info("Submitting bwa job to cluster.")
+    LOGGER.info("Submitting tophat job to cluster.")
     self.job.submit_command(cmd, *args, **kwargs)
 
   @classmethod
@@ -784,6 +784,7 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
                % (alignerinfo.program, alignerinfo.version, alignerinfo.path))
                + "not recorded as current in repository! Quitting.")
 
+    # Tophat/bowtie need the trailing .fa removed.
     gpath = cls.genome_path(genome, indexdir, conf.clustergenomedir)
 
     return gpath
@@ -984,6 +985,7 @@ class AlignmentManager(object):
     self.debug         = debug
     self._configure_logging(self.__class__.__name__, LOGGER)
     LOGGER.setLevel(loglevel)
+    LOGGER.debug("merge_prog set to %s", self.merge_prog)
 
   def _configure_logging(self, name, logger=LOGGER):
     '''
@@ -1047,7 +1049,7 @@ class AlignmentManager(object):
     # the python in our path rather than the python in the merge_prog
     # script shebang line.
     cmd = ("python %s --loglevel %d"
-           % self.merge_prog, LOGGER.getEffectiveLevel())
+           % (self.merge_prog, LOGGER.getEffectiveLevel()))
     if rcp_target:
       cmd += " --rcp %s" % (rcp_target,)
     if self.cleanup:
@@ -1056,7 +1058,7 @@ class AlignmentManager(object):
       cmd += " --group %s" % (self.group,)
     cmd += " %s %s" % (bash_quote(bam_fn), input_files)
 
-    LOGGER.info("Preparing bwa merge on '%s'", input_files)
+    LOGGER.info("preparing samtools merge on '%s'", input_files)
     LOGGER.debug(cmd)
 
     jobname = bam_files[0].split("_")[0] + "bam"
@@ -1343,6 +1345,9 @@ class TophatAlignmentManager(AlignmentManager):
     out_names = []
     current = 0
 
+    # Tophat/bowtie requires the trailing .fa to be removed.
+    genome = re.sub(r'\.fa$', '', genome)
+
     for fqname in fq_files:
       donumber = fqname.split("_")[0]
       out = bash_quote(fqname + ".bam")
@@ -1351,9 +1356,9 @@ class TophatAlignmentManager(AlignmentManager):
 
       # Run tophat2. The no-coverage-search option is required when
       # splitting the fastq file across multiple cluster nodes. The
-      # fr-firststrand library type is the Odom lab default. Consider
-      # using -p option to ask for more threads FIXME.
-      cmd  = ("%s --no-coverage-search --library-type fr-firststrand -o %s %s %s"
+      # fr-firststrand library type is the Odom lab default. We
+      # use the -p option to ask for more threads; FIXME config option?
+      cmd  = ("%s --no-coverage-search --library-type fr-firststrand -p 4 -o %s %s %s"
                % (self.tophat_prog, jobname_bam, genome, bash_quote(fqname)))
       if paired:
         cmd += " %s" % (bash_quote(fq_files2[current]),)
