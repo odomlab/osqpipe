@@ -109,7 +109,7 @@ class BsubCommand(SimpleCommand):
   Class used to build a bsub-wrapped command.
   '''
   def build(self, cmd, mem=2000, queue=None, jobname=None,
-            auto_requeue=False, depend_jobs=None, sleep=0, *args, **kwargs):
+            auto_requeue=False, depend_jobs=None, sleep=0, mincpus=1, maxcpus=1, clusterlogdir=None, *args, **kwargs):
     # Pass the PYTHONPATH to the cluster process. This allows us to
     # isolate e.g. a testing instance of the code from production.
     # Note that we can't do this as easily for PATH itself because
@@ -150,13 +150,29 @@ class BsubCommand(SimpleCommand):
     except AttributeError:
       pass
 
-    bsubcmd = (("PYTHONPATH=%s OSQPIPE_CONFDIR=%s bsub -R '%s'"
-           + " %s -r -o %s/%%J.stdout -e %s/%%J.stderr %s %s")
+    # a safety net in case min or max nr of cores gets muddled up.    
+    if mincpus > maxcpus:
+      maxcpus = mincpus
+
+    # In case clusterlogdir has been specified, override the self.conf.clusterstdout
+    # This is handy in case we want to keep the logs together with job / larger project related files.
+    cluster_stdout_stderr = ""
+    if clusterlogdir is not None:
+      cluster_stdout_stderr = "-o %s/%%J.stdout -e %s/%%J.stderr" % (clusterlogdir, clusterlogdir)
+    else:
+      cluster_stdout_stderr = "-o %s/%%J.stdout -e %s/%%J.stderr" % (self.conf.clusterstdoutdir, self.conf.clusterstdoutdir)
+      # clusterstdoutdir = self.conf.clusterstdoutdir
+
+    bsubcmd = (("PYTHONPATH=%s OSQPIPE_CONFDIR=%s bsub -R '%s' -R 'span[hosts=1]'"
+           + " %s -r %s -n %d,%d"
+                + " %s %s")
            % (python_path,
               osqpipe_confdir,
-              resources, memreq,
-              self.conf.clusterstdoutdir,
-              self.conf.clusterstdoutdir,
+              resources,
+              memreq,
+              cluster_stdout_stderr,
+              mincpus,
+              maxcpus,
               qval,
               group))
 
