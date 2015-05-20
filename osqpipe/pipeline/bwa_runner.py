@@ -21,7 +21,7 @@ from tempfile import gettempdir, NamedTemporaryFile
 from getpass import getuser
 
 from utilities import call_subprocess, bash_quote, \
-    is_zipped, set_file_permissions, BamPostProcessor
+    is_zipped, set_file_permissions, BamPostProcessor, parse_repository_filename
 from config import Config
 
 from setup_logs import configure_logging
@@ -1349,10 +1349,13 @@ class TophatAlignmentManager(AlignmentManager):
     genome = re.sub(r'\.fa$', '', genome)
 
     for fqname in fq_files:
-      donumber = fqname.split("_")[0]
+      (donumber, facility, lanenum, _pipe) = parse_repository_filename(fqname)
       out = bash_quote(fqname + ".bam")
       out_names.append(out)
-      jobname_bam = "%s_%s_bam" % (donumber, current)
+
+      # Used as a job ID and also as an output directory, so we want
+      # it fairly collision-resistant.
+      jobname_bam = "%s_%s%02d_%s_bam" % (donumber, facility, int(lanenum), current)
 
       # Run tophat2. The no-coverage-search option is required when
       # splitting the fastq file across multiple cluster nodes. The
