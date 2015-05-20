@@ -71,7 +71,7 @@ if __name__ == '__main__':
   BSUB = BwaAlignmentManager(debug      = ARGS.debug,
                              cleanup    = ARGS.cleanup,
                              loglevel   = ARGS.loglevel,
-                             reads      = ARGS.reads,
+                             split_read_count = ARGS.reads,
                              group      = ARGS.group,
                              nocc       = ARGS.nocc,
                              merge_prog = spawn.find_executable('cs_runBwaWithSplit_Merge.py',
