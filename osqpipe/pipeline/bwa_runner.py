@@ -150,9 +150,11 @@ class BsubCommand(SimpleCommand):
     except AttributeError:
       pass
 
-    # a safety net in case min or max nr of cores gets muddled up.    
+    # A safety net in case min or max nr of cores gets muddled up. An
+    # explicit error is preferred in such cases, so that we can see
+    # what to fix.
     if mincpus > maxcpus:
-      maxcpus = mincpus
+      raise ValueError("mincpus (%d) is greater than maxcpus (%d). Surely some error?" % (mincpus, maxcpus))
 
     # In case clusterlogdir has been specified, override the self.conf.clusterstdout
     # This is handy in case we want to keep the logs together with job / larger project related files.
@@ -161,7 +163,6 @@ class BsubCommand(SimpleCommand):
       cluster_stdout_stderr = "-o %s/%%J.stdout -e %s/%%J.stderr" % (clusterlogdir, clusterlogdir)
     else:
       cluster_stdout_stderr = "-o %s/%%J.stdout -e %s/%%J.stderr" % (self.conf.clusterstdoutdir, self.conf.clusterstdoutdir)
-      # clusterstdoutdir = self.conf.clusterstdoutdir
 
     bsubcmd = (("PYTHONPATH=%s OSQPIPE_CONFDIR=%s bsub -R '%s' -R 'span[hosts=1]'"
            + " %s -r %s -n %d,%d"
