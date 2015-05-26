@@ -58,7 +58,7 @@ def get_lims_run_history(url, since):
     LOGGER.error("Failed to retrieve runs since date %s.", since)
     raise StandardError("Unable to retrieve LIMS run history: %s" % history_url)
   try:
-    root = ET.fromstring(req.text)
+    root = ET.fromstring(req.text.encode('utf-8'))
   except ET.ParseError, err:
     LOGGER.error("LIMS query returned bad XML.")
     raise StandardError("Bad XML in response from LIMS query: %s" % err)
@@ -75,7 +75,7 @@ def get_lims_run_details(url, run_id):
     LOGGER.error("Failed to retrieve detail for %s.", run_id)
     raise StandardError("Unable to retrieve LIMS run detail.")
   try:
-    root = ET.fromstring(req.text)
+    root = ET.fromstring(req.text.encode('utf-8'))
   except ET.ParseError, err:
     LOGGER.error("LIMS query returned bad XML.")
     raise StandardError("Bad XML in response from LIMS query: %s" % err)
@@ -92,7 +92,7 @@ def runs_containing_samples(url, libcode):
     LOGGER.error("Failed to retrieve runs for library %s.", libcode)
     raise StandardError("Unable to retrieve run listing from LIMS.")
   try:
-    root = ET.fromstring(req.text)
+    root = ET.fromstring(req.text.encode('utf-8'))
   except ET.ParseError, err:
     LOGGER.error("LIMS query returned bad XML.")
     raise StandardError("Bad XML in response from LIMS query: %s" % err)
