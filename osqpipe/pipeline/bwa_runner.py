@@ -21,7 +21,7 @@ from tempfile import gettempdir, NamedTemporaryFile
 from getpass import getuser
 
 from utilities import call_subprocess, bash_quote, \
-    is_zipped, set_file_permissions, BamPostProcessor
+    is_zipped, set_file_permissions, BamPostProcessor, parse_repository_filename
 from config import Config
 
 from setup_logs import configure_logging
@@ -109,7 +109,7 @@ class BsubCommand(SimpleCommand):
   Class used to build a bsub-wrapped command.
   '''
   def build(self, cmd, mem=2000, queue=None, jobname=None,
-            auto_requeue=False, depend_jobs=None, sleep=0, *args, **kwargs):
+            auto_requeue=False, depend_jobs=None, sleep=0, mincpus=1, maxcpus=1, clusterlogdir=None, *args, **kwargs):
     # Pass the PYTHONPATH to the cluster process. This allows us to
     # isolate e.g. a testing instance of the code from production.
     # Note that we can't do this as easily for PATH itself because
@@ -150,13 +150,30 @@ class BsubCommand(SimpleCommand):
     except AttributeError:
       pass
 
-    bsubcmd = (("PYTHONPATH=%s OSQPIPE_CONFDIR=%s bsub -R '%s'"
-           + " %s -r -o %s/%%J.stdout -e %s/%%J.stderr %s %s")
+    # A safety net in case min or max nr of cores gets muddled up. An
+    # explicit error is preferred in such cases, so that we can see
+    # what to fix.
+    if mincpus > maxcpus:
+      raise ValueError("mincpus (%d) is greater than maxcpus (%d). Surely some error?" % (mincpus, maxcpus))
+
+    # In case clusterlogdir has been specified, override the self.conf.clusterstdout
+    # This is handy in case we want to keep the logs together with job / larger project related files.
+    cluster_stdout_stderr = ""
+    if clusterlogdir is not None:
+      cluster_stdout_stderr = "-o %s/%%J.stdout -e %s/%%J.stderr" % (clusterlogdir, clusterlogdir)
+    else:
+      cluster_stdout_stderr = "-o %s/%%J.stdout -e %s/%%J.stderr" % (self.conf.clusterstdoutdir, self.conf.clusterstdoutdir)
+
+    bsubcmd = (("PYTHONPATH=%s OSQPIPE_CONFDIR=%s bsub -R '%s' -R 'span[hosts=1]'"
+           + " %s -r %s -n %d,%d"
+                + " %s %s")
            % (python_path,
               osqpipe_confdir,
-              resources, memreq,
-              self.conf.clusterstdoutdir,
-              self.conf.clusterstdoutdir,
+              resources,
+              memreq,
+              cluster_stdout_stderr,
+              mincpus,
+              maxcpus,
               qval,
               group))
 
@@ -751,7 +768,7 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
             self.genome,
             fnlist))
 
-    LOGGER.info("Submitting bwa job to cluster.")
+    LOGGER.info("Submitting tophat job to cluster.")
     self.job.submit_command(cmd, *args, **kwargs)
 
   @classmethod
@@ -784,6 +801,7 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
                % (alignerinfo.program, alignerinfo.version, alignerinfo.path))
                + "not recorded as current in repository! Quitting.")
 
+    # Tophat/bowtie need the trailing .fa removed.
     gpath = cls.genome_path(genome, indexdir, conf.clustergenomedir)
 
     return gpath
@@ -984,6 +1002,7 @@ class AlignmentManager(object):
     self.debug         = debug
     self._configure_logging(self.__class__.__name__, LOGGER)
     LOGGER.setLevel(loglevel)
+    LOGGER.debug("merge_prog set to %s", self.merge_prog)
 
   def _configure_logging(self, name, logger=LOGGER):
     '''
@@ -1047,7 +1066,7 @@ class AlignmentManager(object):
     # the python in our path rather than the python in the merge_prog
     # script shebang line.
     cmd = ("python %s --loglevel %d"
-           % self.merge_prog, LOGGER.getEffectiveLevel())
+           % (self.merge_prog, LOGGER.getEffectiveLevel()))
     if rcp_target:
       cmd += " --rcp %s" % (rcp_target,)
     if self.cleanup:
@@ -1056,7 +1075,7 @@ class AlignmentManager(object):
       cmd += " --group %s" % (self.group,)
     cmd += " %s %s" % (bash_quote(bam_fn), input_files)
 
-    LOGGER.info("Preparing bwa merge on '%s'", input_files)
+    LOGGER.info("preparing samtools merge on '%s'", input_files)
     LOGGER.debug(cmd)
 
     jobname = bam_files[0].split("_")[0] + "bam"
@@ -1343,17 +1362,23 @@ class TophatAlignmentManager(AlignmentManager):
     out_names = []
     current = 0
 
+    # Tophat/bowtie requires the trailing .fa to be removed.
+    genome = re.sub(r'\.fa$', '', genome)
+
     for fqname in fq_files:
-      donumber = fqname.split("_")[0]
+      (donumber, facility, lanenum, _pipe) = parse_repository_filename(fqname)
       out = bash_quote(fqname + ".bam")
       out_names.append(out)
-      jobname_bam = "%s_%s_bam" % (donumber, current)
+
+      # Used as a job ID and also as an output directory, so we want
+      # it fairly collision-resistant.
+      jobname_bam = "%s_%s%02d_%s_bam" % (donumber, facility, int(lanenum), current)
 
       # Run tophat2. The no-coverage-search option is required when
       # splitting the fastq file across multiple cluster nodes. The
-      # fr-firststrand library type is the Odom lab default. Consider
-      # using -p option to ask for more threads FIXME.
-      cmd  = ("%s --no-coverage-search --library-type fr-firststrand -o %s %s %s"
+      # fr-firststrand library type is the Odom lab default. We
+      # use the -p option to ask for more threads; FIXME config option?
+      cmd  = ("%s --no-coverage-search --library-type fr-firststrand -p 4 -o %s %s %s"
                % (self.tophat_prog, jobname_bam, genome, bash_quote(fqname)))
       if paired:
         cmd += " %s" % (bash_quote(fq_files2[current]),)

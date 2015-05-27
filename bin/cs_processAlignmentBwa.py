@@ -223,7 +223,7 @@ class AlignProcessingManager(object):
     # here that re-running the reallocateReads script over the output
     # file would have little to no effect, and so we do not wrap this
     # within our database transaction.
-    if reallocate or lib.libtype.name == "ChIP-Seq" \
+    if reallocate or lib.libtype.code == "chipseq" \
           and lib.factor is not None \
           and lib.factor.name in self.conf.reallocation_factors:
 
@@ -234,6 +234,10 @@ class AlignProcessingManager(object):
 
       # This would have been previously set in BwaClusterJobSubmitter FIXME DRY.
       params  = [ '--n_occ %s' % self.conf.nonuniquereads, '', '' ]
+
+    elif lib.libtype.code == 'rnaseq': # See TophatAlignmentManager
+      aligner = [ 'bowtie2', 'tophat2', 'samtools' ]
+      params  = [ '', '--no-coverage-search --libtype fr-firststrand', 'view -F 0x100' ]
 
     (chrom_sizes, chr_istmp) = self.get_genome_size_file(genome)
 
