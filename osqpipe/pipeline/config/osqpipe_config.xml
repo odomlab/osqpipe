@@ -60,6 +60,7 @@
     <option name="nonquant_libtypes"><!-- Libtypes for which wig/bgr/bw file creation is inappropriate. -->
       <value>bisulph-smrna</value>
       <value>genome</value>
+      <value>exome</value>
     </option>
     <option name="core_facility_code">CRI</option>
     <option name="core_ready_status">core pipeline complete</option>
