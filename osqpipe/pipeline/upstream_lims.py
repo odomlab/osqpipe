@@ -133,6 +133,7 @@ class LimsLane(object):
   sample_process_id = None
   files = None
   samples = None
+  adapters = None
 
   def __init__(self, fields, parent):
 
@@ -157,6 +158,8 @@ class LimsLane(object):
       for lfile in liblist:
         lfile.__dict__['lane'] = weakref.ref(self)
 
+    self.__dict__['adapters'] = fields.get('adapters', {})
+    
     self.__dict__['flowcell'] = weakref.ref(parent)
 
   def __getattribute__(self, key):
@@ -251,6 +254,13 @@ class LimsLane(object):
     Return all the LIMS file IDs for a given file type (default: FASTQ).
     '''
     return [ x.lims_id for x in self.files.get(ftype, []) ]
+
+  def lims_adapter(self, sample):
+    '''
+    Return the adapter sequence linked to the requested sample. Raises
+    KeyError if sample not found.
+    '''
+    return self.adapters[sample]
 
   def dump(self, out=sys.stderr, indent=6):
     '''
@@ -526,7 +536,13 @@ class Lims(object):
       # at the moment).
       # Structure is:
       #    sampledict = { libcode : [ FASTQ_filenames ] }
-      sampledict = {}
+      sampledict  = {}
+
+      # Store simple mapping of libcode to adapter sequence. For dual
+      # indices, the LIMS convention is to separate the two adapters
+      # by a hyphen; we do not handle that here, but in the calling
+      # code.
+      adapterdict = {}
       wanted = re.compile(r'Read \d+ FASTQ$')
       for sample_elem in lanelib.findall('./sample'):
 
@@ -550,8 +566,14 @@ class Lims(object):
                                    md5sum=md5sum,
                                    lims_id=str(file_elem.attrib['fileLimsId']))
             demux_list.append(newfile)
+        try:
+          sample_adapter = sample_elem.find('./reagentLabel/sequence').text
+          adapterdict[libcode.lower()] = sample_adapter
+        except AttributeError:
+          pass
 
-      lanedict['samples'] = sampledict
+      lanedict['samples']  = sampledict
+      lanedict['adapters'] = adapterdict
       lanedict['user_sample_id'] = ",".join(sampledict.keys())
 
       lanes.append(lanedict)

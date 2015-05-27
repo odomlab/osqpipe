@@ -283,6 +283,17 @@ class FlowCellQuery(object):
       else:
         self.lane_demuxed[lane.lane] = False
 
+      try: # Check the LIMS adapter against what we've recorded.
+        lims_adapter = lane.lims_adapter(lib.code.lower())
+        repo_adapter = lib.adapter.sequence
+        if lib.adapter2 is not None:
+          repo_adapter += "-%s" % lib.adapter2.sequence
+        if lims_adapter != repo_adapter:
+          LOGGER.warn("Adapter in LIMS (%s) does not agree with adapter in repository (%s)."
+                      + " Proceed with caution.", lims_adapter, repo_adapter)
+      except KeyError: # No adapter recorded in LIMS.
+        pass
+
   def _run_query(self, flowcell_id, flowlane_num):
     '''Main entry point for the class (called via __init__).'''
 
