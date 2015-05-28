@@ -288,7 +288,7 @@ class FlowCellQuery(object):
         repo_adapter = lib.adapter.sequence
         if lib.adapter2 is not None:
           repo_adapter += "-%s" % lib.adapter2.sequence
-        if lims_adapter != repo_adapter:
+        if lims_adapter.upper() != repo_adapter.upper():
           LOGGER.warn("Adapter in LIMS (%s) does not agree with adapter in repository (%s)."
                       + " Proceed with caution.", lims_adapter, repo_adapter)
       except KeyError: # No adapter recorded in LIMS.
