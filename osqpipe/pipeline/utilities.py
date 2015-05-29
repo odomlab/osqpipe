@@ -518,7 +518,6 @@ class BamPostProcessor(object):
 
     # Run FixMateInformation
     cmd = ('picard', 'FixMateInformation',
-           'ASSUME_SORTED=true',
            'INPUT=%s'  % self.rgadded_fn,
            'OUTPUT=%s' % self.output_fn) + self.common_args
 
