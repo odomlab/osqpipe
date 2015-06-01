@@ -1,6 +1,7 @@
 {% load to_class_name %}
       <table class="fixed-widths">
         <tr>
+          <th class="col_filename">A</th>
           <th class="col_filename">Filename</th>
           <th class="col_filetype">Type</th>
           <th class="col_date">Date</th>
@@ -9,6 +10,7 @@
         </tr>
       {% for file in files %}
         <tr>
+          <td>{{ file.archive|yesno:"Y,&nbsp" }}</td>
           <td><a class="tooltip" href="{% url "file-download" cls=file|to_class_name|lower pk=file.pk %}">{{ file.filename|truncatechars:48 }}
 	        <span class="tooltip-classic">{{ file.filename.split|join:"&nbsp;" }}</span></a></td>
           <td>{{ file.filetype }}</td>

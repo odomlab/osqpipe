@@ -484,6 +484,16 @@ class QCValue(models.Model):
     verbose_name    = u'QC Value'
     unique_together = ('laneqc', 'name')
 
+class ArchiveLocation(models.Model):
+  name         = models.CharField(max_length=32, unique=True)
+  root_path    = models.CharField(max_length=1024, unique=True)
+
+  def __unicode__(self):
+    return "%s (%s)" % (self.name, self.root_path)
+
+  class Meta:
+    db_table        = u'archive_location'
+
 class Filetype(ControlledVocab):
   code         = models.CharField(max_length=10, unique=True)
   name         = models.CharField(max_length=32, unique=True)
@@ -511,6 +521,8 @@ class Datafile(models.Model):
   filetype     = models.ForeignKey(Filetype, on_delete=models.PROTECT)
   description  = models.TextField(null=True, blank=True)
   date         = models.DateField(auto_now_add=True)
+  archive      = models.ForeignKey(ArchiveLocation, on_delete=models.PROTECT,
+                                    null=True, blank=True)
 
   @property
   def libcode(self):
@@ -521,8 +533,11 @@ class Datafile(models.Model):
     fname   = self.filename
     if self.filetype.gzip:
       fname += CONFIG.gzsuffix
-    return os.path.join(CONFIG.repositorydir, self.libcode, fname)
-
+    if self.archive is None:
+      return os.path.join(CONFIG.repositorydir, self.libcode, fname)
+    else:
+      return os.path.join(self.archive.root_path, self.libcode, fname)
+    
   def __unicode__(self):
     return self.filename
 
