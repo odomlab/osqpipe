@@ -7,6 +7,7 @@ database is updated to reflect the change. No changes are made to the
 archive.
 '''
 
+import os
 from django.db import transaction
 from osqpipe.models import Datafile
 from osqpipe.pipeline.config import Config
@@ -22,7 +23,7 @@ def restore_file_from_archive(fpath):
 
   fname = os.path.basename(fpath)
   parts = os.path.splitext(fname)
-  if parts[1] = CONFIG.gzsuffix
+  if parts[1] == CONFIG.gzsuffix:
     fname = parts[0]
   fobj = Datafile.objects.get(filename=fname)
 

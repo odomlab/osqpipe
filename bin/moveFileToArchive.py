@@ -30,7 +30,7 @@ def move_file_to_archive(fpath, archive, force=False):
 
   fname = os.path.basename(fpath)
   parts = os.path.splitext(fname)
-  if parts[1] = CONFIG.gzsuffix
+  if parts[1] == CONFIG.gzsuffix:
     fname = parts[0]
   fobj = Datafile.objects.get(filename=fname)
 
@@ -44,7 +44,7 @@ def move_file_to_archive(fpath, archive, force=False):
   archpath = fobj.repository_file_path
 
   # Actually copy the file across.
-  if force or not os.path.exists(archpath)
+  if force or not os.path.exists(archpath):
     copy(repopath, archpath)
 
   # Errors here will typically need careful manual investigation.
