@@ -233,9 +233,9 @@ class Library(models.Model):
   linkerset    = models.ForeignKey(Linkerset, on_delete=models.PROTECT, null=True, blank=True)
   chipsample   = models.CharField(max_length=255, null=True, blank=True)
   paired       = models.BooleanField(default=False)
-  adapter      = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True)
+  adapter      = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True, related_name='libraries')
+  adapter2     = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True, related_name='libraries2')
   comment      = models.TextField(null=True, blank=True)
-  adapter2     = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True)
 
   objects      = LibraryManager()
 
