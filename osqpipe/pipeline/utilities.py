@@ -471,7 +471,7 @@ def memoize(func):
 class BamPostProcessor(object):
 
   __slots__ = ('input_fn', 'output_fn', 'cleaned_fn', 'rgadded_fn',
-               'libcode', 'facility', 'lanenum', 'common_args')
+               'common_args')
 
   def __init__(self, input_fn, output_fn, tmpdir=DBCONF.tmpdir):
 
@@ -481,11 +481,6 @@ class BamPostProcessor(object):
     output_base = os.path.splitext(output_fn)[0]
     self.cleaned_fn  = "%s_cleaned.bam" % output_base
     self.rgadded_fn  = "%s_rg.bam" % output_base
-
-    (libcode, facility, lanenum, _pipeline) = parse_repository_filename(output_fn)
-    self.libcode  = libcode
-    self.facility = facility
-    self.lanenum  = int(lanenum)
 
     # Some options are universal. Consider also adding QUIET=true, VERBOSITY=ERROR
     self.common_args = ('VALIDATION_STRINGENCY=LENIENT',
@@ -502,14 +497,19 @@ class BamPostProcessor(object):
   
   def add_or_replace_read_groups(self):
 
+    try:
+      (libcode, facility, lanenum, _pipeline) = parse_repository_filename(self.output_fn)
+    except Exception, err:
+      raise StandardError("Unable to parse read group info from output filename: %s" % err)
+
     # Run AddOrReplaceReadGroups
     cmd = ('picard', 'AddOrReplaceReadGroups',
            'INPUT=%s'  % self.cleaned_fn,
            'OUTPUT=%s' % self.rgadded_fn,
-           'RGLB=%s'   % self.libcode,
-           'RGSM=%s'   % self.libcode, # sample name?
-           'RGCN=%s'   % self.facility,
-           'RGPU=%d'   % self.lanenum,
+           'RGLB=%s'   % libcode,
+           'RGSM=%s'   % libcode, # sample name?
+           'RGCN=%s'   % facility,
+           'RGPU=%d'   % int(lanenum),
            'RGPL=illumina') + self.common_args
 
     return cmd
