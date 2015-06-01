@@ -253,11 +253,16 @@ class InventoryImporter(object):
       return  # FIXME we may wish to update as well.
 
     # Check our required arguments
-    for key in ('assaytype', 'genome', 'tissue'):
+    for key in ('assaytype', 'genome'):
       if key not in rowdict or rowdict[key] == '':
         LOGGER.error("Library does not have required %s annotation: %s",
                      key, libcode)
         return
+
+    if len([ key for key in ('tissue','cellline')
+             if key not in rowdict or rowdict[key] == '' ]) < 1:
+      LOGGER.error("Either tissue or cell line must be specified: %s", libcode)
+      return
 
     optvals = self.process_optional_values(rowdict)
 
@@ -266,6 +271,7 @@ class InventoryImporter(object):
     # Overwrite tissue with cellline if the latter is given.
     if 'cellline' in rowdict and rowdict['cellline'] != '':
       tissue = rowdict['cellline']
+      LOGGER.info(tissue)
     else:
       tissue = rowdict['tissue']
 

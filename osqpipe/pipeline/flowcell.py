@@ -285,10 +285,12 @@ class FlowCellQuery(object):
 
       try: # Check the LIMS adapter against what we've recorded.
         lims_adapter = lane.lims_adapter(lib.code.lower())
-        repo_adapter = lib.adapter.sequence
+        repo_adapter = ''
+        if lib.adapter is not None:
+          repo_adapter = lib.adapter.sequence
         if lib.adapter2 is not None:
           repo_adapter += "-%s" % lib.adapter2.sequence
-        if lims_adapter != repo_adapter:
+        if lims_adapter.upper() != repo_adapter.upper():
           LOGGER.warn("Adapter in LIMS (%s) does not agree with adapter in repository (%s)."
                       + " Proceed with caution.", lims_adapter, repo_adapter)
       except KeyError: # No adapter recorded in LIMS.
