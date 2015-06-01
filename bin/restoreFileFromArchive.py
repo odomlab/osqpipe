@@ -9,7 +9,7 @@ archive.
 
 import os
 from django.db import transaction
-from osqpipe.models import Datafile
+from osqpipe.models import Lanefile, Alnfile, QCfile, Peakfile, Datafile
 from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.setup_logs import configure_logging
 from osqpipe.pipeline.utilities import checksum_file
@@ -18,6 +18,24 @@ from logging import INFO
 LOGGER = configure_logging(level=INFO)
 CONFIG = Config()
 
+def find_file(fname):
+
+  try:
+    fobj = Lanefile.objects.get(filename=fname)
+  except Lanefile.DoesNotExist:
+    try:
+      fobj = Alnfile.objects.get(filename=fname)
+    except Alnfile.DoesNotExist:
+      try:
+        fobj = QCfile.objects.get(filename=fname)
+      except QCfile.DoesNotExist:
+        try:
+          fobj = Peakfile.objects.get(filename=fname)
+        except Peakfile.DoesNotExist:
+          raise Datafile.DoesNotExist("Datafile %s not found in repository." % fname)
+
+  return fobj
+
 @transaction.commit_on_success
 def restore_file_from_archive(fpath):
 
@@ -25,7 +43,7 @@ def restore_file_from_archive(fpath):
   parts = os.path.splitext(fname)
   if parts[1] == CONFIG.gzsuffix:
     fname = parts[0]
-  fobj = Datafile.objects.get(filename=fname)
+  fobj = find_file(fname)
 
   if not fobj.archive:
     LOGGER.error("File %s is not currently registered to any archive location.", fname)

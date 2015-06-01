@@ -115,6 +115,9 @@ th.col_strain {
 th.col_factor {
     width: 7em;
 }
+th.col_archived {
+    width: 1em;
+}
 th.col_filename {
     width: 28em;
 }

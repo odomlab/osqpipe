@@ -10,7 +10,7 @@ repository database is updated to record this change.
 import os
 
 from django.db import transaction
-from osqpipe.models import ArchiveLocation, Datafile
+from osqpipe.models import ArchiveLocation, Lanefile, Alnfile, QCfile, Peakfile, Datafile
 from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.setup_logs import configure_logging
 from osqpipe.pipeline.utilities import checksum_file
@@ -18,6 +18,24 @@ from shutil import copy
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 CONFIG = Config()
+
+def find_file(fname):
+
+  try:
+    fobj = Lanefile.objects.get(filename=fname)
+  except Lanefile.DoesNotExist:
+    try:
+      fobj = Alnfile.objects.get(filename=fname)
+    except Alnfile.DoesNotExist:
+      try:
+        fobj = QCfile.objects.get(filename=fname)
+      except QCfile.DoesNotExist:
+        try:
+          fobj = Peakfile.objects.get(filename=fname)
+        except Peakfile.DoesNotExist:
+          raise Datafile.DoesNotExist("Datafile %s not found in repository." % fname)
+
+  return fobj
 
 @transaction.commit_on_success
 def move_file_to_archive(fpath, archive, force=False):
@@ -32,7 +50,7 @@ def move_file_to_archive(fpath, archive, force=False):
   parts = os.path.splitext(fname)
   if parts[1] == CONFIG.gzsuffix:
     fname = parts[0]
-  fobj = Datafile.objects.get(filename=fname)
+  fobj = find_file(fname)
 
   if fobj.archive:
     LOGGER.error("File %s already exists in archive %s", fname, fobj.archive)
@@ -45,6 +63,9 @@ def move_file_to_archive(fpath, archive, force=False):
 
   # Actually copy the file across.
   if force or not os.path.exists(archpath):
+    archdir = os.path.split(archpath)[0]
+    if not os.path.exists(archdir):
+      os.makedirs(archdir)
     copy(repopath, archpath)
 
   # Errors here will typically need careful manual investigation.
