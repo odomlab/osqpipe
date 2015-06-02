@@ -1367,12 +1367,16 @@ class TophatAlignmentManager(AlignmentManager):
 
     for fqname in fq_files:
       (donumber, facility, lanenum, _pipe) = parse_repository_filename(fqname)
-      out = bash_quote(fqname + ".bam")
-      out_names.append(out)
 
       # Used as a job ID and also as an output directory, so we want
       # it fairly collision-resistant.
-      jobname_bam = "%s_%s%02d_%s_bam" % (donumber, facility, int(lanenum), current)
+      if donumber is None: # unusual filename, non-repository.
+        jobname_bam = "%s_tophat" % fqname
+      else:
+        jobname_bam = "%s_%s%02d_%s_tophat" % (donumber, facility, int(lanenum), current)
+
+      out = bash_quote(fqname + ".bam")
+      out_names.append(out)
 
       # Run tophat2. The no-coverage-search option is required when
       # splitting the fastq file across multiple cluster nodes. The

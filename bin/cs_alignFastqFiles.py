@@ -9,7 +9,7 @@ from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 
-from osqpipe.pipeline.fastq_aligner import FastqBwaAligner
+from osqpipe.pipeline.fastq_aligner import FastqBwaAligner, FastqTophatAligner
 
 if __name__ == '__main__':
 
@@ -34,9 +34,17 @@ if __name__ == '__main__':
   PARSER.add_argument('--n_occ', dest='nocc', type=str,
                       help='Specifies number of non-unique read occurrences to keep in bam file. The bwa default is 3.')
 
+  PARSER.add_argument('-a', '--aligner', dest='aligner', type=str, choices=('bwa', 'tophat'), default='bwa',
+                      help='Specifies number of non-unique read occurrences to keep in bam file. The bwa default is 3.')
+
   ARGS = PARSER.parse_args()
 
-  BWA = FastqBwaAligner(test_mode=ARGS.testMode)
+  if ARGS.aligner == 'bwa':
+    BWA = FastqBwaAligner(test_mode=ARGS.testMode)
+  elif ARGS.aligner == 'tophat':
+    BWA = FastqTophatAligner(test_mode=ARGS.testMode)
+  else:
+    raise ValueError("Unrecognised aligner requested: %s" % ARGS.aligner)
   
   BWA.align_standalone(filepaths=ARGS.files,
                        genome  = ARGS.genome,

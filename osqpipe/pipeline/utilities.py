@@ -500,7 +500,10 @@ class BamPostProcessor(object):
     try:
       (libcode, facility, lanenum, _pipeline) = parse_repository_filename(self.output_fn)
     except Exception, err:
-      raise StandardError("Unable to parse read group info from output filename: %s" % err)
+      LOGGER.warn("Unable to parse repository metadata from output filename. Applying defaults instead.")
+      libcode  = self.output_fn
+      facility = 'Unknown'
+      lanenum  = 0
 
     # Run AddOrReplaceReadGroups
     cmd = ('picard', 'AddOrReplaceReadGroups',
