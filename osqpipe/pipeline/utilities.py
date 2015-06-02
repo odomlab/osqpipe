@@ -483,7 +483,7 @@ class BamPostProcessor(object):
     self.rgadded_fn  = "%s_rg.bam" % output_base
 
     # Some options are universal. Consider also adding QUIET=true, VERBOSITY=ERROR
-    self.common_args = ('VALIDATION_STRINGENCY=LENIENT',
+    self.common_args = ('VALIDATION_STRINGENCY=SILENT',
                         'TMP_DIR=%s' % tmpdir)
 
   def clean_sam(self):
