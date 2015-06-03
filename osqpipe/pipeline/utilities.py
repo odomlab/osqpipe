@@ -497,10 +497,9 @@ class BamPostProcessor(object):
   
   def add_or_replace_read_groups(self):
 
-    try:
-      (libcode, facility, lanenum, _pipeline) = parse_repository_filename(self.output_fn)
-    except Exception, err:
-      LOGGER.warn("Unable to parse repository metadata from output filename. Applying defaults instead.")
+    (libcode, facility, lanenum, _pipeline) = parse_repository_filename(self.output_fn)
+    if libcode is None:
+      LOGGER.warn("Applying dummy read group information to output bam.")
       libcode  = self.output_fn
       facility = 'Unknown'
       lanenum  = 0
