@@ -500,7 +500,7 @@ class BamPostProcessor(object):
     (libcode, facility, lanenum, _pipeline) = parse_repository_filename(self.output_fn)
     if libcode is None:
       LOGGER.warn("Applying dummy read group information to output bam.")
-      libcode  = self.output_fn
+      libcode  = os.path.basename(self.output_fn)
       facility = 'Unknown'
       lanenum  = 0
 
