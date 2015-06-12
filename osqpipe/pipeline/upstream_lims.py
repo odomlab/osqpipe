@@ -430,7 +430,8 @@ class Lims(object):
     runid = None
     fib   = [1, 1]
 
-    while fib[1] < 35: # Last fibonacci no. will actually be 34.
+    # We limit our historical searches to just the last year or so.
+    while fib[1] < 378:
 
       # Retrieve the run listing for the last fib[1] days. Note that
       # we may want to consider using completeRunsByFinishDate here

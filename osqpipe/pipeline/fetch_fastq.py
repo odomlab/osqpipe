@@ -12,7 +12,7 @@ import re
 from utilities import build_incoming_fastq_name, unzip_file, \
     set_file_permissions, checksum_file
 from upstream_lims import Lims
-from ..models import Library
+from ..models import Library, Lane
 from config import Config
 
 from setup_logs import configure_logging
@@ -26,12 +26,13 @@ class FQFileFetcher(object):
   '''Class used to query the LIMS for fastq files associated with a
   given flowcell and download them to a destination directory.'''
 
-  __slots__ = ('destination', 'lims', 'targets', 'test_mode', 'conf')
+  __slots__ = ('destination', 'lims', 'targets', 'test_mode', 'conf', 'unprocessed_only')
 
-  def __init__(self, destination, lims=None, test_mode=False):
+  def __init__(self, destination, lims=None, test_mode=False, unprocessed_only=False):
 
     self.conf        = Config()
     self.test_mode   = test_mode
+    self.unprocessed_only = unprocessed_only
     self.destination = destination
     self.targets = set()
     if lims is None:
@@ -179,6 +180,14 @@ class FQFileFetcher(object):
       # Deal with demultiplexed files
       LOGGER.info("Downloading demultiplexed fastq files per sample.")
       for libname in samples:
+
+        if Lane.objects.filter(flowcell=lane.flowcell.fcid, flowlane=lane.lane, library__code__iexact=libname).exists():
+          if self.unprocessed_only:
+            LOGGER.info("Skipping files for lane already existing in repository.")
+            continue
+          else:
+            LOGGER.warning("Downloading files for lane already existing in repository.")
+
         files = lane.lims_demuxed_files(libname)
         if len(files) == 0:
           LOGGER.info("No Demultiplexed FASTQ files to retrieve for %s_%s",
@@ -191,6 +200,14 @@ class FQFileFetcher(object):
       # Download lane-based files.
       LOGGER.info("Downloading fastq files per lane (demultiplexing"
                   + " locally if necessary).")
+
+      if Lane.objects.filter(flowcell=lane.flowcell.fcid, flowlane=lane.lane, library__code__iexact=libname).exists():
+        if self.unprocessed_only:
+          LOGGER.info("Skipping files for lane already existing in repository.")
+          return
+        else:
+          LOGGER.warning("Downloading files for lane already existing in repository.")
+
       files = lane.lims_files('FASTQ')
       if len(files) == 0:
         LOGGER.info("No Lane FASTQ files to retrieve for %s_%d",

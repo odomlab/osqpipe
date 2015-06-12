@@ -176,7 +176,7 @@ class FlowCellProcess(object):
 
       # retrieve file
       fetcher = FQFileFetcher(destination=path, lims=self.lims,
-                              test_mode=self.test_mode)
+                              test_mode=self.test_mode, unprocessed_only=True)
       fetcher.fetch(flowcell, flowlane)
 
       if self.test_mode:
@@ -275,7 +275,8 @@ class FlowCellQuery(object):
         lib_status = 'new'
         print "%s %s %s %s" % (lims_fc.fcid, lane.lane, lib.code, lib_status)
 
-      self.lib_status[lib.code] = lib_status
+      if self.lib_status.get(lib.code) != 'new':
+        self.lib_status[lib.code] = lib_status
       self.lane_library[lane.lane].add(lib.code)
 
       if lib.code.lower() in [ x.lower() for x in lane.lims_demuxed_samples() ]:
