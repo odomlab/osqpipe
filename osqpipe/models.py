@@ -487,6 +487,11 @@ class QCValue(models.Model):
 class ArchiveLocation(models.Model):
   name         = models.CharField(max_length=32, unique=True)
   root_path    = models.CharField(max_length=1024, unique=True)
+  host         = models.CharField(max_length=1024, unique=False)
+  host_port    = models.CharField(max_length=8, unique=False)
+  host_path    = models.CharField(max_length=1024, unique=False)
+  host_user    = models.CharField(max_length=128, unique=False)
+  host_delte_timelag = models.IntegerField(editable=True, null=True)
 
   def __unicode__(self):
     return "%s (%s)" % (self.name, self.root_path)
@@ -523,6 +528,7 @@ class Datafile(models.Model):
   date         = models.DateField(auto_now_add=True)
   archive      = models.ForeignKey(ArchiveLocation, on_delete=models.PROTECT,
                                     null=True, blank=True)
+  archive_date = models.DateField(auto_now_add=False)
 
   @property
   def libcode(self):
