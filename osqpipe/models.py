@@ -491,7 +491,7 @@ class ArchiveLocation(models.Model):
   host_port    = models.CharField(max_length=8, unique=False)
   host_path    = models.CharField(max_length=1024, unique=False)
   host_user    = models.CharField(max_length=128, unique=False)
-  host_delte_timelag = models.IntegerField(editable=True, null=True)
+  host_delete_timelag = models.IntegerField(editable=True, null=True)
 
   def __unicode__(self):
     return "%s (%s)" % (self.name, self.root_path)
