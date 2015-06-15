@@ -24,8 +24,12 @@ if __name__ == '__main__':
   P.add_argument('-e', '--expanded', dest='output', type=str, required=True,
                  help='The name of the output expanded bam file.')
 
+  P.add_argument('-m', '--multi', dest='multi', action='store_true',
+                 help='Flag indicating that the script should keep any'
+                 + ' multi-mapping reads in the final output.')
+
   ARGS = P.parse_args()
 
   with open_bamfile(ARGS.input) as bam:
-    bam.expand_tallied_reads(ARGS.output)
+    bam.expand_tallied_reads(ARGS.output, keep_multi=ARGS.multi)
     
