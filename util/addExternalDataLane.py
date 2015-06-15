@@ -181,7 +181,7 @@ class ExternalDataHandler(object):
     # transaction.
     aln = Alignment(lane        = lane,
                     genome      = self.genome,
-                    total_reads = lane.passedpf,
+                    total_reads = lane.total_passedpf,
                     mapped      = mapped,
                     munique     = unique)
 

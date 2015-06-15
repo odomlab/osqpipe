@@ -176,7 +176,7 @@ class AlignmentHandler(object):
                     genome      = gen,
                     mapped      = mapped,
                     munique     = unique,
-                    total_reads = lane.passedpf,
+                    total_reads = lane.total_passedpf,
                     headtrim    = self.headtrim,
                     tailtrim    = self.tailtrim)
     return (aln)

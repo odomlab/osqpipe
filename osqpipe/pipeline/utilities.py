@@ -483,7 +483,7 @@ class BamPostProcessor(object):
     self.rgadded_fn  = "%s_rg.bam" % output_base
 
     # Some options are universal. Consider also adding QUIET=true, VERBOSITY=ERROR
-    self.common_args = ('VALIDATION_STRINGENCY=LENIENT',
+    self.common_args = ('VALIDATION_STRINGENCY=SILENT',
                         'TMP_DIR=%s' % tmpdir)
 
   def clean_sam(self):
@@ -497,10 +497,12 @@ class BamPostProcessor(object):
   
   def add_or_replace_read_groups(self):
 
-    try:
-      (libcode, facility, lanenum, _pipeline) = parse_repository_filename(self.output_fn)
-    except Exception, err:
-      raise StandardError("Unable to parse read group info from output filename: %s" % err)
+    (libcode, facility, lanenum, _pipeline) = parse_repository_filename(self.output_fn)
+    if libcode is None:
+      LOGGER.warn("Applying dummy read group information to output bam.")
+      libcode  = os.path.basename(self.output_fn)
+      facility = 'Unknown'
+      lanenum  = 0
 
     # Run AddOrReplaceReadGroups
     cmd = ('picard', 'AddOrReplaceReadGroups',
