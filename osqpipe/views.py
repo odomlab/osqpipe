@@ -378,25 +378,31 @@ class FileDownloadView(RestrictedFileDownloadView):
     else:
       raise ValueError("Unrecognised file class for download: %s" % (cls))
 
-    file = get_object_or_404(model, id=self.kwargs['pk'])
-    filepath = file.repository_file_path
+    fobj = get_object_or_404(model, id=self.kwargs['pk'])
+    filepath = fobj.repository_file_path
 
     # Per-project user authorization.
-    lane = lanerel(file)
+    lane = lanerel(fobj)
     allowed_users = [ person for project in lane.library.projects.all()
                              for person  in project.people.all() ]
     if self.request.user not in allowed_users:
       return redirect('denied')
 
-    # File not found is a standard 404 situation.
+    # File not found is a standard 404 situation. We could conceivably
+    # use 503 for archive unavailable, although it's not a perfect fit
+    # either.
     if not os.path.exists(filepath):
-      raise Http404(_(u"Requested file not found: %s" % (filepath,)))
+      if fobj.archive:
+        raise Http404(_(u"Requested file not found: %s. File archive may be unavailable (%s)"
+                        % (filepath, fobj.archive.name)))
+      else:
+        raise Http404(_(u"Requested file not found: %s" % (filepath,)))
 
     # N.B. no need to set Content-Length as mod_xsendfile does this for us (tested).
-    fname = file.filename
-    if file.filetype.gzip:
+    fname = fobj.filename
+    if fobj.filetype.gzip:
       fname += ".gz"
-    if file.filetype.code == 'pdf' and not file.filetype.gzip:
+    if fobj.filetype.code == 'pdf' and not fobj.filetype.gzip:
       mtype    = guess_type(fname)
       response = HttpResponse(mimetype=mtype[0])
     else:
