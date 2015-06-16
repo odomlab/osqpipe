@@ -25,6 +25,9 @@ if __name__ == '__main__':
   PARSER.add_argument('-g', '--genome', dest='genome', type=str, required=True,
                       help='The genome used in the alignment.')
 
+  PARSER.add_argument('-s', '--sample', dest='sample', type=str, required=False,
+                      help='The sample name with which to tag the output bam read groups.')
+
   PARSER.add_argument('-t', '--test', dest='testMode', action='store_true',
                       help='Turn on test mode.')
 
@@ -40,9 +43,9 @@ if __name__ == '__main__':
   ARGS = PARSER.parse_args()
 
   if ARGS.aligner == 'bwa':
-    BWA = FastqBwaAligner(test_mode=ARGS.testMode)
+    BWA = FastqBwaAligner(test_mode=ARGS.testMode, samplename=ARGS.sample)
   elif ARGS.aligner == 'tophat':
-    BWA = FastqTophatAligner(test_mode=ARGS.testMode)
+    BWA = FastqTophatAligner(test_mode=ARGS.testMode, samplename=ARGS.sample)
   else:
     raise ValueError("Unrecognised aligner requested: %s" % ARGS.aligner)
   

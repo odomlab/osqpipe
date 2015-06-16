@@ -41,6 +41,9 @@ if __name__ == '__main__':
   PARSER.add_argument('files', metavar='<fastq file(s)>', type=str, nargs='+',
                       help='The fastq files to align.')
 
+  PARSER.add_argument('--sample', type=str, dest='sample',
+                      help='The sample name used to tag the output bam read group.')
+
   PARSER.add_argument('--loglevel', type=int, dest='loglevel', default=WARNING,
                       help='The level of logging.')
 
@@ -73,4 +76,5 @@ if __name__ == '__main__':
 
   BSUB.split_and_align(files      = ARGS.files,
                        genome     = ARGS.genome,
+                       samplename = ARGS.sample,
                        rcp_target = ARGS.rcp)

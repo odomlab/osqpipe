@@ -471,12 +471,13 @@ def memoize(func):
 class BamPostProcessor(object):
 
   __slots__ = ('input_fn', 'output_fn', 'cleaned_fn', 'rgadded_fn',
-               'common_args')
+               'common_args', 'samplename')
 
-  def __init__(self, input_fn, output_fn, tmpdir=DBCONF.tmpdir):
+  def __init__(self, input_fn, output_fn, tmpdir=DBCONF.tmpdir, samplename=None):
 
     self.input_fn    = input_fn
     self.output_fn   = output_fn
+    self.samplename  = samplename
 
     output_base = os.path.splitext(output_fn)[0]
     self.cleaned_fn  = "%s_cleaned.bam" % output_base
@@ -504,12 +505,14 @@ class BamPostProcessor(object):
       facility = 'Unknown'
       lanenum  = 0
 
+    sample = self.samplename if self.samplename is not None else libcode
+
     # Run AddOrReplaceReadGroups
     cmd = ('picard', 'AddOrReplaceReadGroups',
            'INPUT=%s'  % self.cleaned_fn,
            'OUTPUT=%s' % self.rgadded_fn,
            'RGLB=%s'   % libcode,
-           'RGSM=%s'   % libcode, # sample name?
+           'RGSM=%s'   % sample,
            'RGCN=%s'   % facility,
            'RGPU=%d'   % int(lanenum),
            'RGPL=illumina') + self.common_args

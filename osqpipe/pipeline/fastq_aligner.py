@@ -20,9 +20,9 @@ class FastqAligner(object):
   '''Abstract base class used to handle the repository queries prior
   to running any alignment.'''
 
-  __slots__ = ('conf', 'test_mode', 'finaldir')
+  __slots__ = ('conf', 'test_mode', 'finaldir', 'samplename')
 
-  def __init__(self, test_mode, finaldir=None):
+  def __init__(self, test_mode, finaldir=None, samplename=None):
     self.conf = Config()
     self.test_mode = test_mode
     if test_mode:
@@ -34,6 +34,7 @@ class FastqAligner(object):
     if finaldir is None:
       finaldir = os.path.realpath(os.getcwd())
     self.finaldir = finaldir
+    self.samplename = samplename
 
   def _call_aligner(self, filepaths, genome, *args, **kwargs):
 
@@ -171,6 +172,7 @@ class FastqBwaAligner(FastqAligner):
 
     bsub = jobclass(test_mode=self.test_mode,
                     genome=genome_path,
+                    samplename=self.samplename,
                     finaldir=self.finaldir,
                     num_threads=num_threads)
     bsub.submit(filenames=filepaths, auto_requeue=False,
@@ -225,6 +227,7 @@ class FastqTophatAligner(FastqAligner):
 
     bsub = jobclass(test_mode=self.test_mode,
                     genome=genome_path,
+                    samplename=self.samplename,
                     finaldir=self.finaldir,
                     num_threads=num_threads)
     bsub.submit(filenames=filepaths, auto_requeue=False,

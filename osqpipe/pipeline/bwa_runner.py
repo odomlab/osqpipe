@@ -561,11 +561,12 @@ class AlignmentJobRunner(object):
   subclasses must instantiate a JobRunner class in the 'job' slot
   prior to calling the base __init__ method.
   '''
-  __slots__ = ('finaldir', 'genome', 'job', 'conf')
+  __slots__ = ('finaldir', 'genome', 'job', 'conf', 'samplename')
 
   job = None
+  samplename = None
   
-  def __init__(self, genome, finaldir='.', *args, **kwargs):
+  def __init__(self, genome, finaldir='.', samplename=None, *args, **kwargs):
 
     # A little programming-by-contract, as it were.
 #    if not all( hasattr(self, x) for x in ('job')):
@@ -651,6 +652,11 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     else:
       noccflag = ''
 
+    if self.samplename:
+      sampleflag = '--sample %s' % (self.samplename,)
+    else:
+      sampleflag = ''
+
     # FIXME assumes path on localhost is same as path on cluster.
     progpath = spawn.find_executable('cs_runBwaWithSplit.py', path=self.conf.clusterpath)
 
@@ -662,26 +668,28 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
       ## In the submitted command:
       ##   --rcp       is where cs_runBwaWithSplit_Merge.py eventually copies
       ##                 the reassembled bam file (via scp).
-      cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s"
+      cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s %s"
              % (progpath,
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
                 noccflag,
                 self.conf.datahost,
                 self.finaldir,
+                sampleflag,
                 self.genome,
                 fnlist))
 
     else:
       LOGGER.debug("Running bwa on single-end sequencing input.")
       fnlist = quote(destnames[0])
-      cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s"
+      cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s %s"
              % (progpath,
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
                 noccflag,
                 self.conf.datahost,
                 self.finaldir,
+                sampleflag,
                 self.genome,
                 fnlist))
 
@@ -908,6 +916,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
 
     # This is invariant PE vs. SE. First, run our standard picard cleanup:
     postproc = BamPostProcessor(input_fn=outfnfull, output_fn=outfnfull,
+                                samplename=self.samplename,
                                 tmpdir=self.conf.althostworkdir)
     cmd += (" && %s && rm %s"
             % (" ".join(postproc.clean_sam()), outfnfull))
@@ -1052,7 +1061,7 @@ class AlignmentManager(object):
       LOGGER.info("Unlinking fq file '%s'", fastq_fn)
     return fq_files
 
-  def queue_merge(self, bam_files, depend, bam_fn, rcp_target):
+  def queue_merge(self, bam_files, depend, bam_fn, rcp_target, samplename=None):
     '''
     Submits samtools job for merging list of bam files to LSF cluster.
     '''
@@ -1073,6 +1082,8 @@ class AlignmentManager(object):
       cmd += " --cleanup"
     if self.group:
       cmd += " --group %s" % (self.group,)
+    if samplename:
+      cmd += " --sample %s" % (samplename,)
     cmd += " %s %s" % (bash_quote(bam_fn), input_files)
 
     LOGGER.info("preparing samtools merge on '%s'", input_files)
@@ -1163,13 +1174,14 @@ class AlignmentManager(object):
       os.unlink(fname)
     return
 
-  def picard_cleanup(self, output_fn, input_fn):
+  def picard_cleanup(self, output_fn, input_fn, samplename=None):
     '''
     Run picard CleanSam, AddOrReplaceReadGroups,
     FixMateInformation. Note that this method relies on the presence
     of a wrapper shell script named 'picard' in the path.
     '''
     postproc = BamPostProcessor(input_fn=input_fn, output_fn=output_fn,
+                                samplename=samplename,
                                 tmpdir=self.conf.clusterworkdir)
 
     # Run CleanSam
@@ -1193,7 +1205,7 @@ class AlignmentManager(object):
     if self.group:
       set_file_permissions(self.group, output_fn)
 
-  def merge_alignments(self, input_fns, output_fn, rcp_target=None):
+  def merge_alignments(self, input_fns, output_fn, rcp_target=None, samplename=None):
     '''
     Method used to merge a set of bam files into a single output bam
     file.
@@ -1205,7 +1217,7 @@ class AlignmentManager(object):
     LOGGER.info("merged '%s' into '%s'", ", ".join(input_fns), merge_fn)
 
     LOGGER.info("running picard cleanup on '%s'", merge_fn)
-    self.picard_cleanup(output_fn, merge_fn)
+    self.picard_cleanup(output_fn, merge_fn, samplename)
     LOGGER.info("ran picard cleanup on '%s' creating '%s'", merge_fn, output_fn)
 
     if rcp_target:
@@ -1318,7 +1330,7 @@ class BwaAlignmentManager(AlignmentManager):
 
     return (job_ids, out_names)
 
-  def split_and_align(self, files, genome, rcp_target=None):
+  def split_and_align(self, files, genome, samplename, rcp_target=None):
     '''
     Method used to launch the initial file splitting and bwa
     alignments. This class also submits a job dependent on the outputs
@@ -1340,7 +1352,7 @@ class BwaAlignmentManager(AlignmentManager):
     (job_ids, bam_files) = self.run_bwas(genome, paired, fq_files, fq_files2)
 
     bam_fn = "%s.bam" % make_bam_name_without_extension(files[0])
-    self.queue_merge(bam_files, job_ids, bam_fn, rcp_target)
+    self.queue_merge(bam_files, job_ids, bam_fn, rcp_target, samplename)
 
 class TophatAlignmentManager(AlignmentManager):
   '''
@@ -1412,7 +1424,7 @@ class TophatAlignmentManager(AlignmentManager):
 
     return (job_ids, out_names)
     
-  def split_and_align(self, files, genome, rcp_target=None):
+  def split_and_align(self, files, genome, samplename, rcp_target=None):
     '''
     Method used to launch the initial file splitting and bwa
     alignments. This class also submits a job dependent on the outputs
@@ -1434,7 +1446,7 @@ class TophatAlignmentManager(AlignmentManager):
     (job_ids, bam_files) = self.run_tophat(genome, paired, fq_files, fq_files2)
 
     bam_fn = "%s.bam" % make_bam_name_without_extension(files[0])
-    self.queue_merge(bam_files, job_ids, bam_fn, rcp_target)
+    self.queue_merge(bam_files, job_ids, bam_fn, rcp_target, samplename)
 
 
 ##############################################################################

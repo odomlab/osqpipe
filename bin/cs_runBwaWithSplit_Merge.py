@@ -41,6 +41,9 @@ if __name__ == '__main__':
                       type=str, nargs='+',
                       help='The BAM files to merge.')
 
+  PARSER.add_argument('--sample', type=str, dest='sample',
+                      help='The sample name used to tag the output bam read group.')
+
   PARSER.add_argument('--loglevel', type=int, dest='loglevel', default=WARNING,
                       help='The level of logging.')
 
@@ -70,6 +73,7 @@ if __name__ == '__main__':
 
   BSUB.merge_alignments(input_fns  = ARGS.infiles,
                         output_fn  = ARGS.outfile,
-                        rcp_target = ARGS.rcp)
+                        rcp_target = ARGS.rcp,
+                        samplename = ARGS.sample)
 
   
