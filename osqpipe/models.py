@@ -535,20 +535,15 @@ class Datafile(models.Model):
     raise NotImplementedError();
 
   @property
-  def repository_file_path(self, location=None):
+  def repository_file_path(self):
     fname   = self.filename
     if self.filetype.gzip:
       fname += CONFIG.gzsuffix
-    
-    if location == 'repository':
+
+    if self.archive is None:
       return os.path.join(CONFIG.repositorydir, self.libcode, fname)
-    elif location == 'archive':
-      return os.path.join(self.archive.root_path, self.libcode, fname)
     else:
-      if self.archive is None:
-        return os.path.join(CONFIG.repositorydir, self.libcode, fname)
-      else:
-        return os.path.join(self.archive.root_path, self.libcode, fname)
+      return os.path.join(self.archive.root_path, self.libcode, fname)
     
   def __unicode__(self):
     return self.filename
