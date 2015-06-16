@@ -190,7 +190,7 @@ class InventoryImporter(object):
             if int(barcode) > 12 and rowdict['protocol'].lower() == 'neb':
               LOGGER.error('NEB barcode index greater than 12 used; confirm sequences match TruSeq!')
               raise ValueError()
-        elif prottag in ('truseqlt'):
+        elif prottag in ('truseqlt',):
           adapter = 'TSLT_%d' % int(barcode)
 
         # FIXME the following protocol list should be simplified to
@@ -203,6 +203,9 @@ class InventoryImporter(object):
 
         elif prottag in ('nextera', 'nexteraxt'):
           adapter = 'NXT_N' + barcode
+
+        elif prottag in ('thruplex',):
+          adapter = 'iPCRtagT' + barcode
 
         else:
           LOGGER.error('Uncertain which adapter scheme (e.g. TruSeq) has been used: %s',
