@@ -564,7 +564,6 @@ class AlignmentJobRunner(object):
   __slots__ = ('finaldir', 'genome', 'job', 'conf', 'samplename')
 
   job = None
-  samplename = None
   
   def __init__(self, genome, finaldir='.', samplename=None, *args, **kwargs):
 
@@ -591,6 +590,7 @@ class AlignmentJobRunner(object):
         raise ValueError("Genome %s unacessible or missing." % genome)
 
     self.genome = genome
+    self.samplename = samplename
 
   @classmethod
   def genome_path(cls, genome, indexdir, genomedir):
@@ -762,19 +762,25 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
     else:
       cleanupflag = ''
 
+    if self.samplename:
+      sampleflag = '--sample %s' % (self.samplename,)
+    else:
+      sampleflag = ''
+
     # FIXME assumes path on localhost is same as path on cluster.
     progpath = spawn.find_executable('cs_runTophatWithSplit.py', path=self.conf.clusterpath)
 
     # Next, submit the actual jobs on the actual cluster.
     fnlist = " ".join([ quote(x) for x in destnames ])
-    cmd = ("python %s --loglevel %d %s --rcp %s:%s %s %s"
-            % (progpath,
-            LOGGER.getEffectiveLevel(),
-            cleanupflag,
-            self.conf.datahost,
-            self.finaldir,
-            self.genome,
-            fnlist))
+    cmd = ("python %s --loglevel %d %s --rcp %s:%s %s %s %s"
+           % (progpath,
+              LOGGER.getEffectiveLevel(),
+              cleanupflag,
+              self.conf.datahost,
+              self.finaldir,
+              sampleflag,
+              self.genome,
+              fnlist))
 
     LOGGER.info("Submitting tophat job to cluster.")
     self.job.submit_command(cmd, *args, **kwargs)
