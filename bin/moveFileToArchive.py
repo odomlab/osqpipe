@@ -252,5 +252,5 @@ if __name__ == '__main__':
     fnames = get_files_for_filetype(ARGS.filetype)
 
   for fname in fnames:
-    move_file_to_archive(fname, CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
+    move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
     # move_file_to_archive(fname,'ark', force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
