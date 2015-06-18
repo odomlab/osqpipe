@@ -170,7 +170,7 @@ def checksum_file(fname, unzip=True):
   '''
   # FIXME consider piping from external gzip (where available) rather
   # than using gzip module?
-  if is_zipped(fname) and unzip:
+  if unzip and is_zipped(fname):
     with gzip.open(fname, 'rb') as fileobj:
       md5 = _checksum_fileobj(fileobj)
   else:
