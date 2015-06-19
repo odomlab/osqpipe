@@ -112,5 +112,11 @@
       <option name="Caroli">musCar_Apr2015</option>
     </option>
   </section>
+  <section name="HCCPipeline">
+    <option name="gatk_cluster_input">/lustre/dolab/fnc-odompipe/pipeline/gatk_input</option>
+    <option name="gatk_cluster_output">/lustre/dolab/fnc-odompipe/pipeline/gatk_output</option>
+    <option name="gatk_cluster_root">/home/fnc-odompipe/software/CRI/gatk-pipeline-0.4.2</option>
+    <option name="gatk_cluster_java_home">/home/fnc-odompipe/software/external/java/jre1.7.0_05</option>
+  </section>
 </config>
 
