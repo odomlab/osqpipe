@@ -1561,7 +1561,9 @@ class ClusterJobManager(object):
     # Note that we need quoting of e.g. file paths containing
     # spaces. Also, the initial './' allows filenames to contain
     # colons.
-    sshcmd += (r' ./%s %s@%s:\"' % (clusterout, myuser, myhost)
+    if not os.path.isabs(clusterout):
+      clusterout = './%s' % (clusterout,)
+    sshcmd += (r' %s %s@%s:\"' % (clusterout, myuser, myhost)
                + bash_quote(bash_quote(self.local_workdir)) + r'/%s\"' % outfile)
 
     if donefile:

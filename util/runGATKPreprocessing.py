@@ -79,50 +79,49 @@ class GATKPreprocessor(ClusterJobManager):
                          % (bam.filename, md5, bam.checksum))
 
     LOGGER.info("Count of %d bam files found for sample individual %s", bams.count(), indivs[0])
-    output_fn = "%s.bam" % (indivs[0],)
+    merged_fn = "%s.bam" % (indivs[0],)
   
     # Now we merge the files.
-#    self.samtools_merge_bams([ bam.repository_file_path for bam in bams ], output_fn)
+    self.samtools_merge_bams([ bam.repository_file_path for bam in bams ], merged_fn)
 
-    if not os.path.exists(output_fn):
-      raise StandardError("Merged output file does not exist: %s", output_fn)
+    if not os.path.exists(merged_fn):
+      raise StandardError("Merged output file does not exist: %s", merged_fn)
 
     # Transfer the output to the cluster.
-#    cluster_input = self.cluster_filename(output_fn)
-    cluster_input = '/lustre/dolab/fnc-odompipe/pipeline/gatk_input/5395_80400.bam'
+    cluster_input = self.cluster_filename(merged_fn)
     LOGGER.info("Transfering files to cluster...")
-#    self.submitter.remote_copy_files(filenames=[ output_fn ],
-#                                     destnames=[ cluster_input ])
+    self.submitter.remote_copy_files(filenames=[ merged_fn ],
+                                     destnames=[ cluster_input ])
 
     # Run MarkDuplicates
     LOGGER.info("Submitting MarkDuplicates job")
     rootname = os.path.splitext(cluster_input)[0]
-    md_output = "%s_dupmark.bam" % (rootname,)
-    md_log    = "%s_dupmark.log" % (rootname,)
+    dupmark_fn  = "%s_dupmark.bam" % (rootname,)
+    dupmark_log = "%s_dupmark.log" % (rootname,)
     cmd = ('picard',
            'MarkDuplicates',
            'I=%s' % cluster_input,
-           'O=%s' % md_output,
+           'O=%s' % dupmark_fn,
            'TMP_DIR=%s' % CONFIG.clusterworkdir,
            'VALIDATION_STRINGENCY=SILENT',
            'MAX_FILE_HANDLES_FOR_READ_ENDS_MAP=512',
-           'M=%s' % (md_log,))
-#    mdjob = self.submitter.submit_command(cmd=cmd,
-#                                          mem=10000,
-#                                          auto_requeue=False)
+           'M=%s' % (dupmark_log,))
+    mdjob = self.submitter.submit_command(cmd=cmd,
+                                          mem=10000,
+                                          auto_requeue=False)
 
     # Don't overwrite original input otherwise we have no intrinsic
     # control to test for MarkDuplicates failure.
     # Run BuildBamIndex
     cmd = ('picard',
            'BuildBamIndex',
-           'I=%s' % md_output)
-#    bijob = self.submitter.submit_command(cmd=cmd,
-#                                          depend_jobs=[ mdjob ])
+           'I=%s' % dupmark_fn)
+    bijob = self.submitter.submit_command(cmd=cmd,
+                                          depend_jobs=[ mdjob ])
 
     # Run the GATK pipeline.
     genobj   = bams[0].alignment.genome
-    conffile = self.create_instance_config(inputbam=md_output,
+    conffile = self.create_instance_config(inputbam=dupmark_fn,
                                            tmpdir=os.path.join(CONFIG.clusterworkdir,
                                                                "%d_gatk_tmp" % os.getpid()),
                                            outdir=CONFIG.gatk_cluster_output,
@@ -136,12 +135,16 @@ class GATKPreprocessor(ClusterJobManager):
     # better cleanup.
     cmd = (os.path.join(CONFIG.gatk_cluster_root, 'bin', 'run-pipeline'),
            '--mode', 'lsf', '--remove-temp', conffile)
-    gatkjob = self.submitter.submit_command(cmd, # FIXME delete comment to reinstate dependency: depend_jobs=[ bijob ],
+    gatkjob = self.submitter.submit_command(cmd, depend_jobs=[ bijob ],
                                             environ={'JAVA_HOME' : CONFIG.gatk_cluster_java_home})
 
-    # Copy the output back to cwd.
-    finalbam = "%s.bam" % (indivs[0],)
-    cmd = self.return_file_to_localhost("%s%s.bam" % (outprefix, indivs[0],),
+    # Copy the output back to local cwd.
+    finalbam = "%s%s.bam" % (outprefix, indivs[0],)
+    clusterout = os.path.join(CONFIG.gatk_cluster_output,
+                              "%s%s.bam" % (outprefix, indivs[0],))
+    clusterbai = os.path.join(CONFIG.gatk_cluster_output,
+                              "%s%s.bai" % (outprefix, indivs[0],))
+    cmd = self.return_file_to_localhost(clusterout,
                                         finalbam,
                                         donefile=True,
                                         execute=False)
@@ -150,17 +153,17 @@ class GATKPreprocessor(ClusterJobManager):
     # Check the expected output file is present in cwd.
     self.wait_on_cluster([ sshjob ])
     finaldone = "%s.done" % finalbam
-    if not os.path.exists(finalbam) and os.path.exists(finaldone):
+    if not (os.path.exists(finalbam) and os.path.exists(finaldone)):
       raise StandardError("Expected output file %s not found, or %s not created."
                           % (finalbam, finaldone))
 
     # Don't delete anything unless we're waiting on the cluster.
-#    cmd = ('rm', cluster_input)
-#    self.submitter.submit_command(cmd, depend_jobs=[ mdjob ])
-#    cmd = ('rm', md_output, md_log)
-#    self.submitter.submit_command(cmd, depend_jobs=[ gatkjob ])
-#    cmd = ('rm', output_fn, finaldone, md_log, cluster_input)
-#    self.submitter.submit_command(cmd, depend_jobs=[ sshjob ])
+    cmd = ('rm', cluster_input)
+    self.submitter.submit_command(cmd, depend_jobs=[ mdjob ])
+    cmd = ('rm', dupmark_fn, dupmark_log, conffile)
+    self.submitter.submit_command(cmd, depend_jobs=[ gatkjob ])
+    cmd = ('rm', merged_fn, clusterout, clusterbai)
+    self.submitter.submit_command(cmd, depend_jobs=[ sshjob ])
 
   def create_instance_config(self, inputbam, tmpdir, outdir, reference, outprefix='IR_BQSR_'):
     '''
