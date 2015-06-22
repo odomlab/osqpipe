@@ -109,18 +109,21 @@ class BsubCommand(SimpleCommand):
   Class used to build a bsub-wrapped command.
   '''
   def build(self, cmd, mem=2000, queue=None, jobname=None,
-            auto_requeue=False, depend_jobs=None, sleep=0, mincpus=1, maxcpus=1, clusterlogdir=None, *args, **kwargs):
+            auto_requeue=False, depend_jobs=None, sleep=0, 
+            mincpus=1, maxcpus=1, clusterlogdir=None, environ=None, *args, **kwargs):
+
+    # The environ argument allows the caller to pass in arbitrary
+    # environmental variables (e.g., JAVA_HOME) as a dict.
+    if environ is None:
+      environ = {}
+
     # Pass the PYTHONPATH to the cluster process. This allows us to
     # isolate e.g. a testing instance of the code from production.
     # Note that we can't do this as easily for PATH itself because
     # bsub itself is in a custom location on the cluster.
-    python_path = os.environ['PYTHONPATH']
-    if not python_path:
-      python_path = ''
-
-    osqpipe_confdir = os.environ['OSQPIPE_CONFDIR']
-    if not osqpipe_confdir:
-      osqpipe_confdir = ''
+    for varname in ('PYTHONPATH', 'OSQPIPE_CONFDIR'):
+      if varname in os.environ:
+        environ[varname] = os.environ[varname]
 
     cmd = super(BsubCommand, self).build(cmd, *args, **kwargs)
 
@@ -164,11 +167,11 @@ class BsubCommand(SimpleCommand):
     else:
       cluster_stdout_stderr = "-o %s/%%J.stdout -e %s/%%J.stderr" % (self.conf.clusterstdoutdir, self.conf.clusterstdoutdir)
 
-    bsubcmd = (("PYTHONPATH=%s OSQPIPE_CONFDIR=%s bsub -R '%s' -R 'span[hosts=1]'"
+    envstr  = " ".join([ "%s=%s" % (key, val) for key, val in environ.iteritems() ])
+    bsubcmd = (("%s bsub -R '%s' -R 'span[hosts=1]'"
            + " %s -r %s -n %d,%d"
                 + " %s %s")
-           % (python_path,
-              osqpipe_confdir,
+           % (envstr,
               resources,
               memreq,
               cluster_stdout_stderr,
@@ -595,7 +598,7 @@ class AlignmentJobRunner(object):
   @classmethod
   def genome_path(cls, genome, indexdir, genomedir):
     '''
-    Returns the expected path to the fasta file for a given genome.
+    Returns the expected path to the fasta file for a given genome index.
     '''
     sciname = genome.scientific_name
     sciname = sciname.replace(" ", "_")
@@ -1537,7 +1540,7 @@ class ClusterJobManager(object):
     # Account for the extra header line.
     return count - 1
   
-  def return_file_to_localhost(self, clusterout, outfile, execute=True):
+  def return_file_to_localhost(self, clusterout, outfile, execute=True, donefile=False):
     '''
     If execute is False, returns a command string that can be used to
     transfer a cluster output files back to our local working
@@ -1559,7 +1562,14 @@ class ClusterJobManager(object):
     # spaces. Also, the initial './' allows filenames to contain
     # colons.
     sshcmd += (r' ./%s %s@%s:\"' % (clusterout, myuser, myhost)
-               + bash_quote(bash_quote(self.local_workdir)) + r'/%s\"' % outfile) 
+               + bash_quote(bash_quote(self.local_workdir)) + r'/%s\"' % outfile)
+
+    if donefile:
+      sshcmd += " && ssh"
+      if self.ssh_key is not None:
+        sshcmd += " -i %s" % self.ssh_key
+      sshcmd += (r' %s@%s touch ' % (myuser, myhost)
+                 + bash_quote(bash_quote(self.local_workdir)) + r'/%s.done' % outfile)
 
     if execute is True:
       # This *should* die on failure.

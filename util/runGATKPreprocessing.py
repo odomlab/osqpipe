@@ -50,7 +50,7 @@ class GATKPreprocessor(ClusterJobManager):
 
     call_subprocess(cmd, path=CONFIG.hostpath)
 
-  def gatk_preprocess_libraries(self, libcodes, genome=None):
+  def gatk_preprocess_libraries(self, libcodes, genome=None, outprefix='IR_BQSR_'):
     '''
     Main entry point.
     '''
@@ -117,29 +117,42 @@ class GATKPreprocessor(ClusterJobManager):
                                           depend_jobs=[ mvjob ])
 
     # Run the GATK pipeline.
+    genobj   = bams[0].alignment.genome
     conffile = self.create_instance_config(bams=[cluster_input],
                                            tmpdir=os.path.join(CONFIG.clusterworkdir,
                                                                "%d_gatk_tmp" % os.getpid()),
-                                           reference='FIXME')
+                                           reference=genobj.fasta_path,
+                                           outprefix=outprefix)
 
     # Then call gatk-pipeline/bin/run-pipeline --mode lsf
     # run_config.xml. Note that we need to set JAVA_HOME to the
     # correct location. Also, if we set the temp directory to a
     # pid-specific name then we can add --remove-temp to this to get a
     # better cleanup.
-    cmd = ('FIXME JAVA_HOME etc',
-           os.path.join(CONFIG.gatk_cluster_root, 'bin', 'run-pipeline'),
+    cmd = (os.path.join(CONFIG.gatk_cluster_root, 'bin', 'run-pipeline'),
            '--mode', 'lsf', '--remove-temp', conffile)
-    gatkjob = self.runner.submit_command(cmd, depend_jobs=[ bijob ])
+    gatkjob = self.runner.submit_command(cmd, depend_jobs=[ bijob ],
+                                         environ={'JAVA_HOME' : CONFIG.gatk_cluster_java_home})
 
-    # FIXME Copy the output back to cwd.
+    # Copy the output back to cwd.
+    finalbam = "%s.bam" % (indivs[0],)
+    cmd = self.return_file_to_localhost("%s%s.bam" % (outprefix, indivs[0],),
+                                        finalbam,
+                                        donefile=True,
+                                        execute=False)
+    sshjob = self.runner.submit_command(cmd, depend_jobs=[ gatkjob ])
 
-    self.wait_on_cluster([ gatkjob ])
-    
-    # FIXME check the expected output file is present in cwd.
+    # Check the expected output file is present in cwd.
+    self.wait_on_cluster([ sshjob ])
+    finaldone = "%s.done" % finalbam
+    if not os.path.exists(finalbam) and os.path.exists(finaldone):
+      raise StandardError("Expected output file %s not found, or %s not created."
+                          % (finalbam, finaldone))
+
     os.unlink(output_fn)
+    os.unlink(finaldone)
 
-  def create_instance_config(self, bams, tmpdir, reference):
+  def create_instance_config(self, bams, tmpdir, reference, outprefix='IR_BQSR_'):
     '''
     Read in the edited template config file from the GATK pipeline,
     modify a couple of run-specific variables, and write it out to the
@@ -165,6 +178,9 @@ class GATKPreprocessor(ClusterJobManager):
     ref_elem = var_elem.find('./referenceSequence')
     ref_elem.text = str(reference) # Or unicode? encoding is not utf though
     
+    dir_elem = var_elem.find('./outputPrefix')
+    dir_elem.text = outprefix
+
     bam_elem = var_elem.find('./bamFiles')
     bam_elem.text = "(%s)" % "|".join(bams)
 

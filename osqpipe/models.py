@@ -91,6 +91,22 @@ class Genome(ControlledVocab):
 
   _controlled_field = 'code'
   
+  @property
+  def fasta_path(self):
+    '''
+    Returns the expected path to the fasta file for a given
+    genome. This is distinct from the fasta files associated with
+    various indices (bwa, tophat, etc.) which reside in their own
+    subdirectories.
+    '''
+    sciname = str(self.scientific_name)
+    sciname = sciname.replace(" ", "_")
+    sciname = sciname.lower()
+    fasta   = os.path.join(CONFIG.clustergenomedir, sciname,
+                           self.code, "%s.fa" % self.code)
+
+    return fasta
+
   def __unicode__(self):
     return self.code
 
