@@ -36,7 +36,7 @@ CONFIG = Config()
 class GATKPreprocessor(ClusterJobManager):
 
   def cluster_filename(self, fname):
-    fname  = "%d_%s" % (os.getpid, fname)
+    fname  = "%d_%s" % (os.getpid(), fname)
     clpath = os.path.join(CONFIG.gatk_cluster_input, fname)
     return clpath
 
@@ -46,7 +46,7 @@ class GATKPreprocessor(ClusterJobManager):
   
     # We assume our input bam files are appropriately sorted (which,
     # coming from the repository, they should be).
-    cmd = ('samtools', 'merge', output_fn, bams)
+    cmd = ['samtools', 'merge', output_fn] + bams
 
     call_subprocess(cmd, path=CONFIG.hostpath)
 
@@ -57,42 +57,48 @@ class GATKPreprocessor(ClusterJobManager):
     libs   = Library.objects.filter(code__in=libcodes)
 
     # Quick sanity check.
-    indivs = set([ lib.individual for lib in libs]) # TODO count() somehow?
+    indivs = list(set([ lib.individual for lib in libs])) # TODO count() somehow?
     if len(indivs) > 1:
       raise ValueError("Libraries come from multiple individual samples: %s" % ", ".join(indivs))
 
-    bams = Alnfile.objects.filter(alignment__lane__library__code__in=libcodes)
+    bams = Alnfile.objects.filter(alignment__lane__library__code__in=libcodes, filetype__code='bam')
     if genome is not None:
       bams = bams.filter(alignment__genome__code=genome)
 
     # Another sanity check.
-    alngens = set([ bam.alignment.genome.code for bam in bams ]) # TODO count() somehow?
+    alngens = list(set([ bam.alignment.genome.code for bam in bams ])) # TODO count() somehow?
     if len(alngens) > 1:
       raise ValueError("Alignments found against multiple genomes: %s" % ", ".join(alngens))
 
     # And yet another sanity check.
+    LOGGER.info("Validating bam file checksums.")
     for bam in bams:
       md5 = checksum_file(bam.repository_file_path, unzip=False)
       if md5 != bam.checksum:
         raise ValueError("Checksum for bam file %s does not agree with repository: (%s, %s)"
                          % (bam.filename, md5, bam.checksum))
 
-    LOGGER.info("Count of bam files found for sample individual %s: %d", indivs[0], bams.count())
+    LOGGER.info("Count of %d bam files found for sample individual %s", bams.count(), indivs[0])
     output_fn = "%s.bam" % (indivs[0],)
   
     # Now we merge the files.
-    self.samtools_merge_bams([ bam.repository_file_path for bam in bams], output_fn)
+#    self.samtools_merge_bams([ bam.repository_file_path for bam in bams ], output_fn)
 
     if not os.path.exists(output_fn):
       raise StandardError("Merged output file does not exist: %s", output_fn)
 
     # Transfer the output to the cluster.
-    cluster_input = self.cluster_filename(output_fn)
-    self.submitter.remote_copy_files(filenames=[ output_fn ],
-                                     destnames=[ cluster_input ])
+#    cluster_input = self.cluster_filename(output_fn)
+    cluster_input = '/lustre/dolab/fnc-odompipe/pipeline/gatk_input/5395_80400.bam'
+    LOGGER.info("Transfering files to cluster...")
+#    self.submitter.remote_copy_files(filenames=[ output_fn ],
+#                                     destnames=[ cluster_input ])
 
     # Run MarkDuplicates
-    md_output = '%s-dupmark' % cluster_input
+    LOGGER.info("Submitting MarkDuplicates job")
+    rootname = os.path.splitext(cluster_input)[0]
+    md_output = "%s_dupmark.bam" % (rootname,)
+    md_log    = "%s_dupmark.log" % (rootname,)
     cmd = ('picard',
            'MarkDuplicates',
            'I=%s' % cluster_input,
@@ -100,27 +106,26 @@ class GATKPreprocessor(ClusterJobManager):
            'TMP_DIR=%s' % CONFIG.clusterworkdir,
            'VALIDATION_STRINGENCY=SILENT',
            'MAX_FILE_HANDLES_FOR_READ_ENDS_MAP=512',
-           'M=%s' % '/dev/null')  # TODO maybe reconsider the log file here.
-    mdjob = self.submitter.submit_command(cmd=cmd,
-                                          auto_requeue=False)
+           'M=%s' % (md_log,))
+#    mdjob = self.submitter.submit_command(cmd=cmd,
+#                                          mem=10000,
+#                                          auto_requeue=False)
 
-    # Overwrite original input
-    cmd = ('mv', '-f', md_output, cluster_input)
-    mvjob = self.submitter.submit_command(cmd=cmd,
-                                          depend_jobs=[ mdjob ])
-
+    # Don't overwrite original input otherwise we have no intrinsic
+    # control to test for MarkDuplicates failure.
     # Run BuildBamIndex
     cmd = ('picard',
            'BuildBamIndex',
-           'I=%s' % cluster_input)
-    bijob = self.submitter.submit_command(cmd=cmd,
-                                          depend_jobs=[ mvjob ])
+           'I=%s' % md_output)
+#    bijob = self.submitter.submit_command(cmd=cmd,
+#                                          depend_jobs=[ mdjob ])
 
     # Run the GATK pipeline.
     genobj   = bams[0].alignment.genome
-    conffile = self.create_instance_config(bams=[cluster_input],
+    conffile = self.create_instance_config(inputbam=md_output,
                                            tmpdir=os.path.join(CONFIG.clusterworkdir,
                                                                "%d_gatk_tmp" % os.getpid()),
+                                           outdir=CONFIG.gatk_cluster_output,
                                            reference=genobj.fasta_path,
                                            outprefix=outprefix)
 
@@ -131,8 +136,8 @@ class GATKPreprocessor(ClusterJobManager):
     # better cleanup.
     cmd = (os.path.join(CONFIG.gatk_cluster_root, 'bin', 'run-pipeline'),
            '--mode', 'lsf', '--remove-temp', conffile)
-    gatkjob = self.runner.submit_command(cmd, depend_jobs=[ bijob ],
-                                         environ={'JAVA_HOME' : CONFIG.gatk_cluster_java_home})
+    gatkjob = self.submitter.submit_command(cmd, # FIXME delete comment to reinstate dependency: depend_jobs=[ bijob ],
+                                            environ={'JAVA_HOME' : CONFIG.gatk_cluster_java_home})
 
     # Copy the output back to cwd.
     finalbam = "%s.bam" % (indivs[0],)
@@ -140,7 +145,7 @@ class GATKPreprocessor(ClusterJobManager):
                                         finalbam,
                                         donefile=True,
                                         execute=False)
-    sshjob = self.runner.submit_command(cmd, depend_jobs=[ gatkjob ])
+    sshjob = self.submitter.submit_command(cmd, depend_jobs=[ gatkjob ])
 
     # Check the expected output file is present in cwd.
     self.wait_on_cluster([ sshjob ])
@@ -149,10 +154,15 @@ class GATKPreprocessor(ClusterJobManager):
       raise StandardError("Expected output file %s not found, or %s not created."
                           % (finalbam, finaldone))
 
-    os.unlink(output_fn)
-    os.unlink(finaldone)
+    # Don't delete anything unless we're waiting on the cluster.
+#    cmd = ('rm', cluster_input)
+#    self.submitter.submit_command(cmd, depend_jobs=[ mdjob ])
+#    cmd = ('rm', md_output, md_log)
+#    self.submitter.submit_command(cmd, depend_jobs=[ gatkjob ])
+#    cmd = ('rm', output_fn, finaldone, md_log, cluster_input)
+#    self.submitter.submit_command(cmd, depend_jobs=[ sshjob ])
 
-  def create_instance_config(self, bams, tmpdir, reference, outprefix='IR_BQSR_'):
+  def create_instance_config(self, inputbam, tmpdir, outdir, reference, outprefix='IR_BQSR_'):
     '''
     Read in the edited template config file from the GATK pipeline,
     modify a couple of run-specific variables, and write it out to the
@@ -181,8 +191,11 @@ class GATKPreprocessor(ClusterJobManager):
     dir_elem = var_elem.find('./outputPrefix')
     dir_elem.text = outprefix
 
+    dir_elem = var_elem.find('./outputDir')
+    dir_elem.text = outdir
+
     bam_elem = var_elem.find('./bamFiles')
-    bam_elem.text = "(%s)" % "|".join(bams)
+    bam_elem.text = inputbam
 
     dir_elem = var_elem.find('./work')
     dir_elem.text = tmpdir
@@ -212,4 +225,4 @@ if __name__ == '__main__':
   ARGS = PARSER.parse_args()
 
   PROC = GATKPreprocessor()
-  PROC.gatk_preprocess_libraries(ARGS.libcodes, genome=ARGS.genome)
+  PROC.gatk_preprocess_libraries(ARGS.libraries, genome=ARGS.genome)
