@@ -24,6 +24,7 @@ retained in the working directory.
 '''
 
 import os
+import re
 from osqpipe.models import Alnfile, Library
 from osqpipe.pipeline.utilities import call_subprocess, checksum_file
 from osqpipe.pipeline.config import Config
@@ -104,6 +105,12 @@ class GATKPreprocessor(ClusterJobManager):
       raise ValueError("Alignments found against multiple library types: %s"
                        % ", ".join(libtypes))
 
+    # Another sanity check.
+    tissues = list(set([ bam.alignment.lane.library.tissue.name for bam in bams ]))
+    if len(tissues) > 1:
+      raise ValueError("Alignments found against multiple tissues: %s"
+                       % ", ".join(tissues))
+
     # And yet another sanity check.
     LOGGER.info("Validating bam file checksums.")
     for bam in bams:
@@ -127,11 +134,13 @@ class GATKPreprocessor(ClusterJobManager):
                                      destnames=[ cluster_merged ])
 
     genobj = bams[0].alignment.genome
+    finalpref = re.sub(' ', '_', ("%s%s_%s_"
+                                  % (outprefix, tissues[0], libtypes[0])))
     (finalbam, finaljob) =\
         self.submit_cluster_jobs(cluster_merged,
                                  samplename=indivs[0],
                                  genobj=genobj,
-                                 outprefix="%s%s_" % (outprefix, libtypes[0]))
+                                 outprefix=finalpref)
 
     # Check the expected output file is present in cwd.
     self.wait_on_cluster([ finaljob ])
