@@ -74,7 +74,8 @@ class GATKPreprocessor(ClusterJobManager):
     if not os.path.exists(output_fn):
       raise StandardError("Merged output file does not exist: %s", output_fn)
 
-  def gatk_preprocess_libraries(self, libcodes, genome=None, outprefix='IR_BQSR_'):
+  def gatk_preprocess_libraries(self, libcodes, genome=None,
+                                outprefix='IR_BQSR_'):
     '''
     Main entry point for the class.
     '''
@@ -83,16 +84,25 @@ class GATKPreprocessor(ClusterJobManager):
     # Quick sanity check.
     indivs = list(set([ lib.individual for lib in libs]))
     if len(indivs) > 1:
-      raise ValueError("Libraries come from multiple individual samples: %s" % ", ".join(indivs))
+      raise ValueError("Libraries come from multiple individual samples: %s"
+                       % ", ".join(indivs))
 
-    bams = Alnfile.objects.filter(alignment__lane__library__code__in=libcodes, filetype__code='bam')
+    bams = Alnfile.objects.filter(alignment__lane__library__code__in=libcodes,
+                                  filetype__code='bam')
     if genome is not None:
       bams = bams.filter(alignment__genome__code=genome)
 
     # Another sanity check.
     alngens = list(set([ bam.alignment.genome.code for bam in bams ]))
     if len(alngens) > 1:
-      raise ValueError("Alignments found against multiple genomes: %s" % ", ".join(alngens))
+      raise ValueError("Alignments found against multiple genomes: %s"
+                       % ", ".join(alngens))
+
+    # Another sanity check.
+    libtypes = list(set([ bam.alignment.lane.library.libtype.code for bam in bams ]))
+    if len(libtypes) > 1:
+      raise ValueError("Alignments found against multiple library types: %s"
+                       % ", ".join(libtypes))
 
     # And yet another sanity check.
     LOGGER.info("Validating bam file checksums.")
@@ -102,11 +112,13 @@ class GATKPreprocessor(ClusterJobManager):
         raise ValueError("Checksum for bam file %s does not agree with repository: (%s, %s)"
                          % (bam.filename, md5, bam.checksum))
 
-    LOGGER.info("Count of %d bam files found for sample individual %s", bams.count(), indivs[0])
+    LOGGER.info("Count of %d bam files found for sample individual %s",
+                bams.count(), indivs[0])
     merged_fn = "%s.bam" % (indivs[0],)
   
     # Now we merge the files.
-    self.samtools_merge_bams([ bam.repository_file_path for bam in bams ], merged_fn)
+    self.samtools_merge_bams([ bam.repository_file_path for bam in bams ],
+                             merged_fn)
 
     # Transfer the output to the cluster.
     cluster_merged = self.cluster_filename(merged_fn)
@@ -115,10 +127,11 @@ class GATKPreprocessor(ClusterJobManager):
                                      destnames=[ cluster_merged ])
 
     genobj = bams[0].alignment.genome
-    (finalbam, finaljob) = self.submit_cluster_jobs(cluster_merged,
-                                                    samplename=indivs[0],
-                                                    genobj=genobj,
-                                                    outprefix=outprefix)
+    (finalbam, finaljob) =\
+        self.submit_cluster_jobs(cluster_merged,
+                                 samplename=indivs[0],
+                                 genobj=genobj,
+                                 outprefix="%s%s_" % (outprefix, libtypes[0]))
 
     # Check the expected output file is present in cwd.
     self.wait_on_cluster([ finaljob ])
@@ -132,7 +145,11 @@ class GATKPreprocessor(ClusterJobManager):
     os.unlink(merged_fn)
 
   def submit_markduplicates_job(self, cluster_merged):
-
+    '''
+    Submit a picard MarkDuplicates job to the cluster. This method
+    will also submit a clean-up job to delete the MarkDuplicates log
+    file.
+    '''
     LOGGER.info("Submitting MarkDuplicates job")
     rootname = os.path.splitext(cluster_merged)[0]
     dupmark_fn  = "%s_dupmark.bam" % (rootname,)
@@ -157,7 +174,9 @@ class GATKPreprocessor(ClusterJobManager):
     return (mdjob, dupmark_fn, dupmark_bai)
 
   def submit_buildbamindex_job(self, dupmark_fn, mdjob):
-
+    '''
+    Submit a picard BuildBamIndex job to the cluster.
+    '''
     LOGGER.info("Submitting BuildBamIndex job")
     cmd = ('picard',
            'BuildBamIndex',
@@ -167,12 +186,25 @@ class GATKPreprocessor(ClusterJobManager):
 
     return bijob
 
-  def submit_gatk_pipeline_job(self, dupmark_fn, bijob, genobj, outprefix='IR_BQSR_'):
+  def submit_gatk_pipeline_job(self, dupmark_fn, bijob, genobj,
+                               outprefix='IR_BQSR_'):
+    '''
+    Submit a GATK pipeline job to the cluster. This method reads in
+    the config.xml file in the top-level GATK pipeline installation
+    directory, and writes a modified version to the cluster working
+    area in which several variables are customised to this run. The
+    cluster config file is deleted upon completion of the pipeline.
 
+    In principle, this system can be used to run arbitrary pipeline
+    components by altering the input config.xml; see the GATK pipeline
+    documentation for details. Note that downstream code in this class
+    may need to be altered depending on the outputs of any changed
+    workflow (i.e., this class has expectations of the GATK output).
+    '''
     LOGGER.info("Building GATK pipeline config file")
+    tmpdir = os.path.join(CONFIG.clusterworkdir, "%d_gatk_tmp" % os.getpid())
     conffile = self.create_instance_config(inputbam=dupmark_fn,
-                                           tmpdir=os.path.join(CONFIG.clusterworkdir,
-                                                               "%d_gatk_tmp" % os.getpid()),
+                                           tmpdir=tmpdir,
                                            outdir=CONFIG.gatk_cluster_output,
                                            reference=genobj.fasta_path,
                                            outprefix=outprefix)
@@ -185,18 +217,25 @@ class GATKPreprocessor(ClusterJobManager):
     LOGGER.info("Submitting GATK pipeline job")
     cmd = (os.path.join(CONFIG.gatk_cluster_root, 'bin', 'run-pipeline'),
            '--mode', 'lsf', '--remove-temp', conffile)
+    environ = {'JAVA_HOME' : CONFIG.gatk_cluster_java_home}
     gatkjob = self.submitter.submit_command(cmd, depend_jobs=[ bijob ],
-                                            environ={'JAVA_HOME' : CONFIG.gatk_cluster_java_home})
+                                            environ=environ)
 
     cmd = ('rm', conffile)
     self.submitter.submit_command(cmd, depend_jobs=[ gatkjob ])
 
     return gatkjob
 
-  def submit_cluster_jobs(self, cluster_merged, samplename, genobj, outprefix='IR_BQSR_'):
-
+  def submit_cluster_jobs(self, cluster_merged, samplename, genobj,
+                          outprefix='IR_BQSR_'):
+    '''
+    Submit the cluster jobs necessary to bridge between the samtools
+    merge and the GATK pipeline invocation; also invokes the GATK
+    pipeline, submits various output data transfer and cleanup jobs.
+    '''
     # Run MarkDuplicates
-    (mdjob, dupmark_fn, dupmark_bai) = self.submit_markduplicates_job(cluster_merged)
+    (mdjob, dupmark_fn, dupmark_bai) =\
+        self.submit_markduplicates_job(cluster_merged)
 
     # Cleanup job.
     cmd = ('rm', cluster_merged)
@@ -208,7 +247,9 @@ class GATKPreprocessor(ClusterJobManager):
     bijob = self.submit_buildbamindex_job(dupmark_fn, mdjob)
 
     # Run the GATK pipeline.
-    gatkjob = self.submit_gatk_pipeline_job(dupmark_fn, bijob, genobj=genobj, outprefix=outprefix)
+    gatkjob = self.submit_gatk_pipeline_job(dupmark_fn, bijob,
+                                            genobj=genobj,
+                                            outprefix=outprefix)
 
     # Cleanup job.
     cmd = ('rm', dupmark_fn, dupmark_bai)
@@ -233,7 +274,8 @@ class GATKPreprocessor(ClusterJobManager):
 
     return (finalbam, sshjob)
 
-  def create_instance_config(self, inputbam, tmpdir, outdir, reference, outprefix='IR_BQSR_'):
+  def create_instance_config(self, inputbam, tmpdir, outdir,
+                             reference, outprefix='IR_BQSR_'):
     '''
     Read in the edited template config file from the GATK pipeline,
     modify a couple of run-specific variables, and write it out to the
@@ -257,19 +299,19 @@ class GATKPreprocessor(ClusterJobManager):
     var_elem = def_conf.find('.//variables')
 
     ref_elem = var_elem.find('./referenceSequence')
-    ref_elem.text = str(reference) # Or unicode? encoding is not utf though
+    ref_elem.text = str(reference)
     
     dir_elem = var_elem.find('./outputPrefix')
-    dir_elem.text = outprefix
+    dir_elem.text = str(outprefix)
 
     dir_elem = var_elem.find('./outputDir')
-    dir_elem.text = outdir
+    dir_elem.text = str(outdir)
 
     bam_elem = var_elem.find('./bamFiles')
-    bam_elem.text = inputbam
+    bam_elem.text = str(inputbam)
 
     dir_elem = var_elem.find('./work')
-    dir_elem.text = tmpdir
+    dir_elem.text = str(tmpdir)
 
     tmpconf = NamedTemporaryFile(delete=False, dir=CONFIG.tmpdir)
     def_conf.write(tmpconf.name, encoding='ISO-8859-1', xml_declaration=True)
@@ -287,8 +329,9 @@ if __name__ == '__main__':
                'Script to initiate the HCC GATK preprocessing pipeline.')
   
   PARSER.add_argument('libraries', metavar='<libcodes>', type=str, nargs='*',
-                      help='The names of the libraries to merge and load into the pipeline.'
-                      + ' All the files on the command line should come from the same HCC nodule.')
+                      help='The names of the libraries to merge and load'
+                      + ' into the pipeline. All the files on the command'
+                      + ' line should come from the same HCC nodule.')
 
   PARSER.add_argument('-g', '--genome', dest='genome', type=str, required=False,
                       help='The alignment genome used to filter the input files.')
