@@ -656,7 +656,11 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
       noccflag = ''
 
     if self.samplename:
-      sampleflag = '--sample %s' % (self.samplename,)
+
+      # Sample names containing spaces are bad on the command line,
+      # and potentially problematic in bam read groups.
+      sanity_re = re.compile(r'([ \/\(\);&|]+)')
+      sampleflag = '--sample %s' % (sanity_re.sub('_', self.samplename),)
     else:
       sampleflag = ''
 
