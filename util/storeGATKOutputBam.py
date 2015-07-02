@@ -21,8 +21,24 @@ from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging(level=INFO)
 CONFIG = Config()
 
+def retrieve_readgroup_alignment(rgroup, genome=None):
+  alns = Alignment.objects.filter(lane__library__code=rgroup.get('LB'),
+                                  lane__facility__code=rgroup.get('CN'),
+                                  lane__lanenum=rgroup.get('PU'))
+  if genome is not None:
+    alns = alns.filter(genome__code=genome)
+
+  if alns.count() > 1:
+    raise ValueError("Multiple Alignments match read group and genome parameters.")
+  elif alns.count() == 0:
+    raise StandardError("No Alignments found to match read group and genome parameters.")
+  else:
+    return alns[0]
+
 @transaction.commit_on_success
 def load_merged_bam(bam, genome=None):
+
+  LOGGER.info("Storing bam file %s in repository.", bam)
 
   bamtype = Filetype.objects.get(code='bam')
   
@@ -36,22 +52,24 @@ def load_merged_bam(bam, genome=None):
 
     # Slightly convoluted multiple query (as opposed to query__in) so
     # we can be sure we're identifying all the target Alignments.
-    alns = [ Alignment.objects.get(lane__library__code=rg.get('LB'),
-                                   lane__facility__code=rg.get('CN'),
-                                   lane__lanenum=rg.get('PU')) for rg in rgroups ]
+    alns = [ retrieve_readgroup_alignment(rg, genome) for rg in rgroups ]
     alns = list(set(alns))
 
+    LOGGER.info("Linking MergedAlignment to %d source Alignments.", len(alns))
     maln = MergedAlignment.objects.create()
     for aln in alns:
       maln.alignments.add(aln)
     maln.full_clean() # Raise ValidationError if the MergedAlignment contains inconsistencies.
 
+    LOGGER.info("Calculating bam file MD5 checksum.")
     chksum = checksum_file(bam, unzip=False)
+
     malnfile = MergedAlnfile.objects.create(alignment=maln,
                                             filename=bam,
                                             filetype=bamtype,
                                             checksum=chksum)
 
+    LOGGER.info("Moving file into repository.")
     destname = malnfile.repository_file_path
     move(bam, destname)
     set_file_permissions(CONFIG.group, destname)
