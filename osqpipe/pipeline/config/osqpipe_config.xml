@@ -117,6 +117,8 @@
     <option name="gatk_cluster_output">/lustre/dolab/fnc-odompipe/pipeline/gatk_output</option>
     <option name="gatk_cluster_root">/home/fnc-odompipe/software/CRI/gatk-pipeline-0.4.2</option>
     <option name="gatk_cluster_java_home">/home/fnc-odompipe/software/external/java/jre1.7.0_05</option>
+    <!-- Directory relative to repositorydir in which merged aligned bam files are stored -->
+    <option name="merged_alignments_dir">merged_alignments/option>
   </section>
 </config>
 

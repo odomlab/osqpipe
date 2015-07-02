@@ -7,7 +7,8 @@ import dbarray # https://github.com/ecometrica/django-dbarray
 import re
 import os
 
-from managers import ControlledVocabManager, AntibodyManager, FiletypeManager, LibraryManager, LaneManager
+from managers import ControlledVocabManager, AntibodyManager, FiletypeManager,\
+    LibraryManager, LaneManager
 
 from pipeline.config import Config
 CONFIG = Config()
@@ -475,6 +476,29 @@ class Alignment(DataProcess):
   class Meta:
     db_table = u'alignment'
 
+class MergedAlignment(DataProcess):
+  alignments = models.ManyToManyField(Alignment)
+
+  @property
+  def genome(self):
+    self.full_clean() # Ensures only one genome linked via alignments.
+    genomes = self.alignments.values_list('genome', flat=True).distinct()
+    return genomes[0]
+
+  # Custom model validation here.
+  def clean(self):
+    genomes = self.alignments.values_list('genome', flat=True).distinct()
+    if genomes.count() != 1:
+      raise ValidationError(\
+        {'alignments' :
+           'MergedAlignment links Alignments against multiple different genome builds.'})
+
+  def __unicode__(self):
+    return "%s (%s)" % (";".join(self.alignments.all()), self.genome)
+
+  class Meta:
+    db_table = u'merged_alignment'
+
 class LaneQC(DataProcess):
 
   lane        = models.ForeignKey(Lane, on_delete=models.PROTECT)
@@ -551,15 +575,19 @@ class Datafile(models.Model):
     raise NotImplementedError();
 
   @property
+  def repository_root(self):
+    if self.archive is None:
+      return CONFIG.repositorydir
+    else:
+      return self.archive.root_path
+
+  @property
   def repository_file_path(self):
     fname   = self.filename
     if self.filetype.gzip:
       fname += CONFIG.gzsuffix
 
-    if self.archive is None:
-      return os.path.join(CONFIG.repositorydir, self.libcode, fname)
-    else:
-      return os.path.join(self.archive.root_path, self.libcode, fname)
+    return os.path.join(self.repository_root, self.libcode, fname)
     
   def __unicode__(self):
     return self.filename
@@ -600,6 +628,21 @@ class Alnfile(Datafile):
 
   class Meta:
     db_table = u'alnfile'
+    ordering = ['filename']
+
+class MergedAlnfile(Datafile):
+  alignment    = models.ForeignKey(MergedAlignment, on_delete=models.PROTECT)
+
+  @property
+  def repository_file_path(self):
+    fname   = self.filename
+    if self.filetype.gzip:
+      fname += CONFIG.gzsuffix
+
+    return os.path.join(self.repository_root, CONFIG.merged_alignments_dir, fname)
+    
+  class Meta:
+    db_table = u'merged_alnfile'
     ordering = ['filename']
 
 class Libfile(models.Model):

@@ -337,7 +337,7 @@ if __name__ == '__main__':
   PARSER = ArgumentParser(description=\
                'Script to initiate the HCC GATK preprocessing pipeline.')
   
-  PARSER.add_argument('libraries', metavar='<libcodes>', type=str, nargs='*',
+  PARSER.add_argument('libraries', metavar='<libcodes>', type=str, nargs='+',
                       help='The names of the libraries to merge and load'
                       + ' into the pipeline. All the files on the command'
                       + ' line should come from the same HCC nodule.')

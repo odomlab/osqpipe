@@ -16,16 +16,16 @@ from logging import INFO
 from setup_logs import configure_logging
 LOGGER = configure_logging('bampy', level=INFO)
 
-class Bamfile(pysam.Samfile):
+class Bamfile(pysam.AlignmentFile):
 
   '''
-  Subclass of pysam.Samfile with a few convenience methods of our own.
+  Subclass of pysam.AlignmentFile with a few convenience methods of our own.
   '''
 
   # Note that while it might be nice to have a Bamfile class which
   # correctly auto-generates its own index, this is not going to be
   # easily maintainable due to the implementation of
-  # pysam.Samfile. Rather than coding ourselves into knots, we have
+  # pysam.AlignmentFile. Rather than coding ourselves into knots, we have
   # opted for a context manager approach (see open_bamfile).
 
   def read_refname(self, read):
@@ -65,7 +65,7 @@ class Bamfile(pysam.Samfile):
       LOGGER.info("Writing out reads for reference %s...", str(refname))
       self.reset()
       outfile = "%s_%s.bam" % (self.basename(), str(refname))
-      out = pysam.Samfile(outfile, 'wb', header=self.header)
+      out = pysam.AlignmentFile(outfile, 'wb', header=self.header)
       for read in self.fetch(reference=refname):
         out.write(read)
       out.reset()
@@ -84,7 +84,7 @@ class Bamfile(pysam.Samfile):
     '''
     LOGGER.info("Expanding tallied bam file %s", self.filename)
     self.reset()
-    out = pysam.Samfile(outfile, 'wb', header=self.header)
+    out = pysam.AlignmentFile(outfile, 'wb', header=self.header)
     for read in self.fetch(until_eof=True): # All reads in file, in order.
 
       # If mapping_quality is zero, we assume this means it's
