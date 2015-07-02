@@ -482,11 +482,14 @@ class MergedAlignment(DataProcess):
   @property
   def genome(self):
     self.full_clean() # Ensures only one genome linked via alignments.
-    genomes = self.alignments.values_list('genome', flat=True).distinct()
-    return genomes[0]
+    return self.alignments.all()[:1].get().genome
 
   # Custom model validation here.
   def clean(self):
+    if self.alignments.count() == 0:
+      raise ValidationError(\
+        {'alignments' :
+           'MergedAlignment is linked to zero source Alignments.'})
     genomes = self.alignments.values_list('genome', flat=True).distinct()
     if genomes.count() != 1:
       raise ValidationError(\

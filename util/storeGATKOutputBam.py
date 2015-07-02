@@ -41,7 +41,9 @@ def load_merged_bam(bam, genome=None):
                                    lane__lanenum=rg.get('PU')) for rg in rgroups ]
     alns = list(set(alns))
 
-    maln = MergedAlignment.objects.create(alignments=alns)
+    maln = MergedAlignment.objects.create()
+    for aln in alns:
+      maln.alignments.add(aln)
     maln.full_clean() # Raise ValidationError if the MergedAlignment contains inconsistencies.
 
     chksum = checksum_file(bam, unzip=False)
