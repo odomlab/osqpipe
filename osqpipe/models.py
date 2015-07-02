@@ -497,7 +497,7 @@ class MergedAlignment(DataProcess):
            'MergedAlignment links Alignments against multiple different genome builds.'})
 
   def __unicode__(self):
-    return "%s (%s)" % (";".join(self.alignments.all()), self.genome)
+    return "%s (%s)" % (";".join([str(x.lane) for x in self.alignments.all()]), self.genome)
 
   class Meta:
     db_table = u'merged_alignment'
@@ -571,7 +571,7 @@ class Datafile(models.Model):
   date         = models.DateField(auto_now_add=True)
   archive      = models.ForeignKey(ArchiveLocation, on_delete=models.PROTECT,
                                     null=True, blank=True)
-  archive_date = models.DateField(auto_now_add=False)
+  archive_date = models.DateField(auto_now_add=False, null=True, blank=True)
 
   @property
   def libcode(self):

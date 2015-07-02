@@ -47,7 +47,8 @@ def load_merged_bam(bam, genome=None):
     maln.full_clean() # Raise ValidationError if the MergedAlignment contains inconsistencies.
 
     chksum = checksum_file(bam, unzip=False)
-    malnfile = MergedAlnfile.objects.create(filename=bam,
+    malnfile = MergedAlnfile.objects.create(alignment=maln,
+                                            filename=bam,
                                             filetype=bamtype,
                                             checksum=chksum)
 
