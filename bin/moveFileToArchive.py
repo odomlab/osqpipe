@@ -198,15 +198,18 @@ def move_file_to_archive(fpath, archive, force_overwrite=False, force_delete=Fal
   elif not alreadyInArchive:
     LOGGER.info("File %s already in archive. No need to copy." % fname)
   
+  if copy_only:
+    return None
+
   # Errors here will typically need careful manual investigation.
-  if (alreadyInArchive and (force_overwrite or force_md5_check)) or not alreadyInArchive or not copy_only:
+  if (alreadyInArchive and (force_overwrite or force_md5_check)) or not alreadyInArchive:
     LOGGER.info("Comparing md5 sum of %s in archive and in repository ..." % (fname))
     checksum = checksum_file(archpath)
     if checksum != fobj.checksum:      
       raise ValueError("Error: Archive file checksum (%s) not same as in repository (%s)."
                        % (checksum, fobj.checksum))
     LOGGER.info("Md5 sum in repository and for %s are identical." % (archpath))
-  
+
   # compute date diff
   t_date = datetime.date.today()
   pdate = str(fobj.archive_date).split('-')
