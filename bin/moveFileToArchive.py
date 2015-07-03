@@ -118,7 +118,7 @@ def find_file(fname):
   return fobj
 
 @transaction.commit_on_success
-def move_file_to_archive(fpath, archive, force_overwrite=False, force_delete=False, force_md5_check=False):
+def move_file_to_archive(fpath, archive, force_overwrite=False, force_delete=False, force_md5_check=False, copy_only=False):
   '''
   Given a file name (or file path), and the name of an archive as recorded
   in the repository, make sure there is a valid copy of the file in the
@@ -126,6 +126,8 @@ def move_file_to_archive(fpath, archive, force_overwrite=False, force_delete=Fal
   Force_overwrite forces file in archive as well as archiving record in the database to be overwritten.
   Force_delete forces file in the source to be deleted even less than nr of days (specified in archive_location table) have passed since archiving.
   Force_md5_check forces md5 sum of the archived file to be checked against the record in the repository.
+  Copy_only prevents the archived file to be registered as archived. This is handy in case we want to move the files to archive first and register them
+  as archived some other time.
   '''
 
   archloc = ArchiveLocation.objects.get(name=archive)
@@ -152,10 +154,13 @@ def move_file_to_archive(fpath, archive, force_overwrite=False, force_delete=Fal
       fobj.save() # Do we actually need to save it here, or can we make the transaction scope smaller FIXME?
       LOGGER.info("Force overwrite. Updating archive record for %s." % fname)
   else:
-    fobj.archive = archloc
-    fobj.archive_date = time.strftime('%Y-%m-%d') # NB! date format not tested!
-    fobj.save() # Do we actually need to save it here, or can we make the transaction scope smaller FIXME?
-    LOGGER.info("Creating archive record for %s." % fname)
+    if not copy_only:
+      fobj.archive = archloc
+      fobj.archive_date = time.strftime('%Y-%m-%d') # NB! date format not tested!
+      fobj.save() # Do we actually need to save it here, or can we make the transaction scope smaller FIXME?
+      LOGGER.info("Creating archive record for %s." % fname)
+    else:
+      LOGGER.info("Copying %s to archive but not recording this in repository." % fname)
 
   archpath = fobj.repository_file_path
 
@@ -194,7 +199,7 @@ def move_file_to_archive(fpath, archive, force_overwrite=False, force_delete=Fal
     LOGGER.info("File %s already in archive. No need to copy." % fname)
   
   # Errors here will typically need careful manual investigation.
-  if (alreadyInArchive and (force_overwrite or force_md5_check)) or not alreadyInArchive:
+  if (alreadyInArchive and (force_overwrite or force_md5_check)) or not alreadyInArchive or not copy_only:
     LOGGER.info("Comparing md5 sum of %s in archive and in repository ..." % (fname))
     checksum = checksum_file(archpath)
     if checksum != fobj.checksum:      
@@ -235,6 +240,9 @@ if __name__ == '__main__':
   PARSER.add_argument('-a', '--all', dest='filetype',
                       help='Archive all files of a given file type.')
 
+  PARSER.add_argument('-c', '--copy', dest='copy_only', action='store_true',
+                      help='Copy files of a file type to archive without marking the file in repository as archived.')
+
   PARSER.add_argument('-d', '--force_delete', dest='force_delete', action='store_true',
                       help='Force source deletion even if less than N days have passed since archiving.')
 
@@ -252,5 +260,5 @@ if __name__ == '__main__':
     fnames = get_files_for_filetype(ARGS.filetype)
 
   for fname in fnames:
-    move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
+    move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check, copy_only=ARGS.copy_only)
     # move_file_to_archive(fname,'ark', force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
