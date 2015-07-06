@@ -83,17 +83,16 @@ def create_foreign_dir(host, port, user, folder):
   return retcode
   
 
-def get_files_for_filetype(filetype):
-  '''Returns file names of all files for a given file type. Currently, only two file types, fq and bam, are supported.'''
-
-  # TODO: get only files which have not been archived, i.e. 
+def get_files_for_filetype(filetype, not_archived=False):
+  '''Returns file names of all files for a given file type. Currently, only two file types, fq and bam, are supported. In case of not_archived, returns files that have not been archived.'''
 
   files = []
 
-  if filetype == 'fq':
-    files = Lanefile.objects.filter(filetype__code=filetype, archive_id__isnull=True)
-  elif filetype == 'bam':
-    files = Alnfile.objects.filter(filetype__code=filetype, archive_id__isnull=True)
+  if filetype == 'fq' or filetype == 'bam':
+    if not_archived:
+      files = Lanefile.objects.filter(filetype__code=filetype, archive_id__isnull=True)
+    else:
+      files = Lanefile.objects.filter(filetype__code=filetype)
   else:
     raise StandardError("'%s' files not supported. Use one of the following file types: [fq, bam]" % filetype)
 
@@ -220,7 +219,8 @@ def move_file_to_archive(fpath, archive, force_overwrite=False, force_delete=Fal
   # if file has been in Archive for long enough or force_delete, delete the source
   if force_delete or (days_diff > archloc.host_delete_timelag):
     if not force_delete:
-      LOGGER.warning("More than %d days passed since archiving (%d required). (Archive date=%s\tToday=%s). Removing %s" % (days_diff, archloc.host_delete_timelag, fobj.archive_date, t_date, repopath))
+      LOGGER.info("More than %d days passed since archiving %s (%d days required). (Archive date=%s\tToday=%s)." % (days_diff, repopath, archloc.host_delete_timelag, fobj.archive_date, t_date))
+      LOGGER.warning("Removing %s. (Archived %d days ago)." % (repopath, days_diff))
     else:
       if os.path.exists(archpath):
         LOGGER.warning("Executing forced deletion. Archive information: date=%s file=%s. Removing %s" % (fobj.archive_date, archpath, repopath))
@@ -262,7 +262,7 @@ if __name__ == '__main__':
 
   fnames = ARGS.files
   if ARGS.filetype:
-    fnames = get_files_for_filetype(ARGS.filetype)
+    fnames = get_files_for_filetype(ARGS.filetype, not_archived=True)
     LOGGER.warning("Found %d non-archived files (file_type=\'%s\')." % (len(fnames), ARGS.filetype))
   
   if ARGS.copy_wait_archive or ARGS.copy_only:
@@ -273,6 +273,11 @@ if __name__ == '__main__':
     LOGGER.warning("Copying finished. Waiting 5 minutes for file system to register copied files.")
     time.sleep(5*60)
   if not ARGS.copy_only:
-    for fname in fnames:
-      LOGGER.warning("Archiving \'%s\'." % fname)
+    # TODO: implement this in a better way. All files are gone through to check if any have been in archive long enough to be deleted in source.
+    if ARGS.filetype:
+      allfnames = get_files_for_filetype(ARGS.filetype, not_archived=True)
+      LOGGER.warning("Found %d files in total (file_type=\'%s\'). Checking all for archiving and/or deletion in repository." % (len(fnames), ARGS.filetype))
+    for fname in allfnames:
+      if fname in fnames:
+        LOGGER.warning("Archiving \'%s\'." % fname)
       move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
