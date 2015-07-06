@@ -20,8 +20,8 @@ from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.setup_logs import configure_logging
 from osqpipe.pipeline.utilities import checksum_file
 from shutil import copy
-from logging import INFO
-LOGGER = configure_logging(level=INFO)
+from logging import INFO, WARNING
+LOGGER = configure_logging(level=WARNING)
 CONFIG = Config()
 
 def transfer_over_scp(f1, f2, port=22, user=None, attempts = 1, sleeptime = 2):
@@ -86,16 +86,16 @@ def create_foreign_dir(host, port, user, folder):
 def get_files_for_filetype(filetype):
   '''Returns file names of all files for a given file type. Currently, only two file types, fq and bam, are supported.'''
 
+  # TODO: get only files which have not been archived, i.e. 
+
   files = []
 
   if filetype == 'fq':
-    files = Lanefile.objects.filter(filetype__code=filetype)
+    files = Lanefile.objects.filter(filetype__code=filetype, archive_id__isnull=True)
   elif filetype == 'bam':
-    files = Alnfile.objects.filter(filetype__code=filetype)
+    files = Alnfile.objects.filter(filetype__code=filetype, archive_id__isnull=True)
   else:
     raise StandardError("'%s' files not supported. Use one of the following file types: [fq, bam]" % filetype)
-
-  LOGGER.info("%d \'%s\' files found." % (len(files), filetype))
 
   return files
  
@@ -154,13 +154,13 @@ def move_file_to_archive(fpath, archive, force_overwrite=False, force_delete=Fal
       fobj.save() # Do we actually need to save it here, or can we make the transaction scope smaller FIXME?
       LOGGER.info("Force overwrite. Updating archive record for %s." % fname)
   else:
+    fobj.archive = archloc
     if not copy_only:
-      fobj.archive = archloc
       fobj.archive_date = time.strftime('%Y-%m-%d') # NB! date format not tested!
       fobj.save() # Do we actually need to save it here, or can we make the transaction scope smaller FIXME?
       LOGGER.info("Creating archive record for %s." % fname)
     else:
-      LOGGER.info("Copying %s to archive but not recording this in repository." % fname)
+      LOGGER.info("Copying %s to archive but not recording in repository." % fname)
 
   archpath = fobj.repository_file_path
 
@@ -198,15 +198,18 @@ def move_file_to_archive(fpath, archive, force_overwrite=False, force_delete=Fal
   elif not alreadyInArchive:
     LOGGER.info("File %s already in archive. No need to copy." % fname)
   
+  if copy_only:
+    return None
+
   # Errors here will typically need careful manual investigation.
-  if (alreadyInArchive and (force_overwrite or force_md5_check)) or not alreadyInArchive or not copy_only:
+  if (alreadyInArchive and (force_overwrite or force_md5_check)) or not alreadyInArchive:
     LOGGER.info("Comparing md5 sum of %s in archive and in repository ..." % (fname))
     checksum = checksum_file(archpath)
     if checksum != fobj.checksum:      
       raise ValueError("Error: Archive file checksum (%s) not same as in repository (%s)."
                        % (checksum, fobj.checksum))
     LOGGER.info("Md5 sum in repository and for %s are identical." % (archpath))
-  
+
   # compute date diff
   t_date = datetime.date.today()
   pdate = str(fobj.archive_date).split('-')
@@ -217,10 +220,10 @@ def move_file_to_archive(fpath, archive, force_overwrite=False, force_delete=Fal
   # if file has been in Archive for long enough or force_delete, delete the source
   if force_delete or (days_diff > archloc.host_delete_timelag):
     if not force_delete:
-      LOGGER.info("More than %d days passed since archiving (%d required). (Archive date=%s\tToday=%s). Removing %s" % (days_diff, archloc.host_delete_timelag, fobj.archive_date, t_date, repopath))
+      LOGGER.warning("More than %d days passed since archiving (%d required). (Archive date=%s\tToday=%s). Removing %s" % (days_diff, archloc.host_delete_timelag, fobj.archive_date, t_date, repopath))
     else:
       if os.path.exists(archpath):
-        LOGGER.info("Executing forced deletion. Archive information: date=%s file=%s. Removing %s" % (fobj.archive_date, archpath, repopath))
+        LOGGER.warning("Executing forced deletion. Archive information: date=%s file=%s. Removing %s" % (fobj.archive_date, archpath, repopath))
       else:
         raise ValueError("Error: File %s recorded to be in archive but missing on disk!" % (archpath))
     os.unlink(repopath)
@@ -229,8 +232,8 @@ if __name__ == '__main__':
 
   from argparse import ArgumentParser
 
-  PARSER = ArgumentParser(description='Script to safely move files into the default'
-                          + ' file archive and delete the original from the repository area.')
+  PARSER = ArgumentParser(description='A script for safe copy of repository files to the default'
+                          + ' file archive and deletion of the originals (after a set time) in repository.')
 
   PARSER.add_argument('files', metavar='<filenames>', type=str, nargs='*',
                       help='The name of the file or files to archive. The files'
@@ -241,7 +244,10 @@ if __name__ == '__main__':
                       help='Archive all files of a given file type.')
 
   PARSER.add_argument('-c', '--copy', dest='copy_only', action='store_true',
-                      help='Copy files of a file type to archive without marking the file in repository as archived.')
+                      help='Copy file(s) to archive without regisering them as archived.')
+
+  PARSER.add_argument('-C', '--copy_wait_archive', dest='copy_wait_archive', action='store_true',
+                      help='Force archiving in following 3 stages: 1) copy files to the archive, 2) wait for 5 minutes for the file system to pick up the existance of the files, 3) checks md5sums and register files as  archived. The option was implemented to overcome a feature of CRI Archive which occasionally reports files missing even after 30s since ceration.')
 
   PARSER.add_argument('-d', '--force_delete', dest='force_delete', action='store_true',
                       help='Force source deletion even if less than N days have passed since archiving.')
@@ -250,15 +256,23 @@ if __name__ == '__main__':
                       help='Force md5 check on archived file. Adds archiving information in case it is missing.')
 
   PARSER.add_argument('-f', '--force_overwrite', dest='force_overwrite', action='store_true',
-                      help='Force the script to overwrite files already existing in the'
-                      + ' archive. This is useful when replacing defective archived files.')
+                      help='Force overwrite for files already archived.')
 
   ARGS = PARSER.parse_args()
 
   fnames = ARGS.files
   if ARGS.filetype:
     fnames = get_files_for_filetype(ARGS.filetype)
-
-  for fname in fnames:
-    move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check, copy_only=ARGS.copy_only)
-    # move_file_to_archive(fname,'ark', force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
+    LOGGER.warning("Found %d non-archived files (file_type=\'%s\')." % (len(fnames), ARGS.filetype))
+  
+  if ARGS.copy_wait_archive or ARGS.copy_only:
+    for fname in fnames:
+      LOGGER.warning("Copying \'%s\' to archive." % fname)
+      move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check, copy_only=True)
+  if ARGS.copy_wait_archive:
+    LOGGER.warning("Copying finished. Waiting 5 minutes for file system to register copied files.")
+    time.sleep(5*60)
+  if not ARGS.copy_only:
+    for fname in fnames:
+      LOGGER.warning("Archiving \'%s\'." % fname)
+      move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
