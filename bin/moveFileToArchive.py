@@ -249,9 +249,6 @@ if __name__ == '__main__':
   PARSER.add_argument('-C', '--copy_wait_archive', dest='copy_wait_archive', action='store_true',
                       help='Force archiving in following 3 stages: 1) copy files to the archive, 2) wait for 5 minutes for the file system to pick up the existance of the files, 3) checks md5sums and register files as  archived. The option was implemented to overcome a feature of CRI Archive which occasionally reports files missing even after 30s since ceration.')
 
-  PARSER.add_argument('-C', '--copy_wait_archive', dest='copy_wait_archive', action='store_true',
-                      help='Archive in 3 stages: 1) copy files, 2) waits some time for the file system to register the existance of the files, 3) checks the md5sums in archive and registers files as archived. This option has been implemented because in CRI archive, sometimes file does not appear in file system tree even 30s after creation.')
-
   PARSER.add_argument('-d', '--force_delete', dest='force_delete', action='store_true',
                       help='Force source deletion even if less than N days have passed since archiving.')
 
