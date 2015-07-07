@@ -146,12 +146,12 @@ def move_file_to_archive(fpath, archive, force_overwrite=False, force_delete=Fal
   alreadyInArchive = False
   if fobj.archive:
     alreadyInArchive = True
-    LOGGER.warning("File %s already in archive. Date of archiving: %s." % (fname, fobj.archive_date) )
+    LOGGER.info("File %s already in archive. Date of archiving: %s." % (fname, fobj.archive_date) )
     if force_overwrite:
       fobj.archive = archloc
       fobj.archive_date = time.strftime('%Y-%m-%d')
       fobj.save() # Do we actually need to save it here, or can we make the transaction scope smaller FIXME?
-      LOGGER.info("Force overwrite. Updating archive record for %s." % fname)
+      LOGGER.warning("Force overwrite. Updating archive record for %s." % fname)
   else:
     fobj.archive = archloc
     if not copy_only:
@@ -269,14 +269,16 @@ if __name__ == '__main__':
     for fname in fnames:
       LOGGER.warning("Copying \'%s\' to archive." % fname)
       move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check, copy_only=True)
-  if ARGS.copy_wait_archive:
-    LOGGER.warning("Copying finished. Waiting 5 minutes for file system to register copied files.")
-    time.sleep(5*60)
+#  if ARGS.copy_wait_archive:
+#    LOGGER.warning("Copying finished. Waiting 5 minutes for file system to register copied files.")
+#    time.sleep(5*60)
   if not ARGS.copy_only:
     # TODO: implement this in a better way. All files are gone through to check if any have been in archive long enough to be deleted in source.
     if ARGS.filetype:
-      allfnames = get_files_for_filetype(ARGS.filetype, not_archived=True)
-      LOGGER.warning("Found %d files in total (file_type=\'%s\'). Checking each of the files for archiving and/or removal from repository." % (len(allfnames), ARGS.filetype))
+      allfnames = get_files_for_filetype(ARGS.filetype)
+    else:
+      allfnames = fnames
+    LOGGER.warning("Found %d files in total (file_type=\'%s\'). Checking files for archiving and/or repository removal." % (len(allfnames), ARGS.filetype))
     for fname in allfnames:
       if fname in fnames:
         LOGGER.warning("Archiving \'%s\'." % fname)
