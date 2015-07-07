@@ -276,7 +276,7 @@ if __name__ == '__main__':
     # TODO: implement this in a better way. All files are gone through to check if any have been in archive long enough to be deleted in source.
     if ARGS.filetype:
       allfnames = get_files_for_filetype(ARGS.filetype, not_archived=True)
-      LOGGER.warning("Found %d files in total (file_type=\'%s\'). Checking each of the files for archiving and/or removal from repository." % (len(fnames), ARGS.filetype))
+      LOGGER.warning("Found %d files in total (file_type=\'%s\'). Checking each of the files for archiving and/or removal from repository." % (len(allfnames), ARGS.filetype))
     for fname in allfnames:
       if fname in fnames:
         LOGGER.warning("Archiving \'%s\'." % fname)
