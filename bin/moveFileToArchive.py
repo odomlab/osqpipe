@@ -263,15 +263,15 @@ if __name__ == '__main__':
   fnames = ARGS.files
   if ARGS.filetype:
     fnames = get_files_for_filetype(ARGS.filetype, not_archived=True)
-    LOGGER.warning("Found %d non-archived files (file_type=\'%s\')." % (len(fnames), ARGS.filetype))
+    LOGGER.warning("Found %d non-archived files for copying (file_type=\'%s\')." % (len(fnames), ARGS.filetype))
   
   if ARGS.copy_wait_archive or ARGS.copy_only:
     for fname in fnames:
       LOGGER.warning("Copying \'%s\' to archive." % fname)
       move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check, copy_only=True)
-#  if ARGS.copy_wait_archive:
-#    LOGGER.warning("Copying finished. Waiting 5 minutes for file system to register copied files.")
-#    time.sleep(5*60)
+  if ARGS.copy_wait_archive:
+    LOGGER.warning("Copying finished. Waiting 5 minutes for file system to register copied files.")
+    time.sleep(5*60)
   if not ARGS.copy_only:
     # TODO: implement this in a better way. All files are gone through to check if any have been in archive long enough to be deleted in source.
     if ARGS.filetype:
