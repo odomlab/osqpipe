@@ -278,29 +278,26 @@ if __name__ == '__main__':
     fnames = get_files_for_filetype(ARGS.filetype, not_archived=True)
     LOGGER.warning("Found %d non-archived files for copying:" % len(fnames))
 
-  if len(fnames) == 0:
-    LOGGER.warning("No non-archived files found! Exiting.")
-    sys.exit(0)
-  
-  # Copy files to archive
-  if ARGS.copy_wait_archive or ARGS.copy_only:
-    for fname in fnames:
-      LOGGER.warning("Copying \'%s\' to archive." % fname)
-      move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check, copy_only=True)
+  if len(fnames) > 0:  
+    # Copy files to archive
+    if ARGS.copy_wait_archive or ARGS.copy_only:
+      for fname in fnames:
+        LOGGER.warning("Copying \'%s\' to archive." % fname)
+        move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check, copy_only=True)
 
-  # Wait for files copied to archive to become visible in the file system
-  if ARGS.copy_wait_archive:
-    LOGGER.warning("Copying finished. Waiting 5 minutes for file system to register copied files.")
-    time.sleep(5*60)
+    # Wait for files copied to archive to become visible in the file system
+    if ARGS.copy_wait_archive:
+      LOGGER.warning("Copying finished. Waiting 5 minutes for file system to register copied files.")
+      time.sleep(5*60)
 
-  # Check files to archive
-  if not ARGS.copy_only:
-    LOGGER.warning("Archiving %d non-archived files:" % len(fnames))
-    for fname in fnames:
-      LOGGER.warning("Archiving \'%s\'." % fname)
-      move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
+    # Check files to archive
+    if not ARGS.copy_only:
+      LOGGER.warning("Archiving %d non-archived files:" % len(fnames))
+      for fname in fnames:
+        LOGGER.warning("Archiving \'%s\'." % fname)
+        move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
 
-  # Delete primary copies of archived files.
+  # Check for deletion and delete primary copies of files archived long time ago.
   if ARGS.filetype:
     fnames = []
   if ARGS.force_delete or len(fnames) == 0:
