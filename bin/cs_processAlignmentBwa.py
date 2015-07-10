@@ -125,16 +125,13 @@ class AlignProcessingManager(object):
       sys.exit("Unable to find lane in repository")
 
     numreads = count_bam_reads(bam)
-    expected = lane.passedpf
-    if lane.paired:
-      expected *= 2
-    if numreads != expected:
+    if numreads != lane.total_passedpf:
       message = ("Number of reads in bam file is differs from that in "
                  + "fastq file: %d (bam) vs %d (fastq)")
       if relaxed:
-        LOGGER.warning(message, numreads, expected)
+        LOGGER.warning(message, numreads, lane.total_passedpf)
       else:
-        raise ValueError(message % (numreads, expected))
+        raise ValueError(message % (numreads, lane.total_passedpf))
 
     return numreads
 
