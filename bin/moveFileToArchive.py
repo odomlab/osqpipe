@@ -88,11 +88,16 @@ def get_files_for_filetype(filetype, not_archived=False):
 
   files = []
 
-  if filetype == 'fq' or filetype == 'bam':
+  if filetype == 'fq':
     if not_archived:
       files = Lanefile.objects.filter(filetype__code=filetype, archive_id__isnull=True)
     else:
       files = Lanefile.objects.filter(filetype__code=filetype)
+  elif filetype == 'bam':
+    if not_archived:
+      files = Alnfile.objects.filter(filetype__code=filetype, archive_id__isnull=True)
+    else:
+      files = Alnfile.objects.filter(filetype__code=filetype)
   else:
     raise StandardError("'%s' files not supported. Use one of the following file types: [fq, bam]" % filetype)
 
