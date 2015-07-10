@@ -241,6 +241,17 @@ def remove_primary_files(files, archive, filetype, force_delete=False):
 
 if __name__ == '__main__':
 
+  # get list of Archives
+  archives = ArchiveLocation.objects.all()
+  arks = []
+  archive = CONFIG.default_archive
+  for a in archives:
+    if a.name == archive:
+      arks.append('%s (default)' % a.name)
+    else:
+      arks.append(a.name)
+
+
   from argparse import ArgumentParser
 
   PARSER = ArgumentParser(description='A script for safe copy of repository files to the default'
@@ -253,6 +264,9 @@ if __name__ == '__main__':
 
   PARSER.add_argument('-a', '--all', dest='filetype',
                       help='Archive all files of a given file type.')
+
+  PARSER.add_argument('-A', '--archive', dest='archive_name', default = archive,
+                      help='Name of the archive where the files should be copied. List of supported archives: %s' % ', '.join(arks))
 
   PARSER.add_argument('-c', '--copy', dest='copy_only', action='store_true',
                       help='Copy file(s) to archive without regisering them as archived.')
@@ -273,6 +287,11 @@ if __name__ == '__main__':
 
   fnames = ARGS.files
 
+  # Check that we are dealing with valid archive
+  if ARGS.archive_name != archive and ARGS.archive_name not in arks:
+    raise ValueError("Error: Unknown archive \'%s\'. Exiting! " % (ARGS.archive_name))
+  LOGGER.info("Archive is set to \'%s\'." % archive)
+
   # In case file type was provided, override the list of files (if any) provided as arguments
   if ARGS.filetype:
     fnames = get_files_for_filetype(ARGS.filetype, not_archived=True)
@@ -283,7 +302,7 @@ if __name__ == '__main__':
     if ARGS.copy_wait_archive or ARGS.copy_only:
       for fname in fnames:
         LOGGER.warning("Copying \'%s\' to archive." % fname)
-        move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check, copy_only=True)
+        move_file_to_archive(str(fname), ARGS.archive_name, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check, copy_only=True)
 
     # Wait for files copied to archive to become visible in the file system
     if ARGS.copy_wait_archive:
@@ -295,10 +314,10 @@ if __name__ == '__main__':
       LOGGER.warning("Archiving %d non-archived files:" % len(fnames))
       for fname in fnames:
         LOGGER.warning("Archiving \'%s\'." % fname)
-        move_file_to_archive(str(fname), CONFIG.default_archive, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
+        move_file_to_archive(str(fname), ARGS.archive_name, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
 
   # Check for deletion and delete primary copies of files archived long time ago.
   if ARGS.filetype:
     fnames = []
   if ARGS.force_delete or len(fnames) == 0:
-    remove_primary_files(fnames, CONFIG.default_archive, ARGS.filetype, force_delete=ARGS.force_delete)
+    remove_primary_files(fnames, ARGS.archive_name, ARGS.filetype, force_delete=ARGS.force_delete)
