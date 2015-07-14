@@ -155,13 +155,13 @@ def move_file_to_archive(fpath, archive, force_overwrite=False, force_delete=Fal
     if force_overwrite:
       fobj.archive = archloc
       fobj.archive_date = time.strftime('%Y-%m-%d')
-      fobj.save() # Do we actually need to save it here, or can we make the transaction scope smaller FIXME?
+      # fobj.save() # Do we actually need to save it here, or can we make the transaction scope smaller FIXME?
       LOGGER.warning("Force overwrite. Updating archive record for %s." % fname)
   else:
     fobj.archive = archloc
     if not copy_only:
       fobj.archive_date = time.strftime('%Y-%m-%d') # NB! date format not tested!
-      fobj.save() # Do we actually need to save it here, or can we make the transaction scope smaller FIXME?
+      # fobj.save() # Do we actually need to save it here, or can we make the transaction scope smaller FIXME?
       LOGGER.info("Creating archive record for %s." % fname)
     else:
       LOGGER.info("Copying %s to archive but not recording in repository." % fname)
@@ -210,9 +210,15 @@ def move_file_to_archive(fpath, archive, force_overwrite=False, force_delete=Fal
     LOGGER.info("Comparing md5 sum of %s in archive and in repository ..." % (fname))
     checksum = checksum_file(archpath)
     if checksum != fobj.checksum:      
-      raise ValueError("Error: Archive file checksum (%s) not same as in repository (%s)."
-                       % (checksum, fobj.checksum))
+      # raise ValueError("Error: Archive file checksum (%s) not same as in repository (%s)."
+      #                  % (checksum, fobj.checksum))
+      LOGGER.error("Error: Archive file checksum (%s) not same as in repository (%s). Skipping!"
+                   % (checksum, fobj.checksum))
+      return fname
+    else:
+      fobj.save() # Do we actually need to save it here, or can we make the transaction scope smaller FIXME?
     LOGGER.info("Md5 sum in repository and for %s are identical." % (archpath))
+  return None
 
 def remove_primary_files(files, archive, filetype, force_delete=False):
   '''Deletes primary copies of the archived files in case forced or archived more than specified number of days ago (archloc.host_delete_timelag).
@@ -315,11 +321,18 @@ if __name__ == '__main__':
       time.sleep(5*60)
 
     # Check files to archive
+    failedfns = []
     if not ARGS.copy_only:
       LOGGER.warning("Archiving %d non-archived files:" % len(fnames))
       for fname in fnames:
         LOGGER.warning("Archiving \'%s\'." % fname)
-        move_file_to_archive(str(fname), ARGS.archive_name, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
+        failedfn = move_file_to_archive(str(fname), ARGS.archive_name, force_overwrite=ARGS.force_overwrite, force_delete=ARGS.force_delete, force_md5_check=ARGS.force_md5_check)
+        if failedfn is not None:
+          failedfns.append(failedfn)
+    if failedfns:
+      LOGGER.warning("%d failed archiving due to md5 check sum differences:" % len(failedfns))
+      for failedfn in failedfns:
+        LOGGER.warning("%s" % failedfn)        
 
   # Check for deletion and delete primary copies of files archived long time ago.
   if ARGS.filetype:
