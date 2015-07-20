@@ -229,12 +229,16 @@ def remove_primary_files(files, archive, filetype, force_delete=False):
     archloc = ArchiveLocation.objects.get(name=archive)
     time_threshold = datetime.datetime.now() - datetime.timedelta(days=archloc.host_delete_timelag)
     t_date = datetime.date.today()
-    files = Lanefile.objects.filter(filetype__code=filetype, archive_date__lt=time_threshold)
-    LOGGER.warning("Identified %d archived files for deletion (files archived more than %d days ago):" % (len(fnames),archloc.host_delete_timelag))
+    if filetype == 'fq':
+      files = Lanefile.objects.filter(filetype__code=filetype, archive_date__lt=time_threshold)
+    if filetype == 'bam':
+      files = Alnfile.objects.filter(filetype__code=filetype, archive_date__lt=time_threshold)
+    LOGGER.warning("Identified %d %s files archived more than %d days ago." % (len(files), filetype, archloc.host_delete_timelag))    
   if ARGS.force_delete:
     LOGGER.warning("Attention: FORCED DELETION of primary copies for %d archived files!" % len(files))
 
   # if file has been in Archive for long enough or force_delete, delete the source
+  filesDeleted = 0
   for f in files:
     fobj = find_file(f)
     archpath = fobj.repository_file_path
@@ -242,13 +246,20 @@ def remove_primary_files(files, archive, filetype, force_delete=False):
     repopath = fobj.repository_file_path
     if not force_delete:
       LOGGER.info("More than %d days passed since archiving %s. (Archive date=%s\tToday=%s)." % (archloc.host_delete_timelag, repopath, fobj.archive_date, t_date))
-      LOGGER.warning("Removing %s. (Archived more than %d days ago)." % (repopath, archloc.host_delete_timelag))
+      if os.path.exists(repopath):
+        LOGGER.warning("Removing %s." % repopath)
     else:
       LOGGER.warning("Executing forced deletion. Archive information: date=%s file=%s. Removing %s" % (fobj.archive_date, archpath, repopath))
     if os.path.exists(archpath):
-      os.unlink(repopath)
+      if os.path.exists(repopath):
+        os.unlink(repopath)
+        filesDeleted += 1
     else:
       raise ValueError("Error: File %s recorded to be in archive but missing on disk!" % (archpath))
+  if filesDeleted == 0:
+    LOGGER.warning("No files to delete from repository.")
+  else:
+    LOGGER.warning("%d files removed from repository." % filesDeleted)
 
 if __name__ == '__main__':
 
@@ -306,7 +317,7 @@ if __name__ == '__main__':
   # In case file type was provided, override the list of files (if any) provided as arguments
   if ARGS.filetype:
     fnames = get_files_for_filetype(ARGS.filetype, not_archived=True)
-    LOGGER.warning("Found %d non-archived files for copying:" % len(fnames))
+    LOGGER.warning("Found %d non-archived files for copying." % len(fnames))
 
   if len(fnames) > 0:  
     # Copy files to archive
@@ -330,9 +341,9 @@ if __name__ == '__main__':
         if failedfn is not None:
           failedfns.append(failedfn)
     if failedfns:
-      LOGGER.warning("%d failed archiving due to md5 check sum differences:" % len(failedfns))
+      LOGGER.error("%d failed archiving due to md5 check sum differences:" % len(failedfns))
       for failedfn in failedfns:
-        LOGGER.warning("%s" % failedfn)        
+        LOGGER.error("%s" % failedfn)        
 
   # Check for deletion and delete primary copies of files archived long time ago.
   if ARGS.filetype:
