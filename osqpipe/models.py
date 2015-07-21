@@ -482,6 +482,7 @@ class MergedAlignment(DataProcess):
   @property
   def genome(self):
     self.full_clean() # Ensures only one genome linked via alignments.
+    # FIXME use the first() method once we've migrated to django >= 1.6
     return self.alignments.all()[:1].get().genome
 
   # Custom model validation here.
