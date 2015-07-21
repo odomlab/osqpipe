@@ -10,47 +10,16 @@ import re
 
 from pysam import AlignmentFile
 from django.db import transaction
-from django.core.exceptions import ValidationError
-from osqpipe.models import MergedAlignment, Alignment, MergedAlnfile, Filetype
+from osqpipe.models import MergedAlignment, MergedAlnfile, Filetype
 from osqpipe.pipeline.utilities import checksum_file, set_file_permissions
 from osqpipe.pipeline.config import Config
-from osqpipe.pipeline.samtools import count_bam_reads
+from osqpipe.pipeline.gatk import retrieve_readgroup_alignment, check_bam_readcount
 
 from shutil import move
 from logging import INFO
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging(level=INFO)
 CONFIG = Config()
-
-def retrieve_readgroup_alignment(rgroup, genome=None):
-  alns = Alignment.objects.filter(lane__library__code=rgroup.get('LB'),
-                                  lane__facility__code=rgroup.get('CN'),
-                                  lane__lanenum=rgroup.get('PU'))
-  if genome is not None:
-    alns = alns.filter(genome__code=genome)
-
-  if alns.count() > 1:
-    raise ValueError("Multiple Alignments match read group and genome parameters.")
-  elif alns.count() == 0:
-    raise StandardError("No Alignments found to match read group and genome parameters.")
-  else:
-    return alns[0]
-
-def check_bam_readcount(bam, maln):
-  '''
-  In principle, the total reads returned by the GATK pipeline should
-  be the sum of the reads in the original fastq files. We check that here.
-  '''
-  expected = sum([ aln.lane.total_passedpf for aln in maln.alignments.all() ])
-  numreads = count_bam_reads(bam)
-
-  ## See how things pan out: if we have to relax this check, here
-  ## would be a good place to start (i.e., raise a warning rather than
-  ## an Exception).
-  if numreads != expected:
-    message = ("Number of reads in bam file is differs from that in "
-               + "fastq file: %d (bam) vs %d (fastq)")
-    raise ValueError(message % (numreads, expected))
 
 @transaction.commit_on_success
 def load_merged_bam(bam, genome=None):
