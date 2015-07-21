@@ -25,6 +25,9 @@ def update_repo_bamfile(bam, newfile):
   '''
   Carefully replace a bam file in the repository.
   '''
+  # Ensure we're using the latest bam object from the database within
+  # this transaction.
+  bam = Alnfile.objects.get(id=bam.id)
   checksum = checksum_file(newfile, unzip=False)
   deleteme = "%s.bak" % (bam.repository_file_path,)
   move(bam.repository_file_path, deleteme)
