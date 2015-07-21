@@ -250,10 +250,17 @@ def remove_primary_files(files, archive, filetype, force_delete=False):
         LOGGER.warning("Removing %s." % repopath)
     else:
       LOGGER.warning("Executing forced deletion. Archive information: date=%s file=%s. Removing %s" % (fobj.archive_date, archpath, repopath))
+
+    # Before deleting the file, check that the file in archive not only exists but has the same md5 sum as recorded in repository
     if os.path.exists(archpath):
-      if os.path.exists(repopath):
-        os.unlink(repopath)
-        filesDeleted += 1
+      checksum = checksum_file(archpath)
+      if checksum != fobj.checksum:
+        # raise ValueError("Error: Archive file checksum (%s) not same as in repository (%s)." % (checksum, fobj.checksum))
+        LOGGER.error("Error: Archive file checksum (%s) not same as in repository (%s). Can not delete the file!" % (checksum, fobj.checksum))
+      else:
+        if os.path.exists(repopath):
+          os.unlink(repopath)
+          filesDeleted += 1
     else:
       raise ValueError("Error: File %s recorded to be in archive but missing on disk!" % (archpath))
   if filesDeleted == 0:
