@@ -212,7 +212,11 @@ class GATKPreprocessor(ClusterJobManager):
     dupmark_fn  = "%s_dupmark.bam" % (rootname,)
     dupmark_log = "%s_dupmark.log" % (rootname,)
     dupmark_bai = "%s_dupmark.bai" % (rootname,)
-    cmd = ('picard',
+
+    # The following limits java heap memory usage, which is obviously
+    # important on the cluster. There are unconfirmed reports that
+    # this actually helps with picard's stability as well.
+    cmd = ('picard', '--Xmx', '8g', # requires picard python wrapper
            'MarkDuplicates',
            'I=%s' % cluster_merged,
            'O=%s' % dupmark_fn,
