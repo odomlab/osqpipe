@@ -27,6 +27,7 @@ def _save_file_to_database(fname, aln, chksum):
   Transaction-managed smallest unit of work that we can do with the
   database to save a file to a given Alignment.
   '''
+  aln = Alignment.objects.get(id=aln.id) # Reload passed object within transaction.
   filetype = Filetype.objects.guess_type(fname)
   LOGGER.debug("Found filetype: %s", filetype)
   basefn = os.path.split(fname)[1]

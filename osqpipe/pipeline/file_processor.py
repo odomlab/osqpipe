@@ -565,8 +565,15 @@ class GenericFileProcessor(object):
     '''
     if not self.test_mode:
 
-      # Save the lane data to the database so we can link to it.
-      self.lane.save()
+      # FIXME note that the lane information here is not as protected
+      # by the transaction mechanism as we would like; we should
+      # probably create self.lane as a dict and only create/update
+      # Lane in the database within the transaction here. In practice,
+      # though, changes to Lane are rare.
+      if self.lane.id is None:
+
+        # Save the lane data to the database so we can link to it.
+        self.lane.save()
 
     # Create the lanefile objects.
     self.save_files_to_lane()

@@ -9,7 +9,7 @@ archive.
 
 import os
 from django.db import transaction
-from osqpipe.models import Lanefile, Alnfile, QCfile, Peakfile
+from osqpipe.models import Lanefile, Alnfile, QCfile, Peakfile, MergedAlnfile
 from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.setup_logs import configure_logging
 from osqpipe.pipeline.utilities import checksum_file
@@ -32,7 +32,10 @@ def find_file(fname):
         try:
           fobj = Peakfile.objects.get(filename=fname)
         except Peakfile.DoesNotExist:
-          raise StandardError("Datafile %s not found in repository." % fname)
+          try:
+            fobj = MergedAlnfile.objects.get(filename=fname)
+          except MergedAlnfile.DoesNotExist:
+            raise StandardError("Datafile %s not found in repository." % fname)
 
   return fobj
 

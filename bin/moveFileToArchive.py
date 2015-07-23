@@ -28,7 +28,7 @@ CONFIG = Config()
 def transfer_over_scp(f1, f2, port=22, user=None,
                       attempts = 1, sleeptime = 2):
   '''
-  A wrapper for scp allowing multipe attempts for the transfer in case
+  A wrapper for scp allowing multiple attempts for the transfer in case
   of recoverable error.
   '''
   attempt = 0

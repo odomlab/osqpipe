@@ -30,38 +30,39 @@ def load_merged_bam(bam, genome=None):
   
   with AlignmentFile(filename=bam) as bamhandle:
     rgroups = bamhandle.header.get('RG', [])
-    samples = list(set([ rg.get('SM') for rg in rgroups ]))
-    if len(samples) > 1:
-      raise StandardError("More than one sample represented in input.")
-    elif len(samples) == 0:
-      LOGGER.warning("No samples specified in bam file.")
 
-    # Slightly convoluted multiple query (as opposed to query__in) so
-    # we can be sure we're identifying all the target Alignments.
-    alns = [ retrieve_readgroup_alignment(rg, genome) for rg in rgroups ]
-    alns = list(set(alns))
+  samples = list(set([ rg.get('SM') for rg in rgroups ]))
+  if len(samples) > 1:
+    raise StandardError("More than one sample represented in input.")
+  elif len(samples) == 0:
+    LOGGER.warning("No samples specified in bam file.")
 
-    LOGGER.info("Linking MergedAlignment to %d source Alignments.", len(alns))
-    maln = MergedAlignment.objects.create()
-    for aln in alns:
-      maln.alignments.add(aln)
-    maln.full_clean() # Raise ValidationError if the MergedAlignment contains inconsistencies.
+  # Slightly convoluted multiple query (as opposed to query__in) so
+  # we can be sure we're identifying all the target Alignments.
+  alns = [ retrieve_readgroup_alignment(rg, genome) for rg in rgroups ]
+  alns = list(set(alns))
 
-    LOGGER.info("Calculating bam file MD5 checksum.")
-    chksum = checksum_file(bam, unzip=False)
+  LOGGER.info("Linking MergedAlignment to %d source Alignments.", len(alns))
+  maln = MergedAlignment.objects.create()
+  for aln in alns:
+    maln.alignments.add(aln)
+  maln.full_clean() # Raise ValidationError if the MergedAlignment contains inconsistencies.
 
-    LOGGER.info("Counting reads in bam file.")
-    check_bam_readcount(bam, maln)
+  LOGGER.info("Calculating bam file MD5 checksum.")
+  chksum = checksum_file(bam, unzip=False)
 
-    malnfile = MergedAlnfile.objects.create(alignment=maln,
-                                            filename=bam,
-                                            filetype=bamtype,
-                                            checksum=chksum)
+  LOGGER.info("Counting reads in bam file.")
+  check_bam_readcount(bam, maln)
 
-    LOGGER.info("Moving file into repository.")
-    destname = malnfile.repository_file_path
-    move(bam, destname)
-    set_file_permissions(CONFIG.group, destname)
+  malnfile = MergedAlnfile.objects.create(alignment=maln,
+                                          filename=bam,
+                                          filetype=bamtype,
+                                          checksum=chksum)
+
+  LOGGER.info("Moving file into repository.")
+  destname = malnfile.repository_file_path
+  move(bam, destname)
+  set_file_permissions(CONFIG.group, destname)
 
 if __name__ == '__main__':
 
