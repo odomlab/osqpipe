@@ -239,11 +239,12 @@ class GATKPreprocessor(ClusterJobManager):
     Submit a picard BuildBamIndex job to the cluster.
     '''
     LOGGER.info("Submitting BuildBamIndex job")
-    cmd = ('picard',
+    cmd = ('picard', '--Xmx', '8g',
            'BuildBamIndex',
+           'VALIDATION_STRINGENCY=SILENT',
            'I=%s' % dupmark_fn)
     bijob = self.submitter.submit_command(cmd=cmd,
-                                          mem=8000,
+                                          mem=10000,
                                           depend_jobs=[ mdjob ])
 
     return bijob
