@@ -25,8 +25,7 @@ LOGGER = configure_logging('archive')
 CONFIG = Config()
 
 ################################################################################
-def _transfer_over_scp(source, dest, port=22, user=None,
-                       attempts = 1, sleeptime = 2):
+def _archive_file_via_scp(fobj, attempts = 1, sleeptime = 2):
   '''
   A wrapper for scp allowing multiple attempts for the transfer in case
   of recoverable error.
@@ -35,15 +34,27 @@ def _transfer_over_scp(source, dest, port=22, user=None,
                     'Failed to add the host to the list of known hosts',
                     'Operation not permitted' ]
 
-  # We will need to double-quote the destination passed to scp (FIXME test this).
-  dest = bash_quote(dest)
+  arch = fobj.archive
+  if arch is None:
+    raise ValueError("Attempting to transfer file to null archive location.")
+
+  # We will need to double-quote the destination passed to scp (FIXME
+  # test this).
+  host_archdir = os.path.join(arch.host_path, fobj.libcode)
+  dest = bash_quote(os.path.join(host_archdir,
+                                 os.path.basename(fobj.repository_file_path)))
   cmd = [ 'scp', '-p',
-          '-o', 'StrictHostKeyChecking=no',
-          '-P', str(port), source ]
-  if user is None:
-    cmd += [ bash_quote(dest) ]
+          '-o', 'StrictHostKeyChecking=no' ]
+  if arch.host_port is not None:
+    cmd += [ '-P', str(arch.host_port) ]
+
+  # Assume we're copying from the main repository to the archive.
+  cmd += [ fobj.original_repository_file_path ]
+
+  if arch.host_user is not None:
+    cmd += [ '%s@%s:%s' % (arch.host_user, arch.host, bash_quote(dest)) ]
   else:
-    cmd += [ '%s@%s' % (user, bash_quote(dest)) ]
+    cmd += [ '%s:%s' % (arch.host, bash_quote(dest)) ]
 
   start_time = time.time()
 
@@ -72,35 +83,82 @@ def _transfer_over_scp(source, dest, port=22, user=None,
       break
 
   if retcode !=0:
-    raise ValueError("ERROR. Failed to transfer %s. (command=\'%s\')\n"
-                     % (source, " ".join(cmd)) )
+    raise StandardError("ERROR. Failed to transfer file. Command was:\n   %s\n"
+                        % (" ".join(cmd),) )
 
   time_diff = time.time() - start_time
   LOGGER.info("Copying to archive (scp) completed in %d seconds.", time_diff)
 
-  return retcode
-
-def _create_foreign_dir(host, port, user, folder):
+def _create_archive_dir_on_host(fobj):
   '''
   Create folder in foreign host over ssh.
   '''
-  # FIXME remove shell=True and use bash_quote etc.
-  cmd = 'ssh -p %s %s@%s \'mkdir %s\'' % (port, user, host, folder)
+  arch = fobj.archive
+  if arch is None:
+    raise ValueError("Attempting to transfer file to null archive location.")
+  folder = bash_quote(os.path.join(arch.host_path, fobj.libcode))
 
-  subproc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+  # The ssh command expects double quoting (one for our bash prompt,
+  # one for the server).
+  cmd = [ 'ssh' ]
+  if arch.host_port is not None:
+    cmd += ['-p', arch.host_port ]
+  if arch.host_user is not None:
+    cmd += [ '%s@%s' % (arch.host_user, arch.host) ]
+  else:
+    cmd += [ arch.host ]
+  cmd += [ 'mkdir', bash_quote(folder) ]
+
+  subproc = Popen(cmd, stdout=PIPE, stderr=PIPE)
   (stdout, stderr) = subproc.communicate()
   retcode = subproc.wait()
   if retcode != 0:
     if 'File exists' in stderr:
-      LOGGER.info("Directory %s@%s:%s already exists.", user, host, folder)
-      retcode = 0
+      LOGGER.info("Directory %s@%s:%s already exists.",
+                  arch.host_user, arch.host, folder)
     else:
-      raise ValueError(\
+      raise StandardError(\
         "ERROR. Failed to create directory in archive"
         + (" (cmd=\"%s\").\nSTDOUT: %s\nSTDERR: %s\n"
-        % (cmd, stdout, stderr)) )
+        % (" ".join(cmd), stdout, stderr)) )
 
-  return retcode
+def _copy_file_to_archive(fobj, fname):
+  '''
+  Copies the file to its currently configured archive location.
+  '''
+  archpath = fobj.repository_file_path
+
+  if all([ getattr(fobj.archive, key) is not None
+           for key in ('host', 'host_path') ]):
+
+    # Remote archive, file transfer via scp.
+    LOGGER.info("Creating dir for the file in archive.")
+
+    # Raises StandardError upon failure to create dir.
+    _create_archive_dir_on_host(fobj)
+
+    LOGGER.info("Copying %s to the archive.", fname)
+
+    # Raises StandardError upon failure to transfer.
+    _archive_file_via_scp(fobj)
+
+  else:
+
+    # Local archive, mounted on current server.
+    archdir = os.path.split(archpath)[0]
+
+    if not os.path.exists(archdir):
+      LOGGER.info("Creating dir for the file in archive.")
+      os.makedirs(archdir)
+
+    # The advantage of shutil.copy2 over copy is that it tries to
+    # keep the file metadata. Equivalent to 'cp -p source
+    # destination'
+    LOGGER.info("Copying file to the archive.")
+    start_time = time.time()
+    copy2(fobj.original_repository_file_path, archpath)
+    time_diff = time.time() - start_time
+    LOGGER.info("Copying to archive completed in %d seconds.", time_diff)
 
 def _get_files_for_filetype(filetype, not_archived=False):
   '''
@@ -132,7 +190,13 @@ def _get_files_for_filetype(filetype, not_archived=False):
   return files
 
 def _find_file(fname):
-
+  '''
+  Simply iterate over all the different subclasses of Datafile in the
+  repository, returning the appropriate file object for a given
+  filename.
+  '''
+  # One feels there should be a better way to do this using some
+  # Django magic.
   try:
     fobj = Lanefile.objects.get(filename=fname)
   except Lanefile.DoesNotExist:
@@ -202,15 +266,8 @@ class ArchiveManager(object):
     if parts[1] == CONFIG.gzsuffix:
       fname = parts[0]
     fobj = _find_file(fname)
-    # Setting archive=None allows retrieval of repository location of
-    # the file. NB! Do not save this as it would modify the object in
-    # db!
-    archivetmp = fobj.archive
-    fobj.archive = None
-    repopath = fobj.repository_file_path
-    fobj.archive = archivetmp
 
-    # Check if file in archive (both on db and on disk)
+    # Check if file in archive (both on db and on disk).
     already_in_archive = False
     if fobj.archive:
       already_in_archive = True
@@ -219,17 +276,12 @@ class ArchiveManager(object):
       if self.force_overwrite:
         fobj.archive = self.archive
         fobj.archive_date = time.strftime('%Y-%m-%d')
-        # fobj.save() # Do we actually need to save it here, or can we
-        # make the transaction scope smaller FIXME?
         LOGGER.warning("Force overwrite. Updating archive record for %s.",
                        fname)
     else:
       fobj.archive = self.archive
       if not self.copy_only:
-         # NB! date format not tested!
         fobj.archive_date = time.strftime('%Y-%m-%d')
-        # fobj.save() # Do we actually need to save it here, or can we
-        # make the transaction scope smaller FIXME?
         LOGGER.info("Creating archive record for %s.", fname)
       else:
         LOGGER.info("Copying %s to archive but not recording in repository.",
@@ -240,47 +292,7 @@ class ArchiveManager(object):
     # Copy file to archive. In case remote host is provided, scp via
     # remote host. Otherwise copy.
     if self.force_overwrite or not os.path.exists(archpath):
-
-      if self.archive.host and self.archive.host_port and \
-            self.archive.host_path and self.archive.host_user:
-        # TODO: fixme? The following line is a forced solution due to
-        # fobj.repository_file_path being able to deliver only
-        # repository primary location and mounted archive locations of
-        # the file; while here we need the path to the file in foreign
-        # host.
-        host_archdir = os.path.join(self.archive.host_path, fobj.libcode)
-
-        LOGGER.info("Creating dir for the file in archive.")
-        retcode = _create_foreign_dir(self.archive.host,
-                                      self.archive.host_port,
-                                      self.archive.host_user,
-                                      host_archdir)
-        if retcode != 0:
-          raise ValueError("Error: Failed to create %s in archive."
-                           % (host_archdir))
-        LOGGER.info("Copying %s to the archive.", fname)
-        retcode = _transfer_over_scp(repopath, # FIXME too many args here.
-                                     '%s:%s' % (self.archive.host, host_archdir),
-                                     port=self.archive.host_port,
-                                     user=self.archive.host_user)
-        if retcode != 0:
-          raise ValueError("Error: Failed to copy %s to archive (%s@%s:%s)."
-                           % (repopath, self.archive.host_user,
-                              self.archive.host, host_archdir))
-      else:
-        archdir = os.path.split(archpath)[0]
-
-        if not os.path.exists(archdir):
-          LOGGER.info("Creating dir for the file in archive.")
-          os.makedirs(archdir)
-          # The advantage of shutil.copy2 over copy is that it tries to
-          # keep the file metadata. Equivalent to 'cp -p source
-          # destination'
-          LOGGER.info("Copying file to the archive.")
-        start_time = time.time()
-        copy2(repopath, archpath)
-        time_diff = time.time() - start_time
-        LOGGER.info("Copying to archive completed in %d seconds.", time_diff)
+      _copy_file_to_archive(fobj, fname)
 
     elif not already_in_archive:
       LOGGER.info("File %s already in archive. No need to copy.", fname)
@@ -305,6 +317,7 @@ class ArchiveManager(object):
       LOGGER.info("Md5 sum in repository and for %s are identical.", archpath)
     return None
 
+  # FIXME this method needs reviewing also.
   def remove_primary_files(self, files=None):
     '''
     Deletes primary copies of the archived files in case forced or
@@ -337,8 +350,7 @@ class ArchiveManager(object):
     for fname in files:
       fobj = _find_file(fname)
       archpath = fobj.repository_file_path
-      fobj.archive = None
-      repopath = fobj.repository_file_path
+      repopath = fobj.original_repository_file_path
       if not self.force_delete:
         LOGGER.info(\
           "More than %d days passed since archiving %s."
@@ -376,7 +388,16 @@ class ArchiveManager(object):
 
   @transaction.commit_on_success
   def restore_file_from_archive(self, fpath):
-
+    '''
+    Method restores the file in the archive back into the main
+    repository file tree, and resets the archive flag such that the
+    repository copy is now considered authoritative. Note that using
+    this function may be counterproductive if running a regular cron
+    job to archive all files of a specific filetype (subsequent cron
+    job runs will simply move the file back into the archive
+    again). It is recommended to only restore files which are not
+    managed in this fashion.
+    '''
     fname = os.path.basename(fpath)
     parts = os.path.splitext(fname)
     if parts[1] == CONFIG.gzsuffix:
@@ -388,8 +409,13 @@ class ArchiveManager(object):
         "File %s is not currently registered to any archive location.", fname)
 
     archpath = fobj.repository_file_path
-    fobj.archive = None
-    fobj.save()  # FIXME is this necessary? see moveFileToArchive
+
+    # This removes all archive metadata (the repository copy will be
+    # authoritative once more). Note that we are not deleting the
+    # archived file (since the archive will typically not allow this).
+    fobj.archive      = None
+    fobj.archive_date = None
+    fobj.save()
     repopath = fobj.repository_file_path
 
     # This really shouldn't happen, and indicates manual intervention

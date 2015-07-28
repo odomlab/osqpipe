@@ -587,12 +587,23 @@ class Datafile(models.Model):
 
   @property
   def repository_file_path(self):
+    # The current path to the file on disk.
     fname   = self.filename
     if self.filetype.gzip:
       fname += CONFIG.gzsuffix
 
     return os.path.join(self.repository_root, self.libcode, fname)
-    
+
+  @property
+  def original_repository_file_path(self):
+    # The original repository path to the file on disk, prior to any
+    # archival.
+    fname   = self.filename
+    if self.filetype.gzip:
+      fname += CONFIG.gzsuffix
+
+    return os.path.join(CONFIG.repositorydir, self.libcode, fname)
+        
   def __unicode__(self):
     return self.filename
 
