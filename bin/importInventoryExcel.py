@@ -127,7 +127,7 @@ class InventoryImporter(object):
     int_re  = re.compile('(\d+)')
     barcode = None
     if key in rowdict:
-      if rowdict[key] != '':
+      if rowdict[key].strip() != '':
         needs_adapter = True
       match = int_re.search(unicode(rowdict[key]))
       if match:
@@ -159,7 +159,7 @@ class InventoryImporter(object):
 
     return optvals
 
-  def munge_barcode_info(self, rowdict, libcode, code_column='barcode'):
+  def munge_barcode_info(self, rowdict, libcode, code_column='barcode', optional=False):
 
     adapter = linkerset = None
 
@@ -196,10 +196,18 @@ class InventoryImporter(object):
         # FIXME the following protocol list should be simplified to
         # reflect whatever we end up actually using.
         elif prottag in ('agilentsureselectxt', 'sureselectxt', 'sureselect', 'xt'):
-          adapter = 'XT_' + barcode
+
           if int(barcode) > 16:
             LOGGER.error('SureSelectXT barcode index greater than 16 used.')
-            raise ValueError()
+            raise ValueError("Unlikely SureSelectXT barcode used: %s" % barcode)
+
+          # This protocol also supports the use of 8bp adapters named
+          # A01 through H12 (for 96-well plates). Integers are not
+          # going to be sufficient to disambiguate.
+          if re.match('[A-H]', rowdict[code_column]):
+            barcode = rowdict[code_column]
+
+          adapter = 'XT_' + barcode
 
         elif prottag in ('nextera', 'nexteraxt'):
           adapter = 'NXT_N' + barcode
@@ -216,10 +224,10 @@ class InventoryImporter(object):
         LOGGER.error('Protocol not specified in spreadsheet for library %s', libcode)
         raise ValueError()
       
-    elif needs_adapter:
+    elif needs_adapter and not optional:
 
       # If there's a non-empty barcode we've failed to parse, that's a problem.
-      LOGGER.error('Unable to guess barcode from barcode/barcodetype columns.')
+      LOGGER.error('Unable to guess barcode from %s/barcodetype columns.', code_column)
       raise ValueError()
 
     return (adapter, linkerset)
@@ -283,7 +291,7 @@ class InventoryImporter(object):
       (optvals['adapter'],  optvals['linkerset']) = \
           self.munge_barcode_info(rowdict, libcode, code_column='barcode')
       (optvals['adapter2'], discarded)            = \
-          self.munge_barcode_info(rowdict, libcode, code_column='barcode2')
+          self.munge_barcode_info(rowdict, libcode, code_column='barcode2', optional=True)
       if discarded is not None:
         raise ValueError("Unexpectedly identified a linkerset (%s) while parsing adapter2." % discarded)
 
