@@ -284,18 +284,17 @@ class ArchiveManager(object):
         fobj.archive_date = time.strftime('%Y-%m-%d')
         LOGGER.info("Creating archive record for %s.", fname)
       else:
-        LOGGER.info("Copying %s to archive but not recording in repository.",
-                    fname)
+        LOGGER.warning("Copying %s to archive but not recording in repository.",
+                       fname)
 
     archpath = fobj.repository_file_path
 
     # Copy file to archive. In case remote host is provided, scp via
     # remote host. Otherwise copy.
     if self.force_overwrite or not os.path.exists(archpath):
+      LOGGER.warning("Copying file %s to archive location %s.",
+                     fname, fobj.archive)
       _copy_file_to_archive(fobj, fname)
-
-    elif not already_in_archive:
-      LOGGER.info("File %s already in archive. No need to copy.", fname)
 
     if self.copy_only:
       return None
@@ -303,18 +302,25 @@ class ArchiveManager(object):
     # Errors here will typically need careful manual investigation.
     if (already_in_archive and (self.force_overwrite or self.force_md5_check)) \
           or not already_in_archive:
+
+      # Check that the transfer to the archive completed successfully.
       LOGGER.info("Comparing md5 sum of %s in archive and in repository ...",
                   fname)
       checksum = checksum_file(archpath)
-      if checksum != fobj.checksum:
+
+      if checksum == fobj.checksum:
+
+        # Actually record the archiving in the database.
+        fobj.save()
+
+        LOGGER.info("Md5 sum in repository and for %s are identical.", archpath)
+
+      else:
         LOGGER.error(\
           "Error: Archive file checksum (%s) not same as in"
           + " repository (%s). Skipping!", checksum, fobj.checksum)
         return fname
-      else:
-        fobj.save() # Do we actually need to save it here, or can we
-                    # make the transaction scope smaller FIXME?
-      LOGGER.info("Md5 sum in repository and for %s are identical.", archpath)
+
     return None
 
   # FIXME this method needs reviewing also.
@@ -367,8 +373,6 @@ class ArchiveManager(object):
           "More than %d days passed since archiving %s."
           + " (Archive date=%s\tToday=%s).",
           self.archive.host_delete_timelag, repopath, fobj.archive_date, t_date)
-        if os.path.exists(repopath):
-          LOGGER.warning("Removing %s.", repopath)
 
       # Before deleting the file, check that the file in archive not
       # only exists but has the same md5 sum as recorded in
@@ -383,12 +387,13 @@ class ArchiveManager(object):
               "Error: Archive file checksum (%s) not same as in repository (%s)."
               + " Can not delete the file!", checksum, fobj.checksum)
           else:
+            LOGGER.warning("Removing %s.", repopath)
             os.unlink(repopath)
             files_deleted += 1
-      else:
-        raise ValueError(\
-          "Error: File %s recorded to be in archive but missing on disk."
-          % archpath)
+        else:
+          raise ValueError(\
+            "Error: File %s recorded to be in archive but missing on disk."
+            % archpath)
     if files_deleted == 0:
       LOGGER.info("No files to delete from repository.")
     else:

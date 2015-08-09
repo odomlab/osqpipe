@@ -12,7 +12,7 @@ from osqpipe.pipeline.archive import ArchiveManager
 from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.setup_logs import configure_logging
 
-from logging import INFO, WARNING
+from logging import INFO, WARNING, DEBUG
 LOGGER = configure_logging(level=WARNING)
 CONFIG = Config()
 
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     raise StandardError("Configured default archive not found in repository.")
 
   # Put the default archive in first place, and sort the rest alphabetically.
-  arks = [ defarch, sorted(list(arks.difference(set(defarch)))) ]
+  arks = [ defarch ] + sorted(list(arks.difference(set(defarch))))
 
   PARSER = ArgumentParser(\
     description='A script for safe copy of repository files to the default'
@@ -80,5 +80,5 @@ if __name__ == '__main__':
                             force_md5_check   = ARGS.force_md5_check,
                             force_overwrite   = ARGS.force_overwrite)
 
-  ARCHIVER.run_archival(ARGS.fnames)
+  ARCHIVER.run_archival(ARGS.files)
 
