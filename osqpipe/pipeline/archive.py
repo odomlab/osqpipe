@@ -15,7 +15,7 @@ from shutil import copy2
 
 from django.db import transaction
 from osqpipe.models import ArchiveLocation, Lanefile, Alnfile, \
-    QCfile, Peakfile, MergedAlnfile
+    QCfile, Peakfile, MergedAlnfile, Datafile
 from osqpipe.pipeline.utilities import checksum_file, bash_quote
 
 from osqpipe.pipeline.config import Config
@@ -347,34 +347,42 @@ class ArchiveManager(object):
     # If file has been in Archive for long enough or force_delete,
     # delete the source.
     files_deleted = 0
-    for fname in files:
-      fobj = _find_file(fname)
+    for fobj in files:
+
+      # Requerying when we already have a Datafile object is just asinine.
+      if not issubclass(type(fobj), Datafile):
+        fobj = _find_file(fobj) # Assume a str/unicode filename
+
       archpath = fobj.repository_file_path
       repopath = fobj.original_repository_file_path
-      if not self.force_delete:
+
+      # Convoluted logging code here, should be placed elsewhere
+      # rather than confusing the flow with another conditional block. FIXME.
+      if self.force_delete:
+        LOGGER.warning(\
+          "Executing forced deletion. Archive information: date=%s file=%s."
+          + " Removing %s", fobj.archive_date, archpath, repopath)
+      else:
         LOGGER.info(\
           "More than %d days passed since archiving %s."
           + " (Archive date=%s\tToday=%s).",
           self.archive.host_delete_timelag, repopath, fobj.archive_date, t_date)
         if os.path.exists(repopath):
           LOGGER.warning("Removing %s.", repopath)
-      else:
-        LOGGER.warning(\
-          "Executing forced deletion. Archive information: date=%s file=%s."
-          + " Removing %s", fobj.archive_date, archpath, repopath)
 
       # Before deleting the file, check that the file in archive not
-      # only exists but has the same md5 sum as recorded in repository
-      if os.path.exists(archpath):
-        checksum = checksum_file(archpath)
-        if checksum != fobj.checksum:
-          # raise ValueError("Error: Archive file checksum (%s) not same
-          # as in repository (%s)." % (checksum, fobj.checksum))
-          LOGGER.error(\
-            "Error: Archive file checksum (%s) not same as in repository (%s)."
-            + " Can not delete the file!", checksum, fobj.checksum)
-        else:
-          if os.path.exists(repopath):
+      # only exists but has the same md5 sum as recorded in
+      # repository. BEAR IN MIND that the way the queries are
+      # currently set up this code is run over ALMOST EVERY BAM FILE
+      # IN THE REPOSITORY!
+      if os.path.exists(repopath):
+        if os.path.exists(archpath):
+          checksum = checksum_file(archpath)
+          if checksum != fobj.checksum:
+            LOGGER.error(\
+              "Error: Archive file checksum (%s) not same as in repository (%s)."
+              + " Can not delete the file!", checksum, fobj.checksum)
+          else:
             os.unlink(repopath)
             files_deleted += 1
       else:
