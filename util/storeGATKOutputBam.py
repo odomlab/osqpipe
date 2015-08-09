@@ -84,3 +84,8 @@ if __name__ == '__main__':
 
   for bam in ARGS.bams:
     load_merged_bam(bam, ARGS.genome)
+
+    # Remove bam.done file if present.
+    donefile = "%s.done" % bam
+    if os.path.exists(donefile):
+      os.unlink(donefile)
