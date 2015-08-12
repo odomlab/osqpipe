@@ -318,7 +318,8 @@ class GATKPreprocessor(ClusterJobManager):
     cmd = ('rm', dupmark_fn, dupmark_bai)
     self.submitter.submit_command(cmd, depend_jobs=[ gatkjob ])
 
-    # Copy the output back to local cwd.
+    # Copy the output back to local cwd. Also cleanup, but only if
+    # transfer was successful.
     LOGGER.info("Submitting output bam file transfer job")
     finalbam = "%s%s.bam" % (outprefix, samplename,)
     clusterout = os.path.join(CONFIG.gatk_cluster_output,
@@ -329,11 +330,8 @@ class GATKPreprocessor(ClusterJobManager):
                                         finalbam,
                                         donefile=True,
                                         execute=False)
+    cmd += ' && rm %s %s' % (clusterout, clusterbai)
     sshjob = self.submitter.submit_command(cmd, depend_jobs=[ gatkjob ])
-
-    # Cleanup job.
-    cmd = ('rm', clusterout, clusterbai)
-    self.submitter.submit_command(cmd, depend_jobs=[ sshjob ])
 
     return (finalbam, sshjob)
 
