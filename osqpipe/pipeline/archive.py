@@ -38,8 +38,7 @@ def _archive_file_via_scp(fobj, attempts = 1, sleeptime = 2):
   if arch is None:
     raise ValueError("Attempting to transfer file to null archive location.")
 
-  # We will need to double-quote the destination passed to scp (FIXME
-  # test this).
+  # We will need to double-quote the destination passed to scp.
   host_archdir = os.path.join(arch.host_path, fobj.libcode)
   dest = bash_quote(os.path.join(host_archdir,
                                  os.path.basename(fobj.repository_file_path)))
@@ -122,7 +121,7 @@ def _create_archive_dir_on_host(fobj):
         + (" (cmd=\"%s\").\nSTDOUT: %s\nSTDERR: %s\n"
         % (" ".join(cmd), stdout, stderr)) )
 
-def _copy_file_to_archive(fobj, fname):
+def _copy_file_to_archive(fobj):
   '''
   Copies the file to its currently configured archive location.
   '''
@@ -137,7 +136,7 @@ def _copy_file_to_archive(fobj, fname):
     # Raises StandardError upon failure to create dir.
     _create_archive_dir_on_host(fobj)
 
-    LOGGER.info("Copying %s to the archive.", fname)
+    LOGGER.info("Copying %s to the archive.", fobj)
 
     # Raises StandardError upon failure to transfer.
     _archive_file_via_scp(fobj)
@@ -195,6 +194,11 @@ def _find_file(fname):
   repository, returning the appropriate file object for a given
   filename.
   '''
+  fname = os.path.basename(fname)
+  parts = os.path.splitext(fname)
+  if parts[1] == CONFIG.gzsuffix:
+    fname = parts[0]
+
   # One feels there should be a better way to do this using some
   # Django magic.
   try:
@@ -216,6 +220,10 @@ def _find_file(fname):
               "Datafile %s not found in repository." % fname)
 
   return fobj
+
+################################################################################
+class ArchiveError(StandardError):
+  pass
 
 ################################################################################
 class ArchiveManager(object):
@@ -251,119 +259,136 @@ class ArchiveManager(object):
     self.force_md5_check   = force_md5_check
     self.force_overwrite   = force_overwrite
 
-  ## FIXME this whole method needs splitting into smaller parts so we
-  ## don't have (a) a ridiculously long method, and (b) and unwieldy
-  ## transaction.
-  @transaction.commit_on_success
-  def move_file_to_archive(self, fpath):
+  def _set_archive_location(self, fobj, warn=True):
     '''
-    Given a file name (or file path), and the name of an archive as recorded
-    in the repository, make sure there is a valid copy of the file in the
-    archive and delete the file from the primary repository file tree.
+    Set the fobj archive location and archive_date, checking first
+    that this has not already been set. We allow the logging to be
+    switched off because this method is also used in a dummy run to
+    set archive location temporarily. This is so that we can copy
+    files without necessarily changing the database.
     '''
-    fname = os.path.basename(fpath)
-    parts = os.path.splitext(fname)
-    if parts[1] == CONFIG.gzsuffix:
-      fname = parts[0]
-    fobj = _find_file(fname)
-
-    # Check if file in archive (both on db and on disk).
     already_in_archive = False
     if fobj.archive:
       already_in_archive = True
-      LOGGER.info("File %s already in archive. Date of archiving: %s.",
-                  fname, fobj.archive_date)
+      LOGGER.debug("File %s already in archive. Date of archiving: %s.",
+                   fobj, fobj.archive_date)
       if self.force_overwrite:
         fobj.archive = self.archive
         fobj.archive_date = time.strftime('%Y-%m-%d')
-        LOGGER.warning("Force overwrite. Updating archive record for %s.",
-                       fname)
+        if warn:
+          LOGGER.warning("Force overwrite. Updating archive record for %s.",
+                         fobj)
     else:
       fobj.archive = self.archive
       if not self.copy_only:
         fobj.archive_date = time.strftime('%Y-%m-%d')
-        LOGGER.info("Creating archive record for %s.", fname)
-      else:
+        LOGGER.debug("Creating archive record for %s.", fobj)
+      elif warn:
         LOGGER.warning("Copying %s to archive but not recording in repository.",
-                       fname)
+                       fobj)
 
+    # We deliberately do not save the changes yet; that is up to the
+    # calling code, which may choose to discard the archive information..
+    return (fobj, already_in_archive)
+
+  def _copy_file_to_archive_disk(self, fobj):
+    '''
+    Just copy the file to its designated archive disk location; make
+    no changes to the database.
+    '''
+    # Check if file in archive (both on db and on disk).
+    (fobj, _previously_archived) = self._set_archive_location(fobj, warn=False)
     archpath = fobj.repository_file_path
 
     # Copy file to archive. In case remote host is provided, scp via
     # remote host. Otherwise copy.
     if self.force_overwrite or not os.path.exists(archpath):
       LOGGER.warning("Copying file %s to archive location %s.",
-                     fname, fobj.archive)
-      _copy_file_to_archive(fobj, fname)
+                     fobj, fobj.archive)
+      _copy_file_to_archive(fobj)
 
-    if self.copy_only:
-      return None
+    # N.B. we do *not* want to make fobj available to the caller as we
+    # are likely not within a transaction.
+    return
+
+  @transaction.commit_on_success
+  def _register_file_in_archive(self, fobj):
+    '''
+    Given a file name (or file path), and the name of an archive as recorded
+    in the repository, make sure there is a valid copy of the file in the
+    archive and delete the file from the primary repository file tree.
+    '''
+    LOGGER.warning("""Registering '%s' in archive.""", fobj)
+
+    # Reload the Datafile object within this transaction.
+    fobj = type(fobj).objects.get(filename=fobj.filename)
+    (fobj, previously_archived) = self._set_archive_location(fobj)
+    archpath = fobj.repository_file_path
 
     # Errors here will typically need careful manual investigation.
-    if (already_in_archive and (self.force_overwrite or self.force_md5_check)) \
-          or not already_in_archive:
+    if not previously_archived or \
+          (previously_archived and (self.force_overwrite or self.force_md5_check)):
 
       # Check that the transfer to the archive completed successfully.
       LOGGER.info("Comparing md5 sum of %s in archive and in repository ...",
-                  fname)
-      checksum = checksum_file(archpath)
+                  fobj)
+
+      # Raising an exception rolls back the transaction cleanly.
+      if not os.path.exists(archpath):
+        raise ArchiveError("Error: File has not yet appeared in the archive: %s" % fobj)
+
+      checksum = checksum_file(archpath) # archive path
 
       if checksum == fobj.checksum:
+        LOGGER.info("Md5 sum in repository and for %s are identical.", archpath)
 
         # Actually record the archiving in the database.
         fobj.save()
-
-        LOGGER.info("Md5 sum in repository and for %s are identical.", archpath)
+        LOGGER.info("Saved file in the %s archive: %s", fobj.archive, fobj)
 
       else:
-        LOGGER.error(\
-          "Error: Archive file checksum (%s) not same as in"
-          + " repository (%s). Skipping!", checksum, fobj.checksum)
-        return fname
+
+        raise ArchiveError(\
+          ("Error: Archive file checksum (%s) not same as in"
+          + " repository (%s) for file %s. Skipping!") % checksum, fobj.checksum, fobj)
 
     return None
 
-  # FIXME this method needs reviewing also.
-  def remove_primary_files(self, files=None):
+  def _remove_older_primary_files_by_type(self):
     '''
-    Deletes primary copies of the archived files in case forced or
-    archived more than specified number of days ago
-    (self.archive.host_delete_timelag).  In case list of files is empty,
-    identifies all files that have been in archive more than specified
-    number of days for a particular file type.
+    Simple wrapper for _remove_primary_files which identifies primary
+    files of the desired filetype and age and queues them for
+    deletion.
     '''
-    # In case empty list of files we look to filetype for guidance.
-    if files is None or len(files) == 0:
-      time_threshold = datetime.datetime.now() - \
-          datetime.timedelta(days=self.archive.host_delete_timelag)
-      t_date = datetime.date.today()
-      if self.filetype == 'fq':
-        files = Lanefile.objects.filter(filetype__code=self.filetype,
-                                        archive_date__lt=time_threshold)
-      if self.filetype == 'bam':
-        files = Alnfile.objects.filter(filetype__code=self.filetype,
-                                       archive_date__lt=time_threshold)
-      LOGGER.info("Identified %d %s files archived more than %d days ago.",
-                  len(files), self.filetype, self.archive.host_delete_timelag)
-    if self.force_delete:
-      LOGGER.warning(\
-        "Attention: FORCED DELETION of primary copies for %d archived files!",
-        len(files))
+    time_threshold = datetime.datetime.now() - \
+        datetime.timedelta(days=self.archive.host_delete_timelag)
+    t_date = datetime.date.today()
+    if self.filetype == 'fq':
+      fobjs = Lanefile.objects.filter(filetype__code=self.filetype,
+                                      archive_date__lt=time_threshold)
+    elif self.filetype == 'bam':
+      fobjs = Alnfile.objects.filter(filetype__code=self.filetype,
+                                     archive_date__lt=time_threshold)
+    else:
+      raise StandardError("Deletion by filetype %s is not supported"
+                          % self.filetype) 
+    LOGGER.info("Identified %d %s files archived more than %d days ago.",
+                len(fobjs), self.filetype, self.archive.host_delete_timelag)
 
+    self._remove_primary_files(fobjs)
+
+  def _remove_primary_files(self, fobjs):
+    '''
+    Deletes primary copies of the archived files.
+    '''
     # If file has been in Archive for long enough or force_delete,
     # delete the source.
     files_deleted = 0
-    for fobj in files:
-
-      # Requerying when we already have a Datafile object is just asinine.
-      if not issubclass(type(fobj), Datafile):
-        fobj = _find_file(fobj) # Assume a str/unicode filename
+    for fobj in fobjs:
 
       archpath = fobj.repository_file_path
       repopath = fobj.original_repository_file_path
 
-      # Convoluted logging code here, should be placed elsewhere
-      # rather than confusing the flow with another conditional block. FIXME.
       if self.force_delete:
         LOGGER.warning(\
           "Executing forced deletion. Archive information: date=%s file=%s."
@@ -371,8 +396,8 @@ class ArchiveManager(object):
       else:
         LOGGER.info(\
           "More than %d days passed since archiving %s."
-          + " (Archive date=%s\tToday=%s).",
-          self.archive.host_delete_timelag, repopath, fobj.archive_date, t_date)
+          + " (Archive date=%s).",
+          self.archive.host_delete_timelag, repopath, fobj.archive_date)
 
       # Before deleting the file, check that the file in archive not
       # only exists but has the same md5 sum as recorded in
@@ -411,15 +436,11 @@ class ArchiveManager(object):
     again). It is recommended to only restore files which are not
     managed in this fashion.
     '''
-    fname = os.path.basename(fpath)
-    parts = os.path.splitext(fname)
-    if parts[1] == CONFIG.gzsuffix:
-      fname = parts[0]
-    fobj = _find_file(fname)
+    fobj = _find_file(fpath)
 
     if not fobj.archive:
       LOGGER.error(\
-        "File %s is not currently registered to any archive location.", fname)
+        "File %s is not currently registered to any archive location.", fobj)
 
     archpath = fobj.repository_file_path
 
@@ -434,7 +455,7 @@ class ArchiveManager(object):
     # This really shouldn't happen, and indicates manual intervention
     # may be necessary.
     if os.path.exists(repopath):
-      raise StandardError("File %s already present in repository tree." % fname)
+      raise StandardError("File %s already present in repository tree." % fobj)
 
     copy2(archpath, repopath)
 
@@ -460,42 +481,58 @@ class ArchiveManager(object):
         LOGGER.warning(\
           "Ignoring provided filenames in favour of files of type %s",
           self.filetype)
-      fnames = _get_files_for_filetype(self.filetype, not_archived=True)
-      LOGGER.info("Found %d non-archived files for copying.", len(fnames))
+      fobjs = _get_files_for_filetype(self.filetype, not_archived=True)
+      LOGGER.info("Found %d non-archived files for copying.", len(fobjs))
+    else:
 
-    if len(fnames) > 0:
-      # Copy files to archive
-      if self.copy_wait_archive or self.copy_only:
-        for fname in fnames:
-          LOGGER.info("Copying \'%s\' to archive.", fname)
-          self.move_file_to_archive(str(fname))
+      # This is a little unweildy but since the list may contain a mix
+      # of Lanefile, Alnfile and whatever, we cannot simply query
+      # Datafile directly.
+      fobjs = [ _find_file(fname) for fname in fnames ]
 
-      # Wait for files copied to archive to become visible in the file system
+    if len(fobjs) > 0:
+
+      # Copy files to the archive. If we plan to wait for the archive
+      # filesystem to catch up with reality (due to latency in the
+      # system), we first copy everything across as a batch job before
+      # we even think about touching the database.
+      for fobj in fobjs:
+        LOGGER.info("Copying \'%s\' to archive.", fobj)
+        self._copy_file_to_archive_disk(fobj)
+
+      # Wait for files copied to archive to become visible in the
+      # file system.
       if self.copy_wait_archive:
         LOGGER.info("Copying finished. Waiting 5 minutes for"
-                    + " file system to register copied files.")
+                      + " file system to register copied files.")
         time.sleep(5*60)
 
-      # Check files to archive
-      failedfns = []
+      # Check files copied successfully, and enter archive information
+      # in the database.
       if not self.copy_only:
-        LOGGER.warning("Archiving %d non-archived files:", len(fnames))
-        for fname in fnames:
-          LOGGER.warning("""Archiving '%s'.""", fname)
-          failedfn = self.move_file_to_archive(str(fname))
-          if failedfn is not None:
-            failedfns.append(failedfn)
-      if failedfns:
-        LOGGER.error("%d failed archiving due to md5 check sum differences:",
-                     len(failedfns))
-        for failedfn in failedfns:
-          LOGGER.error(failedfn)
+        LOGGER.warning("Archiving %d non-archived files:", len(fobjs))
+        failedfns = []
+        for fobj in fobjs:
+          try:
+            self._register_file_in_archive(fobj)
+          except ArchiveError, err:
+            LOGGER.error("Archiving failed: %s", err)
+            failedfns.append(fobj)
+
+        if len(failedfns) > 0:
+          LOGGER.error("%d failed archiving due to md5 checksum differences:",
+                       len(failedfns))
+          for failedfn in failedfns:
+            LOGGER.error("  %s", failedfn)
 
     # Check for deletion and delete primary copies of files archived
     # long time ago.
     if self.filetype:
-      fnames = []
-    if self.force_delete or len(fnames) == 0:
-      self.remove_primary_files(fnames)
+      self._remove_older_primary_files_by_type()
+    elif self.force_delete:
+      LOGGER.warning(\
+        "Attention: FORCED DELETION of primary copies for %d archived files!",
+        len(fobjs))
+      self._remove_primary_files(fobjs)
 
 ################################################################################
