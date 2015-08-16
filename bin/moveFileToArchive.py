@@ -54,10 +54,10 @@ if __name__ == '__main__':
   PARSER.add_argument('-C', '--copy_wait_archive', dest='copy_wait_archive', action='store_true',
                       help='Force archiving in following 3 stages: 1) copy files'
                       + ' to the archive, 2) wait for 5 minutes for the file system'
-                      + ' to pick up the existance of the files, 3) checks md5sums'
+                      + ' to pick up the existence of the files, 3) checks md5sums'
                       + ' and register files as  archived. The option was implemented'
                       + ' to overcome a feature of CRI Archive which occasionally'
-                      + ' reports files missing even after 30s since ceration.')
+                      + ' reports files missing even after 30s since creation.')
 
   PARSER.add_argument('-d', '--force_delete', dest='force_delete', action='store_true',
                       help='Force source deletion even if less than N days have'

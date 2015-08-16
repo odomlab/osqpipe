@@ -222,6 +222,10 @@ def _find_file(fname):
   return fobj
 
 ################################################################################
+class ArchiveError(StandardError):
+  pass
+
+################################################################################
 class ArchiveManager(object):
   '''
   Attributes:
@@ -328,6 +332,11 @@ class ArchiveManager(object):
       # Check that the transfer to the archive completed successfully.
       LOGGER.info("Comparing md5 sum of %s in archive and in repository ...",
                   fobj)
+
+      # Raising an exception rolls back the transaction cleanly.
+      if not os.path.exists(archpath):
+        raise ArchiveError("Error: File has not yet appeared in the archive: %s" % fobj)
+
       checksum = checksum_file(archpath) # archive path
 
       if checksum == fobj.checksum:
@@ -339,12 +348,9 @@ class ArchiveManager(object):
 
       else:
 
-        # FIXME might be better (cleaner) to implement this as an
-        # Exception subclass which is caught by the calling code.
-        LOGGER.error(\
-          "Error: Archive file checksum (%s) not same as in"
-          + " repository (%s). Skipping!", checksum, fobj.checksum)
-        return fobj
+        raise ArchiveError(\
+          ("Error: Archive file checksum (%s) not same as in"
+          + " repository (%s) for file %s. Skipping!") % checksum, fobj.checksum, fobj)
 
     return None
 
@@ -490,27 +496,31 @@ class ArchiveManager(object):
       # filesystem to catch up with reality (due to latency in the
       # system), we first copy everything across as a batch job before
       # we even think about touching the database.
-      if self.copy_wait_archive or self.copy_only:
-        for fobj in fobjs:
-          LOGGER.info("Copying \'%s\' to archive.", fobj)
-          self._copy_file_to_archive_disk(fobj)
+      for fobj in fobjs:
+        LOGGER.info("Copying \'%s\' to archive.", fobj)
+        self._copy_file_to_archive_disk(fobj)
 
-        # Wait for files copied to archive to become visible in the
-        # file system.
-        if self.copy_wait_archive:
-          LOGGER.info("Copying finished. Waiting 5 minutes for"
+      # Wait for files copied to archive to become visible in the
+      # file system.
+      if self.copy_wait_archive:
+        LOGGER.info("Copying finished. Waiting 5 minutes for"
                       + " file system to register copied files.")
-          time.sleep(5*60)
+        time.sleep(5*60)
 
       # Check files copied successfully, and enter archive information
       # in the database.
       if not self.copy_only:
         LOGGER.warning("Archiving %d non-archived files:", len(fobjs))
-        failedfns = [ self._register_file_in_archive(fobj) for fobj in fobjs ]
-        failedfns = [ ffn for ffn in failedfns if ffn is not None ]
+        failedfns = []
+        for fobj in fobjs:
+          try:
+            self._register_file_in_archive(fobj)
+          except ArchiveError, err:
+            LOGGER.error("Archiving failed: %s", err)
+            failedfns.append(fobj)
 
         if len(failedfns) > 0:
-          LOGGER.error("%d failed archiving due to md5 check sum differences:",
+          LOGGER.error("%d failed archiving due to md5 checksum differences:",
                        len(failedfns))
           for failedfn in failedfns:
             LOGGER.error("  %s", failedfn)
