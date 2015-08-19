@@ -231,7 +231,7 @@ def set_file_permissions(group, path):
 def bash_quote(string):
   '''Quote a string (e.g. a filename) to allow its use with bash and
   bash-related commands such as bsub, scp etc.'''
-  bash_re  = re.compile('(?=[^-+0-9a-zA-Z_./\n])')
+  bash_re  = re.compile('(?=[^-+0-9a-zA-Z_,./\n])')
   return bash_re.sub('\\\\', string)
 
 # Currently unused, we're keeping this in case it's useful in future.

@@ -288,7 +288,7 @@ class ArchiveManager(object):
                        fobj)
 
     # We deliberately do not save the changes yet; that is up to the
-    # calling code, which may choose to discard the archive information..
+    # calling code, which may choose to discard the archive information.
     return (fobj, already_in_archive)
 
   def _copy_file_to_archive_disk(self, fobj):
