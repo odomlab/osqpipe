@@ -302,8 +302,8 @@ class GenericFileProcessor(object):
                                    self.extension)
 
         # Just replace spaces for now as e.g. UCSC upload fails in
-        # these cases. Also forward slashes. And parentheses/semicolons.
-        sanity_re = re.compile(r'([ \/\(\);]+)')
+        # these cases. Also forward slashes. And parentheses/semicolons/commas.
+        sanity_re = re.compile(r'([ \/\(\);,]+)')
         newfn     = sanity_re.sub('_', newfn)
 
         LOGGER.debug("mv %s %s", fname, newfn)
