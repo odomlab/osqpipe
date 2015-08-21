@@ -8,16 +8,16 @@ div.header {
 }
 div.summary {
   position: absolute ! important;
-  width: 16em ! important;
+  width: 15em ! important;
   top: 5em ! important;
   margin: 0 0 0 1em ! important;
   z-index: 3 ! important;
 }
 div.main {
   overflow: visible ! important;
-  width: 100% ! important;
+  width: 45em ! important;
   position: absolute ! important;
-  left: 17em ! important;
+  left: 16em ! important;
   top: 5em;
   z-index: 1 ! important;
 }
@@ -38,6 +38,8 @@ table {
 }
 td { 
   border: 1px solid #ccc ! important;
+  font-family: "Monaco","DejaVuSansMono", monospace ! important;
+  font-size:  12px ! important;
 }
 a {
   text-decoration: none ! important;
