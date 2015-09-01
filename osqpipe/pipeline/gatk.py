@@ -92,6 +92,9 @@ def update_bam_readgroups(bam):
   if retcode != 0:
     raise CalledProcessError(retcode, " ".join(cmd))
 
+  if len(header) == 0:
+    raise ValueError("The bam file has no header information; is this actually a bam file?")
+
   newheader = []
   for line in header.split("\n"):
 
