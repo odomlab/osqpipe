@@ -20,7 +20,7 @@ from socket import getfqdn, socket, AF_UNIX, SOCK_STREAM
 from tempfile import gettempdir, NamedTemporaryFile
 from getpass import getuser
 
-from utilities import call_subprocess, bash_quote, \
+from utilities import call_subprocess, bash_quote, sanitize_samplename, \
     is_zipped, set_file_permissions, BamPostProcessor, parse_repository_filename
 from config import Config
 
@@ -659,8 +659,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
 
       # Sample names containing spaces are bad on the command line,
       # and potentially problematic in bam read groups.
-      sanity_re = re.compile(r'([ \/\(\);&|]+)')
-      sampleflag = '--sample %s' % (sanity_re.sub('_', self.samplename),)
+      sampleflag = '--sample %s' % sanitize_samplename(self.samplename)
     else:
       sampleflag = ''
 

@@ -448,6 +448,15 @@ def parse_incoming_fastq_name(fname, ext='.fq'):
                         % fname)
   return (matchobj.group(*range(1, 5)))
 
+def sanitize_samplename(samplename):
+  '''
+  Quick convenience function to remove potentially problematic
+  characters from sample names (for use in bam file read groups, file
+  names etc.).
+  '''
+  sanity_re = re.compile(r'([ \/\(\);&|]+)')
+  return(sanity_re.sub('_', samplename))
+
 def memoize(func):
   '''
   Convenience function to memoize functions as necessary. May be of
