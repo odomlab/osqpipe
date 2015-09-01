@@ -76,6 +76,10 @@ def update_bam_readgroups(bam):
   else:
     bam = Alnfile.objects.get(filename=bam)
 
+  if bam.filetype.code != 'bam':
+    raise ValueError("Function requires bam file, not %s (%s)"
+                     % (bam.filetype.code, bam.filename))
+
   library = bam.alignment.lane.library
 
   # First, extract the current file header.
@@ -121,7 +125,7 @@ def update_bam_readgroups(bam):
     raise CalledProcessError(retcode, cmd)
 
   LOGGER.info("Correcting bam file checksum.")
-  chksum = checksum_file(bam.repository_file_path)
+  chksum = checksum_file(bam.repository_file_path, unzip=False)
   bam.checksum = chksum
   bam.save()
   os.unlink(tmpbam)
