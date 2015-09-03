@@ -520,7 +520,7 @@ class ArchiveManager(object):
             failedfns.append(fobj)
 
         if len(failedfns) > 0:
-          LOGGER.error("%d failed archiving due to md5 checksum differences:",
+          LOGGER.error("%d failed archiving (see above for reasons):",
                        len(failedfns))
           for failedfn in failedfns:
             LOGGER.error("  %s", failedfn)
