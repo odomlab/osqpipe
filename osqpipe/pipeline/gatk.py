@@ -455,7 +455,8 @@ class GATKPreprocessor(ClusterJobManager):
     # Copy the output back to local cwd. Also cleanup, but only if
     # transfer was successful.
     LOGGER.info("Submitting output bam file transfer job")
-    finalbam = "%s%s.bam" % (outprefix, samplename,)
+    samplename = sanitize_samplename(samplename)
+    finalbam   = "%s%s.bam" % (outprefix, samplename,)
     clusterout = os.path.join(CONFIG.gatk_cluster_output,
                               "%s%s.bam" % (outprefix, samplename,))
     clusterbai = os.path.join(CONFIG.gatk_cluster_output,
