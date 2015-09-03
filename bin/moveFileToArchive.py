@@ -70,7 +70,13 @@ if __name__ == '__main__':
   PARSER.add_argument('-f', '--force_overwrite', dest='force_overwrite', action='store_true',
                       help='Force overwrite for files already archived.')
 
+  PARSER.add_argument('--debug', dest='debug', action='store_true',
+                      help='Set logging level to DEBUG.')
+
   ARGS = PARSER.parse_args()
+
+  if ARGS.debug:
+    LOGGER.setLevel(DEBUG)
 
   ARCHIVER = ArchiveManager(filetype          = ARGS.filetype,
                             archive           = ARGS.archive_name,

@@ -20,7 +20,7 @@ from socket import getfqdn, socket, AF_UNIX, SOCK_STREAM
 from tempfile import gettempdir, NamedTemporaryFile
 from getpass import getuser
 
-from utilities import call_subprocess, bash_quote, \
+from utilities import call_subprocess, bash_quote, sanitize_samplename, \
     is_zipped, set_file_permissions, BamPostProcessor, parse_repository_filename
 from config import Config
 
@@ -659,8 +659,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
 
       # Sample names containing spaces are bad on the command line,
       # and potentially problematic in bam read groups.
-      sanity_re = re.compile(r'([ \/\(\);&|]+)')
-      sampleflag = '--sample %s' % (sanity_re.sub('_', self.samplename),)
+      sampleflag = '--sample %s' % sanitize_samplename(self.samplename)
     else:
       sampleflag = ''
 
@@ -1567,15 +1566,15 @@ class ClusterJobManager(object):
     # colons.
     if not os.path.isabs(clusterout):
       clusterout = './%s' % (clusterout,)
-    sshcmd += (r' %s %s@%s:\"' % (clusterout, myuser, myhost)
-               + bash_quote(bash_quote(self.local_workdir)) + r'/%s\"' % outfile)
+    sshcmd += (r' %s %s@%s:\"' % (bash_quote(clusterout), myuser, myhost)
+               + bash_quote(bash_quote(self.local_workdir + r'/%s' % outfile)) + r'\"')
 
     if donefile:
       sshcmd += " && ssh"
       if self.ssh_key is not None:
         sshcmd += " -i %s" % self.ssh_key
       sshcmd += (r' %s@%s touch ' % (myuser, myhost)
-                 + bash_quote(bash_quote(self.local_workdir)) + r'/%s.done' % outfile)
+                 + bash_quote(bash_quote(self.local_workdir + r'/%s.done' % outfile)))
 
     if execute is True:
       # This *should* die on failure.
