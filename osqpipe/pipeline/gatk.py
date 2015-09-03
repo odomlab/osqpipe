@@ -80,8 +80,15 @@ def update_bam_readgroups(bam):
   elif issubclass(type(bam), Alnfile):
     _update_alnfile_bam_readgroups(bam)
   else:
-    bam = Alnfile.objects.get(filename=bam)
-    _update_alnfile_bam_readgroups(bam)
+    try:
+      bam = Alnfile.objects.get(filename=bam)
+      _update_alnfile_bam_readgroups(bam)
+    except Alnfile.DoesNotExist:
+      try:
+        bam = MergedAlnfile.objects.get(filename=bam)
+        _update_mergedalnfile_bam_readgroups(bam)
+      except MergedAlnfile.DoesNotExist:
+        raise ValueError("Requested bam file does not exist in database as Alnfile or MergedAlnfile: %s" % bam)
 
 def _edit_bam_readgroup_data(bam, platform_unit=None, library=None, sample=None, center=None):
   '''
