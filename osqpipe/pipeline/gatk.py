@@ -8,7 +8,9 @@ from subprocess import Popen, PIPE, STDOUT, CalledProcessError
 from django.db import transaction
 from osqpipe.models import Alnfile, Library, Alignment
 from osqpipe.pipeline.samtools import count_bam_reads
-from osqpipe.pipeline.utilities import call_subprocess, checksum_file, sanitize_samplename
+from osqpipe.pipeline.utilities import call_subprocess, checksum_file, \
+    sanitize_samplename
+from pipes import quote
 from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.bwa_runner import ClusterJobManager
 
@@ -221,7 +223,7 @@ class GATKPreprocessor(ClusterJobManager):
 
     LOGGER.info("Count of %d bam files found for sample individual %s",
                 bams.count(), indivs[0])
-    merged_fn = "%s.bam" % (indivs[0],)
+    merged_fn = "%s.bam" % (sanitize_samplename(indivs[0]),)
   
     # Now we merge the files.
     self.samtools_merge_bams([ bam.repository_file_path for bam in bams ],
@@ -281,6 +283,7 @@ class GATKPreprocessor(ClusterJobManager):
     file.
     '''
     LOGGER.info("Submitting MarkDuplicates job")
+    cluster_merged = cluster_merged
     rootname = os.path.splitext(cluster_merged)[0]
     dupmark_fn  = "%s_dupmark.bam" % (rootname,)
     dupmark_log = "%s_dupmark.log" % (rootname,)
@@ -291,18 +294,18 @@ class GATKPreprocessor(ClusterJobManager):
     # this actually helps with picard's stability as well.
     cmd = ('picard', '--Xmx', '8g', # requires picard python wrapper
            'MarkDuplicates',
-           'I=%s' % cluster_merged,
-           'O=%s' % dupmark_fn,
+           'I=%s' % quote(cluster_merged),
+           'O=%s' % quote(dupmark_fn),
            'TMP_DIR=%s' % CONFIG.clusterworkdir,
            'VALIDATION_STRINGENCY=SILENT',
            'MAX_FILE_HANDLES_FOR_READ_ENDS_MAP=512',
-           'M=%s' % (dupmark_log,))
+           'M=%s' % (quote(dupmark_log),))
     mdjob = self.submitter.submit_command(cmd=cmd,
                                           mem=10000,
                                           auto_requeue=False)
 
     # Cleanup job.
-    cmd = ('rm', dupmark_log)
+    cmd = ('rm', quote(dupmark_log))
     self.submitter.submit_command(cmd, depend_jobs=[ mdjob ])
 
     return (mdjob, dupmark_fn, dupmark_bai)
@@ -315,7 +318,7 @@ class GATKPreprocessor(ClusterJobManager):
     cmd = ('picard', '--Xmx', '8g',
            'BuildBamIndex',
            'VALIDATION_STRINGENCY=SILENT',
-           'I=%s' % dupmark_fn)
+           'I=%s' % quote(dupmark_fn))
     bijob = self.submitter.submit_command(cmd=cmd,
                                           mem=10000,
                                           depend_jobs=[ mdjob ])
@@ -339,7 +342,7 @@ class GATKPreprocessor(ClusterJobManager):
     '''
     LOGGER.info("Building GATK pipeline config file")
     tmpdir = os.path.join(CONFIG.clusterworkdir, "%d_gatk_tmp" % os.getpid())
-    conffile = self.create_instance_config(inputbam=dupmark_fn,
+    conffile = self.create_instance_config(inputbam=dupmark_fn, # no quoting needed.
                                            tmpdir=tmpdir,
                                            outdir=CONFIG.gatk_cluster_output,
                                            reference=genobj.fasta_path,
@@ -374,7 +377,7 @@ class GATKPreprocessor(ClusterJobManager):
         self.submit_markduplicates_job(cluster_merged)
 
     # Cleanup job.
-    cmd = ('rm', cluster_merged)
+    cmd = ('rm', quote(cluster_merged))
     self.submitter.submit_command(cmd, depend_jobs=[ mdjob ])
 
     # Don't overwrite original input otherwise we have no intrinsic
@@ -388,7 +391,7 @@ class GATKPreprocessor(ClusterJobManager):
                                             outprefix=outprefix)
 
     # Cleanup job.
-    cmd = ('rm', dupmark_fn, dupmark_bai)
+    cmd = ('rm', quote(dupmark_fn), quote(dupmark_bai))
     self.submitter.submit_command(cmd, depend_jobs=[ gatkjob ])
 
     # Copy the output back to local cwd.
@@ -405,7 +408,7 @@ class GATKPreprocessor(ClusterJobManager):
     sshjob = self.submitter.submit_command(cmd, depend_jobs=[ gatkjob ])
 
     # Cleanup job.
-    cmd = ('rm', clusterout, clusterbai)
+    cmd = ('rm', quote(clusterout), quote(clusterbai))
     self.submitter.submit_command(cmd, depend_jobs=[ sshjob ])
 
     return (finalbam, sshjob)

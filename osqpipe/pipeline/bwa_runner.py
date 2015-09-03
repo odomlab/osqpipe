@@ -1566,15 +1566,15 @@ class ClusterJobManager(object):
     # colons.
     if not os.path.isabs(clusterout):
       clusterout = './%s' % (clusterout,)
-    sshcmd += (r' %s %s@%s:\"' % (clusterout, myuser, myhost)
-               + bash_quote(bash_quote(self.local_workdir)) + r'/%s\"' % outfile)
+    sshcmd += (r' %s %s@%s:\"' % (bash_quote(clusterout), myuser, myhost)
+               + bash_quote(bash_quote(self.local_workdir + r'/%s' % outfile)) + r'\"')
 
     if donefile:
       sshcmd += " && ssh"
       if self.ssh_key is not None:
         sshcmd += " -i %s" % self.ssh_key
       sshcmd += (r' %s@%s touch ' % (myuser, myhost)
-                 + bash_quote(bash_quote(self.local_workdir)) + r'/%s.done' % outfile)
+                 + bash_quote(bash_quote(self.local_workdir + r'/%s.done' % outfile)))
 
     if execute is True:
       # This *should* die on failure.
