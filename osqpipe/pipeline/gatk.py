@@ -6,7 +6,7 @@ import os
 import re
 from subprocess import Popen, PIPE, STDOUT, CalledProcessError
 from django.db import transaction
-from osqpipe.models import Alnfile, Library, Alignment
+from osqpipe.models import Alnfile, Library, Alignment, MergedAlnfile
 from osqpipe.pipeline.samtools import count_bam_reads
 from osqpipe.pipeline.utilities import call_subprocess, checksum_file, \
     sanitize_samplename
@@ -65,24 +65,37 @@ def check_bam_readcount(bam, maln):
                + "fastq file: %d (bam) vs %d (fastq)")
     raise ValueError(message % (numreads, expected))
 
-@transaction.commit_on_success
+################################################################################
+# Functions to update bam read group information in as lightweight a
+# manner as possible. These are dependent on samtools.
 def update_bam_readgroups(bam):
   '''
   A lightweight method for updating bam read group information to
   match the current repository annotation.
   '''
-  # Support both the filename or an Alnfile object being
-  # passed. MergedAlnfile isn't really appropriate here.
-  if issubclass(type(bam), Alnfile):
-    bam = Alnfile.objects.get(id=bam.id)
+  # Support both the filename or an Alnfile/MergedAlnfile object being
+  # passed.
+  if issubclass(type(bam), MergedAlnfile):
+    _update_mergedalnfile_bam_readgroups(bam)
+  elif issubclass(type(bam), Alnfile):
+    _update_alnfile_bam_readgroups(bam)
   else:
     bam = Alnfile.objects.get(filename=bam)
+    _update_alnfile_bam_readgroups(bam)
 
+def _edit_bam_readgroup_data(bam, platform_unit=None, library=None, sample=None, center=None):
+  '''
+  Fairly generic internal function which makes the actual readgroup
+  annotation changes. This function is deliberately agnostic about
+  where the annotation comes from; it is up to the caller to make that
+  decision. Note that it is assumed that the caller function is within
+  a transaction; this allows us to be sure that database-derived
+  annotation passed to this function will not change during the
+  procedure.
+  '''
   if bam.filetype.code != 'bam':
     raise ValueError("Function requires bam file, not %s (%s)"
                      % (bam.filetype.code, bam.filename))
-
-  library = bam.alignment.lane.library
 
   # First, extract the current file header.
   LOGGER.info("Reading current bam file header.")
@@ -105,10 +118,14 @@ def update_bam_readgroups(bam):
       LOGGER.info("Editing @RG header line.")
       fields = dict( field.split(':', 1) for field in line.split("\t")
                      if not re.match('^@', field) )
-      fields['PU'] = bam.alignment.lane.lanenum
-      fields['LB'] = library.code
-      fields['SM'] = sanitize_samplename(library.individual)
-      fields['CN'] = bam.alignment.lane.facility.code
+      if platform_unit is not None:
+        fields['PU'] = platform_unit
+      if library is not None:
+        fields['LB'] = library
+      if sample is not None:
+        fields['SM'] = sample
+      if center is not None:
+        fields['CN'] = center
       newline = "@RG\t%s" % "\t".join([ "%s:%s" % (key, val)
                                         for (key, val) in fields.iteritems() ])
       newheader.append(newline)
@@ -134,6 +151,40 @@ def update_bam_readgroups(bam):
   bam.checksum = chksum
   bam.save()
   os.unlink(tmpbam)
+
+@transaction.commit_on_success
+def _update_alnfile_bam_readgroups(bam):
+  '''
+  Updates read group PU, LB, SM and CN tags based on the annotation
+  stored in the database linked to this Alnfile.
+  '''
+  bam = Alnfile.objects.get(id=bam.id)
+  library = bam.alignment.lane.library
+  _edit_bam_readgroup_data(bam,
+                           platform_unit = bam.alignment.lane.lanenum,
+                           library       = library.code,
+                           sample        = sanitize_samplename(library.individual),
+                           center        = bam.alignment.lane.facility.code)
+
+@transaction.commit_on_success
+def _update_mergedalnfile_bam_readgroups(bam):
+  '''
+  Updates read group SM tag based on the annotation stored in the
+  database linked to this MergedAlnfile. Note that PN, LB and CN are
+  not changed, primarily because that annotation is what is used to
+  link the MergedAlnfile back to its constitutent Alignments. In other
+  words, if that annotation needs changing then the file has been
+  mis-linked within the database, and it might be best just to remove
+  the file from the repository altogether. Such cases are assumed rare
+  enough that a manual fix is appropriate.
+  '''
+  bam = MergedAlnfile.objects.get(id=bam.id)
+  samples = set([ aln.lane.library.individual for aln in bam.alignment.alignments.all() ])
+  if len(samples) > 1:
+    raise ValueError("MergedAlnfile appears to be linked to multiple samples, please fix: %s"
+                     % ",".join(samples))
+  _edit_bam_readgroup_data(bam,
+                           sample = sanitize_samplename(list(samples)[0]))
 
 ################################################################################
 # The main GATK handler class.
