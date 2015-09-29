@@ -9,7 +9,8 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views.generic.edit import FormMixin
 from collections import OrderedDict
 
-from models import Library, Project, Genome, Lane, Alnfile, Lanefile, QCfile, Peakfile, MergedAlignment
+from models import Library, Project, Genome, Lane, Alnfile, Lanefile, QCfile,\
+    Peakfile, MergedAlignment, MergedAlnfile
 from forms import SimpleSearchForm, LibrarySearchForm, LibraryEditForm,\
     LibraryProjectPicker
 
@@ -379,6 +380,9 @@ class FileDownloadView(RestrictedFileDownloadView):
     elif cls == 'peakfile':
       model = Peakfile
       lanerel = lambda x: x.peakcalling.factor_align.lane
+    elif cls == 'mergedalnfile':
+      model = MergedAlnfile
+      lanerel = lambda x: x.alignment.alignments.all()[0].lane # First alignment determines access FIXME.
     else:
       raise ValueError("Unrecognised file class for download: %s" % (cls))
 

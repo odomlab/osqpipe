@@ -51,7 +51,7 @@ urlpatterns = patterns(
       QualplotDetailView.as_view(),
       name='lane-qualplot',
       ),
-  url(r'^download/(?P<cls>alnfile|lanefile|qcfile|peakfile)/(?P<pk>\d+)$',
+  url(r'^download/(?P<cls>alnfile|lanefile|qcfile|peakfile|mergedalnfile)/(?P<pk>\d+)$',
       FileDownloadView.as_view(),
       name='file-download',
       ),
