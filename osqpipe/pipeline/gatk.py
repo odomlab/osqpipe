@@ -4,15 +4,20 @@ Code used to manage the GATK cleanup parts of our HCC pipeline.
 
 import os
 import re
-from osqpipe.models import Alnfile, Library, Alignment
+from subprocess import Popen, PIPE, STDOUT, CalledProcessError
+from django.db import transaction
+from osqpipe.models import Alnfile, Library, Alignment, MergedAlnfile
 from osqpipe.pipeline.samtools import count_bam_reads
-from osqpipe.pipeline.utilities import call_subprocess, checksum_file
+from osqpipe.pipeline.utilities import call_subprocess, checksum_file, \
+    sanitize_samplename
+from pipes import quote
 from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.bwa_runner import ClusterJobManager
 
 import xml.etree.ElementTree as ET
 from tempfile import NamedTemporaryFile
 from pysam import AlignmentFile
+from shutil import move
 
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging('gatk')
@@ -59,6 +64,134 @@ def check_bam_readcount(bam, maln):
     message = ("Number of reads in bam file is differs from that in "
                + "fastq file: %d (bam) vs %d (fastq)")
     raise ValueError(message % (numreads, expected))
+
+################################################################################
+# Functions to update bam read group information in as lightweight a
+# manner as possible. These are dependent on samtools.
+def update_bam_readgroups(bam):
+  '''
+  A lightweight method for updating bam read group information to
+  match the current repository annotation.
+  '''
+  # Support both the filename or an Alnfile/MergedAlnfile object being
+  # passed.
+  if issubclass(type(bam), MergedAlnfile):
+    _update_mergedalnfile_bam_readgroups(bam)
+  elif issubclass(type(bam), Alnfile):
+    _update_alnfile_bam_readgroups(bam)
+  else:
+    try:
+      bam = Alnfile.objects.get(filename=bam)
+      _update_alnfile_bam_readgroups(bam)
+    except Alnfile.DoesNotExist:
+      try:
+        bam = MergedAlnfile.objects.get(filename=bam)
+        _update_mergedalnfile_bam_readgroups(bam)
+      except MergedAlnfile.DoesNotExist:
+        raise ValueError("Requested bam file does not exist in database as Alnfile or MergedAlnfile: %s" % bam)
+
+def _edit_bam_readgroup_data(bam, platform_unit=None, library=None, sample=None, center=None):
+  '''
+  Fairly generic internal function which makes the actual readgroup
+  annotation changes. This function is deliberately agnostic about
+  where the annotation comes from; it is up to the caller to make that
+  decision. Note that it is assumed that the caller function is within
+  a transaction; this allows us to be sure that database-derived
+  annotation passed to this function will not change during the
+  procedure.
+  '''
+  if bam.filetype.code != 'bam':
+    raise ValueError("Function requires bam file, not %s (%s)"
+                     % (bam.filetype.code, bam.filename))
+
+  # First, extract the current file header.
+  LOGGER.info("Reading current bam file header.")
+  cmd = ('samtools', 'view', '-H', bam.repository_file_path)
+  subproc = Popen(cmd, stdout=PIPE, stderr=STDOUT)
+  header  = subproc.communicate()[0]
+  retcode = subproc.wait()
+
+  if retcode != 0:
+    raise CalledProcessError(retcode, " ".join(cmd))
+
+  if len(header) == 0:
+    raise ValueError("The bam file has no header information; is this actually a bam file?")
+
+  newheader = []
+  for line in header.split("\n"):
+
+    # Make the actual changes here.
+    if re.match('@RG', line):
+      LOGGER.info("Editing @RG header line.")
+      fields = dict( field.split(':', 1) for field in line.split("\t")
+                     if not re.match('^@', field) )
+      if platform_unit is not None:
+        fields['PU'] = platform_unit
+      if library is not None:
+        fields['LB'] = library
+      if sample is not None:
+        fields['SM'] = sample
+      if center is not None:
+        fields['CN'] = center
+      newline = "@RG\t%s" % "\t".join([ "%s:%s" % (key, val)
+                                        for (key, val) in fields.iteritems() ])
+      newheader.append(newline)
+    else:
+      newheader.append(line)
+  newheader = "\n".join(newheader)
+
+  # Replace the old header with the edited version.
+  LOGGER.info("Replacing bam file header.")
+  tmpbam = "%s.reheader" % bam.repository_file_path
+  move(bam.repository_file_path, tmpbam)
+  cmd = 'samtools reheader - %s > %s' % (tmpbam, bam.repository_file_path)
+  
+  subproc = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT, shell=True)
+  stdout  = subproc.communicate(input=newheader)
+  retcode = subproc.wait()
+
+  if retcode != 0:
+    raise CalledProcessError(retcode, cmd)
+
+  LOGGER.info("Correcting bam file checksum.")
+  chksum = checksum_file(bam.repository_file_path, unzip=False)
+  bam.checksum = chksum
+  bam.save()
+  os.unlink(tmpbam)
+
+@transaction.commit_on_success
+def _update_alnfile_bam_readgroups(bam):
+  '''
+  Updates read group PU, LB, SM and CN tags based on the annotation
+  stored in the database linked to this Alnfile.
+  '''
+  bam = Alnfile.objects.get(id=bam.id)
+  library = bam.alignment.lane.library
+  _edit_bam_readgroup_data(bam,
+                           platform_unit = bam.alignment.lane.lanenum,
+                           library       = library.code,
+                           sample        = sanitize_samplename(library.individual),
+                           center        = bam.alignment.lane.facility.code)
+
+@transaction.commit_on_success
+def _update_mergedalnfile_bam_readgroups(bam):
+  '''
+  Updates read group SM tag based on the annotation stored in the
+  database linked to this MergedAlnfile. Note that PN, LB and CN are
+  not changed, primarily because that annotation is what is used to
+  link the MergedAlnfile back to its constitutent Alignments. In other
+  words, if that annotation needs changing then the file has been
+  mis-linked within the database, and it might be best just to remove
+  the file from the repository altogether. Such cases are assumed rare
+  enough that a manual fix is appropriate.
+  '''
+  bam = MergedAlnfile.objects.get(id=bam.id)
+  samples = set([ aln.lane.library.individual for aln in bam.alignment.alignments.all() ])
+  if len(samples) > 1:
+    raise ValueError("MergedAlnfile appears to be linked to multiple samples, please fix: %s"
+                     % ",".join(samples))
+  _edit_bam_readgroup_data(bam,
+                           sample = sanitize_samplename(list(samples)[0]))
 
 ################################################################################
 # The main GATK handler class.
@@ -148,7 +281,7 @@ class GATKPreprocessor(ClusterJobManager):
 
     LOGGER.info("Count of %d bam files found for sample individual %s",
                 bams.count(), indivs[0])
-    merged_fn = "%s.bam" % (indivs[0],)
+    merged_fn = "%s.bam" % (sanitize_samplename(indivs[0]),)
   
     # Now we merge the files.
     self.samtools_merge_bams([ bam.repository_file_path for bam in bams ],
@@ -208,24 +341,29 @@ class GATKPreprocessor(ClusterJobManager):
     file.
     '''
     LOGGER.info("Submitting MarkDuplicates job")
+    cluster_merged = cluster_merged
     rootname = os.path.splitext(cluster_merged)[0]
     dupmark_fn  = "%s_dupmark.bam" % (rootname,)
     dupmark_log = "%s_dupmark.log" % (rootname,)
     dupmark_bai = "%s_dupmark.bai" % (rootname,)
-    cmd = ('picard',
+
+    # The following limits java heap memory usage, which is obviously
+    # important on the cluster. There are unconfirmed reports that
+    # this actually helps with picard's stability as well.
+    cmd = ('picard', '--Xmx', '8g', # requires picard python wrapper
            'MarkDuplicates',
-           'I=%s' % cluster_merged,
-           'O=%s' % dupmark_fn,
+           'I=%s' % quote(cluster_merged),
+           'O=%s' % quote(dupmark_fn),
            'TMP_DIR=%s' % CONFIG.clusterworkdir,
            'VALIDATION_STRINGENCY=SILENT',
            'MAX_FILE_HANDLES_FOR_READ_ENDS_MAP=512',
-           'M=%s' % (dupmark_log,))
+           'M=%s' % (quote(dupmark_log),))
     mdjob = self.submitter.submit_command(cmd=cmd,
                                           mem=10000,
                                           auto_requeue=False)
 
     # Cleanup job.
-    cmd = ('rm', dupmark_log)
+    cmd = ('rm', quote(dupmark_log))
     self.submitter.submit_command(cmd, depend_jobs=[ mdjob ])
 
     return (mdjob, dupmark_fn, dupmark_bai)
@@ -235,11 +373,12 @@ class GATKPreprocessor(ClusterJobManager):
     Submit a picard BuildBamIndex job to the cluster.
     '''
     LOGGER.info("Submitting BuildBamIndex job")
-    cmd = ('picard',
+    cmd = ('picard', '--Xmx', '8g',
            'BuildBamIndex',
-           'I=%s' % dupmark_fn)
+           'VALIDATION_STRINGENCY=SILENT',
+           'I=%s' % quote(dupmark_fn))
     bijob = self.submitter.submit_command(cmd=cmd,
-                                          mem=8000,
+                                          mem=10000,
                                           depend_jobs=[ mdjob ])
 
     return bijob
@@ -261,7 +400,7 @@ class GATKPreprocessor(ClusterJobManager):
     '''
     LOGGER.info("Building GATK pipeline config file")
     tmpdir = os.path.join(CONFIG.clusterworkdir, "%d_gatk_tmp" % os.getpid())
-    conffile = self.create_instance_config(inputbam=dupmark_fn,
+    conffile = self.create_instance_config(inputbam=dupmark_fn, # no quoting needed.
                                            tmpdir=tmpdir,
                                            outdir=CONFIG.gatk_cluster_output,
                                            reference=genobj.fasta_path,
@@ -296,7 +435,7 @@ class GATKPreprocessor(ClusterJobManager):
         self.submit_markduplicates_job(cluster_merged)
 
     # Cleanup job.
-    cmd = ('rm', cluster_merged)
+    cmd = ('rm', quote(cluster_merged))
     self.submitter.submit_command(cmd, depend_jobs=[ mdjob ])
 
     # Don't overwrite original input otherwise we have no intrinsic
@@ -310,12 +449,14 @@ class GATKPreprocessor(ClusterJobManager):
                                             outprefix=outprefix)
 
     # Cleanup job.
-    cmd = ('rm', dupmark_fn, dupmark_bai)
+    cmd = ('rm', quote(dupmark_fn), quote(dupmark_bai))
     self.submitter.submit_command(cmd, depend_jobs=[ gatkjob ])
 
-    # Copy the output back to local cwd.
+    # Copy the output back to local cwd. Also cleanup, but only if
+    # transfer was successful.
     LOGGER.info("Submitting output bam file transfer job")
-    finalbam = "%s%s.bam" % (outprefix, samplename,)
+    samplename = sanitize_samplename(samplename)
+    finalbam   = "%s%s.bam" % (outprefix, samplename,)
     clusterout = os.path.join(CONFIG.gatk_cluster_output,
                               "%s%s.bam" % (outprefix, samplename,))
     clusterbai = os.path.join(CONFIG.gatk_cluster_output,
@@ -324,11 +465,8 @@ class GATKPreprocessor(ClusterJobManager):
                                         finalbam,
                                         donefile=True,
                                         execute=False)
+    cmd += ' && rm %s %s' % (quote(clusterout), quote(clusterbai))
     sshjob = self.submitter.submit_command(cmd, depend_jobs=[ gatkjob ])
-
-    # Cleanup job.
-    cmd = ('rm', clusterout, clusterbai)
-    self.submitter.submit_command(cmd, depend_jobs=[ sshjob ])
 
     return (finalbam, sshjob)
 

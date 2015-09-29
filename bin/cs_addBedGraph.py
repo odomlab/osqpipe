@@ -2,8 +2,10 @@
 #
 # $Id$
 
-'''Script to scan through all alignments in the repository and create
-bedgraph files for those which need them.'''
+'''
+Script to scan through all alignments in the repository and create
+bedgraph files for those which need them.
+'''
 
 import os
 import os.path
@@ -26,9 +28,9 @@ BED2BGR = "makeWiggle -B -1 %s %s"
 ###############################################################################
 
 class BedGraphCreator(object):
-
-  '''Core class used to iterate over all alignments in the database.'''
-
+  '''
+  Core class used to iterate over all alignments in the database.
+  '''
   __slots__ = ('testMode', 'conf', 'bedtype', 'bgrtype')
 
   def __init__(self, testMode=False):
@@ -38,15 +40,20 @@ class BedGraphCreator(object):
     self.bgrtype  = Filetype.objects.get(code='bgr')
 
   def needs_bed_graph(self, aln):
-    '''Look at the files associated with the alignment; if there is a
-    bed file but no bgr file then return true, else return false.'''
+    '''
+    Look at the files associated with the alignment; if there is a
+    bed file but no bgr file then return true, else return false.
+    '''
     bgr = aln.alnfile_set.filter(filetype=self.bgrtype)
     bed = aln.alnfile_set.filter(filetype=self.bedtype).exclude(filename__contains='chr21')
     return (len(bed) == 1 and len(bgr) == 0)
 
   @transaction.commit_on_success
   def make_bed_graph(self, aln):
-    '''Code wrapper for makeWiggle.'''
+    '''
+    Code wrapper for makeWiggle.
+    '''
+    aln = Alignment.objects.get(id=aln.id) # Reload passed object within transaction.
     bed = aln.alnfile_set.filter(filetype=self.bedtype).exclude(filename__contains='chr21')[0]
     
     # Note makeWiggle can read gzipped bed files directly; we use that fact here.
@@ -73,9 +80,9 @@ class BedGraphCreator(object):
         bgr.save()
 
   def run(self):
-
-    '''Main entry point for the class.'''
-
+    '''
+    Main entry point for the class.
+    '''
     for aln in Alignment.objects.all():
       if self.needs_bed_graph(aln):
         LOGGER.info("Creating bedgraph file for alignment %s", aln)

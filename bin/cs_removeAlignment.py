@@ -28,7 +28,9 @@ TEST_MODE = False
 ###############################################################################
 
 def get_options(argv):
-  '''Process command-line arguments.'''
+  '''
+  Process command-line arguments.
+  '''
   global FILE_TYPE, DUMP_LANE, TEST_MODE
   try:
     (opts, args) = getopt.gnu_getopt(argv[1:], "t",
@@ -46,11 +48,13 @@ def get_options(argv):
   return args
 
 def unlink_file(path):
-  '''Wrapper for os.unlink which knows about the dual possibilities of
+  '''
+  Wrapper for os.unlink which knows about the dual possibilities of
   gzipped or uncompressed files present in the repository. Note that
   we catch failure to delete and warn about it, so that e.g. we can
   move the bam file out of the repository, remove the alignment and
-  reload said alignment from the bam file using new pipeline code.'''
+  reload said alignment from the bam file using new pipeline code.
+  '''
   if os.path.exists(path):
     LOGGER.info("removing '%s'" % (path,))
     if not TEST_MODE:
@@ -72,10 +76,14 @@ def unlink_file(path):
 
 @transaction.commit_on_success
 def delete_alignment(aln, deltype):
-  '''Delete an alignment from the repository, including all associated
-  files.'''
+  '''
+  Delete an alignment from the repository, including all associated
+  files.
+  '''
+  aln     = Alignment.objects.get(id=aln.id) # Reload passed object within transaction.
+  deltype = Filetype.objects.get(id=deltype.id) # Reload passed object within transaction.
+  
   # get alnfiles
-
   for alnfile in aln.alnfile_set.all():
     # remove the files and drop the record from the database.
     if deltype is None or deltype == alnfile.filetype:
@@ -91,8 +99,11 @@ def delete_alignment(aln, deltype):
 
 @transaction.commit_on_success
 def delete_lane(lane):
-  '''Delete a given lane from the repository, including all associated
-  files.'''
+  '''
+  Delete a given lane from the repository, including all associated
+  files.
+  '''
+  lane = Lane.objects.get(id=lane.id) # Reload passed object within transaction.
 
   for lfile in lane.lanefile_set.all():
     # remove the files and drop the record from the database.
@@ -107,8 +118,9 @@ def delete_lane(lane):
     lane.delete()
 
 def delete_laneAlignments(libcode, facility, lanenum, deltype=None):
-  '''Iterate over all alignments for a given lane and delete them all.'''
-
+  '''
+  Iterate over all alignments for a given lane and delete them all.
+  '''
   if deltype: # A file type has been specified
     deltype = Filetype.objects.get(code=deltype)
   lane = Lane.objects.get(library__code=libcode,

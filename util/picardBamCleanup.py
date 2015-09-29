@@ -27,6 +27,7 @@ CONFIG = Config()
 @transaction.commit_on_success
 def replace_repo_file(bam, newbam):
 
+  bam = Alnfile.objects.get(id=bam.id) # Reload passed object within transaction.
   set_file_permissions(CONFIG.group, newbam)
   checksum = checksum_file(newbam, unzip=False)
   bam.checksum = checksum

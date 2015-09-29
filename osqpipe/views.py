@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views.generic.edit import FormMixin
 from collections import OrderedDict
 
-from models import Library, Project, Genome, Lane, Alnfile, Lanefile, QCfile, Peakfile
+from models import Library, Project, Genome, Lane, Alnfile, Lanefile, QCfile, Peakfile, MergedAlignment
 from forms import SimpleSearchForm, LibrarySearchForm, LibraryEditForm,\
     LibraryProjectPicker
 
@@ -255,6 +255,10 @@ class LibraryDetailView(FormMixin, MyDetailView):
     form_class = self.get_form_class()
     self.form  = self.get_form(form_class)
     context    = self.get_context_data(form=self.form)
+
+    # Include any MergedAlignment objects linked to this library in the output.
+    context['merged_alignments'] = MergedAlignment.objects.filter(alignments__lane__library=self.object).distinct()
+    
     return self.render_to_response(context)
 
   def assign_projects(self, request):

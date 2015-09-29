@@ -150,7 +150,7 @@ class ControlledVocabManager(models.Manager):
       return re.sub(r'[-_ /\\]', '', string).lower()
 
     fuzz = ''
-    parts = re.findall(r'\D+|\d+', string)
+    parts = re.findall(r'[A-Za-z]+|\d+', string)
     for token in parts:
       if re.match(r'\d', token):
         fuzz = fuzz + token

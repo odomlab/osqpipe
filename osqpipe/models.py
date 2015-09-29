@@ -482,6 +482,7 @@ class MergedAlignment(DataProcess):
   @property
   def genome(self):
     self.full_clean() # Ensures only one genome linked via alignments.
+    # FIXME use the first() method once we've migrated to django >= 1.6
     return self.alignments.all()[:1].get().genome
 
   # Custom model validation here.
@@ -586,12 +587,23 @@ class Datafile(models.Model):
 
   @property
   def repository_file_path(self):
+    # The current path to the file on disk.
     fname   = self.filename
     if self.filetype.gzip:
       fname += CONFIG.gzsuffix
 
     return os.path.join(self.repository_root, self.libcode, fname)
-    
+
+  @property
+  def original_repository_file_path(self):
+    # The original repository path to the file on disk, prior to any
+    # archival.
+    fname   = self.filename
+    if self.filetype.gzip:
+      fname += CONFIG.gzsuffix
+
+    return os.path.join(CONFIG.repositorydir, self.libcode, fname)
+        
   def __unicode__(self):
     return self.filename
 

@@ -35,12 +35,13 @@ def http_download_file(url, local_filename, params=None):
     params = {}
 
   # Read large files in chunks using stream = True parameter
-  req = requests.get(url, stream = True, params=params)
-  if req.status_code is not 200:
-    LOGGER.error("Failed to download file: %s", str(params))
-    raise StandardError("Unable download LIMS file: %s" % str(params))
+  res = requests.get(url, stream = True, params=params)
+  if res.status_code is not 200:
+    LOGGER.error("Failed to download file: %s (%s)", str(params), res.reason)
+    raise StandardError("Unable download LIMS file: %s (%s)"
+                        % (str(params), res.reason))
   with open(local_filename, 'wb') as outfh:
-    for chunk in req.iter_content(chunk_size=1024):
+    for chunk in res.iter_content(chunk_size=1024):
       if chunk: # filter out keep-alive new chunks
         outfh.write(chunk)
         outfh.flush()
@@ -53,12 +54,12 @@ def get_lims_run_history(url, since):
   '''
   LOGGER.debug("Querying LIMS for runs since %s", since)
   history_url = "%s/runsWithFilesAttachedSince?start=%s" % (url, since)
-  req = requests.get(history_url)
-  if req.status_code is not 200:
+  res = requests.get(history_url)
+  if res.status_code is not 200:
     LOGGER.error("Failed to retrieve runs since date %s.", since)
     raise StandardError("Unable to retrieve LIMS run history: %s" % history_url)
   try:
-    root = ET.fromstring(req.text.encode('utf-8'))
+    root = ET.fromstring(res.text.encode('utf-8'))
   except ET.ParseError, err:
     LOGGER.error("LIMS query returned bad XML.")
     raise StandardError("Bad XML in response from LIMS query: %s" % err)
@@ -70,12 +71,12 @@ def get_lims_run_details(url, run_id):
   running the query response through xml.etree.ElementTree.fromstring.
   '''
   LOGGER.info("Querying LIMS for run_id: %s", run_id)
-  req = requests.get("%s/fullDetailsOfRun?runId=%s" % (url, run_id))
-  if req.status_code is not 200:
+  res = requests.get("%s/fullDetailsOfRun?runId=%s" % (url, run_id))
+  if res.status_code is not 200:
     LOGGER.error("Failed to retrieve detail for %s.", run_id)
     raise StandardError("Unable to retrieve LIMS run detail.")
   try:
-    root = ET.fromstring(req.text.encode('utf-8'))
+    root = ET.fromstring(res.text.encode('utf-8'))
   except ET.ParseError, err:
     LOGGER.error("LIMS query returned bad XML.")
     raise StandardError("Bad XML in response from LIMS query: %s" % err)
@@ -87,12 +88,12 @@ def runs_containing_samples(url, libcode):
   running the query response through xml.etree.ElementTree.fromstring.
   '''
   LOGGER.info("Querying LIMS for library: %s", libcode)
-  req = requests.get("%s/runsContainingSamples?sampleName=%s" % (url, libcode))
-  if req.status_code is not 200:
+  res = requests.get("%s/runsContainingSamples?sampleName=%s" % (url, libcode))
+  if res.status_code is not 200:
     LOGGER.error("Failed to retrieve runs for library %s.", libcode)
     raise StandardError("Unable to retrieve run listing from LIMS.")
   try:
-    root = ET.fromstring(req.text.encode('utf-8'))
+    root = ET.fromstring(res.text.encode('utf-8'))
   except ET.ParseError, err:
     LOGGER.error("LIMS query returned bad XML.")
     raise StandardError("Bad XML in response from LIMS query: %s" % err)
@@ -381,8 +382,8 @@ class Lims(object):
     self._fcid_mapping = {}
 
     # Retrieve the boilerplate help page as a test.
-    req = requests.get(self.uri)
-    if req.status_code is not 200:
+    res = requests.get(self.uri)
+    if res.status_code is not 200:
       LOGGER.error("LIMS: REST API is not responding.")
       raise StandardError("Unable to query LIMS REST API.")
 
@@ -394,8 +395,8 @@ class Lims(object):
     Test to make sure the LIMS is running and we can connect to it.
     '''
     # Retrieve the boilerplate help page as a test.
-    req = requests.get(self.uri)
-    if req.status_code is 200:
+    res = requests.get(self.uri)
+    if res.status_code is 200:
       return True
     else:
       LOGGER.warning("LIMS: REST API is not responding.")
