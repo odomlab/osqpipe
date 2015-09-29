@@ -7,7 +7,7 @@
 {% block title %} Library {{ library }} Summary {% endblock %}
 
 {% block content %}
-  {% if library %}
+{% if library %}
 
   <div class="project_picker">
     <form action="" method="post">{% csrf_token %}
@@ -84,7 +84,29 @@
   {% else %}
     No Sequencing Lanes found.
   {% endif %}
+
+  <h2>Multi-Library Merged Alignments</h2>
+  {% if merged_alignments.count > 0 %}
+
+    {% for maln in merged_alignments|sortby:"genome" %}
+    <table class="horizontal">
+      <tr><th>Aligned Genome: </th>      <td>{% with gen=maln.genome %}
+        {{ gen }} ({{ gen.scientific_name }}; {{ gen.common_name }}; version: {{ gen.version }})
+        {% endwith %}</td></tr>
+      <tr><th>Alignments Included in Merge: </th><td>
+          {% for aln in maln.alignments.all %}{{ aln }} {% endfor %}</td></tr>
+    </table>
+
+    {% with files=maln.mergedalnfile_set.all|sortby:"filetype.name" %}
+      {% include "repository/file_table.html" %}
+    {% endwith %}
+    
+    {% endfor %}
   {% else %}
-  <p>No library provided.</p>
+    No Merged Alignments found.
   {% endif %}
+
+{% else %}
+  <p>No library provided.</p>
+{% endif %}
 {% endblock %}    

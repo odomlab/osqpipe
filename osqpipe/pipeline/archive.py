@@ -9,6 +9,7 @@ import os
 import sys
 import time
 import datetime
+import re
 
 from subprocess import Popen, PIPE
 from shutil import copy2
@@ -38,27 +39,32 @@ def _archive_file_via_scp(fobj, attempts = 1, sleeptime = 2):
   if arch is None:
     raise ValueError("Attempting to transfer file to null archive location.")
 
-  # We will need to double-quote the destination passed to scp.
+  # NOTE: We may still need to double-quote spaces the destination
+  # passed to scp. Double-quoting brackets ([]) does not work, though.
   host_archdir = os.path.join(arch.host_path, fobj.libcode)
-  dest = bash_quote(os.path.join(host_archdir,
-                                 os.path.basename(fobj.repository_file_path)))
-  cmd = [ 'scp', '-p',
-          '-o', 'StrictHostKeyChecking=no' ]
+  dest = os.path.join(host_archdir,
+                      os.path.basename(fobj.repository_file_path))
+
+  cmd = 'scp -p -o StrictHostKeyChecking=no'
   if arch.host_port is not None:
-    cmd += [ '-P', str(arch.host_port) ]
+    cmd += ' -P %s' % str(arch.host_port)
 
   # Assume we're copying from the main repository to the archive.
-  cmd += [ fobj.original_repository_file_path ]
+  # Note that we need quoting of e.g. file paths containing
+  # spaces.
+  cmd += ' %s' % bash_quote(fobj.original_repository_file_path)
 
+  # Double-quote the destination, as it has to get past (a) our local
+  # bash, and (b) the bash on the destination machine.
   if arch.host_user is not None:
-    cmd += [ '%s@%s:%s' % (arch.host_user, arch.host, bash_quote(dest)) ]
+    cmd += ' %s@%s:%s' % (arch.host_user, arch.host, bash_quote(bash_quote(dest)))
   else:
-    cmd += [ '%s:%s' % (arch.host, bash_quote(dest)) ]
+    cmd += ' %s:%s' % (arch.host, bash_quote(bash_quote(dest)))
 
   start_time = time.time()
 
   while attempts > 0:
-    subproc = Popen(cmd, stdout=PIPE, stderr=PIPE)
+    subproc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
     (stdout, stderr) = subproc.communicate()
     retcode = subproc.wait()
     if stdout is not None:

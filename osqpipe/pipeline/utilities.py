@@ -233,7 +233,7 @@ def bash_quote(string):
   bash-related commands such as bsub, scp etc.'''
 
   # The following are all legal characters in a file path.
-  bash_re  = re.compile('(?=[^-+0-9a-zA-Z_,./\n])')
+  bash_re = re.compile('(?=[^-+0-9a-zA-Z_,./\n])')
   return bash_re.sub('\\\\', string)
 
 # Currently unused, we're keeping this in case it's useful in future.
