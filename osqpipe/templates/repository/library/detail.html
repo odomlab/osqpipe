@@ -93,8 +93,8 @@
       <tr><th>Aligned Genome: </th>      <td>{% with gen=maln.genome %}
         {{ gen }} ({{ gen.scientific_name }}; {{ gen.common_name }}; version: {{ gen.version }})
         {% endwith %}</td></tr>
-      <tr><th>Alignments Included in Merge: </th><td>
-          {% for aln in maln.alignments.all %}{{ aln }} {% endfor %}</td></tr>
+      <tr><th>Lanes Included in Merge: </th><td>
+          {% for aln in maln.alignments.all|sortby:"lane.name" %}{{ aln.lane }} {% endfor %}</td></tr>
     </table>
 
     {% with files=maln.mergedalnfile_set.all|sortby:"filetype.name" %}
