@@ -23,7 +23,9 @@ def plot_qv(base, means, stdevs):
 
   # There's almost certainly a prettier way to do this in the Gnuplot
   # package; this is a straight port from piping commands to the
-  # gnuplot program:
+  # gnuplot program (Update FIXME seems like gnuplotlib is the way to
+  # go, or move to something completely unrelated to gnuplot like
+  # matplotlib or seaborn):
   g = Gnuplot()
   g('set terminal png size 400,300')
   g("set output \"%s\"" % filename)

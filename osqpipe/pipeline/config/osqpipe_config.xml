@@ -97,7 +97,7 @@
       <option name="Ggal">galGal4</option>
       <option name="Ggor">gorGor3</option>
       <option name="Hsap">hg19</option>
-      <option name="Mcas">mca</option>
+      <option name="Mcas">CAST_Apr2015</option>
       <option name="Mdom">monDom5</option>
       <option name="Mmul">rheMac3</option>
       <option name="Mmus">mm10</option>
