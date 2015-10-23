@@ -127,7 +127,7 @@ class InventoryImporter(object):
     int_re  = re.compile('(\d+)')
     barcode = None
     if key in rowdict:
-      if rowdict[key].strip() != '':
+      if str(rowdict[key]).strip() != '':
         needs_adapter = True
       match = int_re.search(unicode(rowdict[key]))
       if match:
