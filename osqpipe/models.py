@@ -380,14 +380,14 @@ class Lane(models.Model):
 
   @property
   def total_passedpf(self):
-    if self.paired:
+    if self.paired and self.passedpf is not None:
       return self.passedpf * 2
     else:
       return self.passedpf
 
   @property
   def total_reads(self):
-    if self.paired:
+    if self.paired and self.reads is not None:
       return self.reads * 2
     else:
       return self.reads
