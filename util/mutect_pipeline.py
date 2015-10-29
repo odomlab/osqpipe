@@ -115,7 +115,7 @@ class MutectManager(ClusterJobManager):
     # the .vcf.idx.
     outpatterns = ("%s.out", "%s.vcf", "%s.vcf.idx")
     clustfiles  = [ pattern % cl_outprefix for pattern in outpatterns ]
-    localfiles  = [ pattern % cl_outprefix for pattern in outpatterns ]
+    localfiles  = [ pattern % outprefix    for pattern in outpatterns ]
     LOGGER.info("Submitting output transfer jobs.")
     for num in range(len(outpatterns)):
       sshcmd = self.return_file_to_localhost(clustfiles[num], localfiles[num],
