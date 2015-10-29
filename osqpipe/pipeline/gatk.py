@@ -5,6 +5,7 @@ Code used to manage the GATK cleanup parts of our HCC pipeline.
 import os
 import re
 from subprocess import Popen, PIPE, STDOUT, CalledProcessError
+from shutil import copy
 from django.db import transaction
 from osqpipe.models import Alnfile, Library, Alignment, MergedAlnfile
 from osqpipe.pipeline.samtools import count_bam_reads
@@ -220,15 +221,19 @@ class GATKPreprocessor(ClusterJobManager):
     '''
     Use samtools to merge a set of bams locally.
     '''
-    LOGGER.info("Using samtools to merge bam files: %s",
-                ", ".join([ os.path.basename(bam) for bam in bams ]))
-
     if len(bams) == 0:
       raise ValueError("Zero input bam files for merging.")
+    if len(bams) == 1:
+      LOGGER.warning("Only one bam file supplied; copying, rather than merging.")
+      copy(bams[0], output_fn)
+      return
   
     # We assume our input bam files are appropriately sorted (which,
     # coming from the repository, they should be).
     cmd = ['samtools', 'merge', output_fn] + bams
+
+    LOGGER.info("Using samtools to merge bam files: %s",
+                ", ".join([ os.path.basename(bam) for bam in bams ]))
 
     call_subprocess(cmd, path=CONFIG.hostpath)
 

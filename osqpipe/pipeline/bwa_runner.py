@@ -29,6 +29,25 @@ LOGGER = configure_logging('bwa_runner')
 
 ##############################################################################
 
+def genome_fasta_path(genome, genomedir, indexdir=None):
+  '''
+  Returns the expected path to the fasta file for a given genome
+  index. If a specific fasta index directory is specified
+  (e.g. bwa-0.6.1), the path points to a fasta file in that
+  subdirectory.
+  '''
+  sciname = genome.scientific_name
+  sciname = sciname.replace(" ", "_")
+  sciname = sciname.lower()
+  if indexdir is not None:
+    gpath = os.path.join(genomedir, sciname,
+                         genome.code, indexdir, "%s.fa" % genome.code)
+  else:
+    gpath = os.path.join(genomedir, sciname,
+                         genome.code, "%s.fa" % genome.code)
+
+  return gpath
+
 def make_bam_name_without_extension(fqname):
 
   """Creates bam file basename out of Odom/Carroll lab standard fq
@@ -596,19 +615,6 @@ class AlignmentJobRunner(object):
     self.samplename = samplename
 
   @classmethod
-  def genome_path(cls, genome, indexdir, genomedir):
-    '''
-    Returns the expected path to the fasta file for a given genome index.
-    '''
-    sciname = genome.scientific_name
-    sciname = sciname.replace(" ", "_")
-    sciname = sciname.lower()
-    gpath   = os.path.join(genomedir, sciname,
-                           genome.code, indexdir, "%s.fa" % genome.code)
-
-    return gpath
-
-  @classmethod
   def build_genome_index_path(cls, *args, **kwargs):
     '''Stub method identifying this as an abstract base class.'''
     raise NotImplementedError(
@@ -734,7 +740,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
                % (alignerinfo.program, alignerinfo.version, alignerinfo.path))
                + "not recorded as current in repository! Quitting.")
 
-    gpath = cls.genome_path(genome, indexdir, conf.clustergenomedir)
+    gpath = genome_fasta_path(genome, indexdir=indexdir, genomedir=conf.clustergenomedir)
 
     return gpath
 
@@ -822,7 +828,7 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
                + "not recorded as current in repository! Quitting.")
 
     # Tophat/bowtie need the trailing .fa removed.
-    gpath = cls.genome_path(genome, indexdir, conf.clustergenomedir)
+    gpath = genome_fasta_path(genome, indexdir=indexdir, genomedir=conf.clustergenomedir)
 
     return gpath
 
@@ -988,7 +994,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
                 % (alignerinfo.program, alignerinfo.version, alignerinfo.path))
                + "not recorded as current in repository! Quitting.")
 
-    gpath = cls.genome_path(genome, indexdir, conf.althostgenomedir)
+    gpath = genome_fasta_path(genome, indexdir=indexdir, genomedir=conf.althostgenomedir)
 
     return gpath
 
