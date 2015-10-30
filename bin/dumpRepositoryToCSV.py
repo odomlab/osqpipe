@@ -114,6 +114,7 @@ class RepositoryDumper(object):
       ('Sex',                    lambda x: str(_helper_optional_value(x.library.sex))),
       ('Tissue/Cell Line',       lambda x: x.library.tissue.name),
       ('Strain',                 lambda x: _helper_optional_value(x.library.strain, 'name')),
+      ('Individual',             lambda x: _helper_optional_value(x.library.individual)),
       ('Library Type',           lambda x: x.library.libtype.name),
       ('Library ChIP Factor',    lambda x: _helper_optional_value(x.library.factor, 'name')),
       ('Library ChIP Antibody',  lambda x: str(_helper_optional_value(x.library.antibody))),
