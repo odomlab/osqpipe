@@ -79,6 +79,21 @@ class Program(models.Model):
     unique_together = ('program', 'version')
     ordering = ['program', 'version']
 
+class Machine(ControlledVocab):
+  code         = models.CharField(max_length=32, unique=True)
+  platform     = models.CharField(max_length=32)
+  name         = models.CharField(max_length=32)
+  
+  _controlled_field = 'code'
+  
+  def __unicode__(self):
+    return self.code
+
+  class Meta:
+    db_table = u'machine'
+    verbose_name_plural = 'machines'
+    ordering = ['code']
+
 class Genome(ControlledVocab):
   code         = models.CharField(max_length=32, unique=True)
   common_name  = models.CharField(max_length=255, db_column='commonname')
