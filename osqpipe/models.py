@@ -365,7 +365,7 @@ class ExternalRecord(ControlledVocab):
 
 class Lane(models.Model):
   library      = models.ForeignKey(Library, on_delete=models.PROTECT)
-  machine      = models.CharField(max_length=32)
+  machine      = models.ForeignKey(Machine, on_delete=models.PROTECT)
   flowcell     = models.CharField(max_length=32)
   rundate      = models.DateField()
   reads        = models.IntegerField(null=True, blank=True)
