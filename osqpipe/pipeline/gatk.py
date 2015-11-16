@@ -171,7 +171,7 @@ def _update_alnfile_bam_readgroups(bam):
   _edit_bam_readgroup_data(bam,
                            platform_unit = bam.alignment.lane.lanenum,
                            library       = library.code,
-                           sample        = sanitize_samplename(library.individual),
+                           sample        = sanitize_samplename(library.sample.name),
                            center        = bam.alignment.lane.facility.code)
 
 @transaction.commit_on_success
@@ -187,7 +187,7 @@ def _update_mergedalnfile_bam_readgroups(bam):
   enough that a manual fix is appropriate.
   '''
   bam = MergedAlnfile.objects.get(id=bam.id)
-  samples = set([ aln.lane.library.individual for aln in bam.alignment.alignments.all() ])
+  samples = set([ aln.lane.library.sample.name for aln in bam.alignment.alignments.all() ])
   if len(samples) > 1:
     raise ValueError("MergedAlnfile appears to be linked to multiple samples, please fix: %s"
                      % ",".join(samples))
@@ -248,7 +248,7 @@ class GATKPreprocessor(ClusterJobManager):
     libs = Library.objects.filter(code__in=libcodes)
 
     # Quick sanity check.
-    indivs = list(set([ lib.individual for lib in libs]))
+    indivs = list(set([ lib.sample.name for lib in libs]))
     if len(indivs) > 1:
       raise ValueError("Libraries come from multiple individual samples: %s"
                        % ", ".join(indivs))
@@ -271,7 +271,7 @@ class GATKPreprocessor(ClusterJobManager):
                        % ", ".join(libtypes))
 
     # Another sanity check.
-    tissues = list(set([ bam.alignment.lane.library.tissue.name for bam in bams ]))
+    tissues = list(set([ bam.alignment.lane.library.sample.tissue.name for bam in bams ]))
     if len(tissues) > 1:
       raise ValueError("Alignments found against multiple tissues: %s"
                        % ", ".join(tissues))
@@ -318,10 +318,10 @@ class GATKPreprocessor(ClusterJobManager):
                                      destnames=[ cluster_merged ])
 
     finalpref = re.sub(' ', '_', ("%s%s_%s_"
-                                  % (outprefix, lib.tissue.name, lib.libtype.code)))
+                                  % (outprefix, lib.sample.tissue.name, lib.libtype.code)))
     (finalbam, finaljob) =\
         self.submit_cluster_jobs(cluster_merged,
-                                 samplename=lib.individual,
+                                 samplename=lib.sample.name,
                                  genobj=aln.genome,
                                  outprefix=finalpref)
 

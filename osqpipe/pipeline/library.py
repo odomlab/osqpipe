@@ -113,9 +113,18 @@ class LibraryHandler(object):
     appropriate projects. It is this project link which is the sole
     reason for wrapping this method in a database transaction.
     '''
-    lib = Library(**keys)
+    sample_fields = ['tissue', 'strain', 'sex']
+    samplekeys = dict( k, v for (k, v) in keys.iteritems() if k in sample_fields )
+    samplekeys['name'] = keys['individual']
+    sample = Sample(**samplekeys)
+    
+    keys   = dict( k, v for (k, v) in keys.iteritems() if k not in sample_fields + ['individual'] )
+    lib    = Library(**keys)
+    lib.sample = sample
+    
     if not self.test_mode:
-      LOGGER.info("Saving library to database: %s", code)
+      LOGGER.info("Saving sample and library to database: %s; %s", sample.name, code)
+      sample.save()
       lib.save()
 
       # Add to the specified project(s).
@@ -160,6 +169,11 @@ class LibraryHandler(object):
     keys['code']   = code
     keys['genome'] = genome
     keys['tissue'] = tissue
+
+    # A sensible fallback to make sure samples are treated
+    # appropriately.
+    if keys['individual'] is None or keys['individual'] == '':
+      keys['individual'] = code
 
     # If we're using approximate matching, check our synonyms
     # list. Note that we *could* store these directly in the
@@ -248,7 +262,8 @@ class LibraryHandler(object):
                          code)
           return
 
-    # Write the library to the database in a managed transaction.
+    # Write the sample and library to the database in a managed
+    # transaction. This method knows which field goes where.
     lib = self._save_lib_to_database(code, keys, projects)
 
     return lib

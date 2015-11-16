@@ -62,14 +62,14 @@ class LibraryListView(FilterMixin, FormListView):
   allowed_filters = {
     'code'     : 'code__icontains',
     'libtype'  : 'libtype__name__icontains',
-    'strain'   : 'strain__name__icontains',
+    'strain'   : 'sample__strain__name__icontains',
     'genome'   : 'genome__code__icontains',
-    'tissue'   : 'tissue__name__icontains',
-    'sex'      : 'sex__name__iexact', # otherwise 'male' is not a useful search term.
+    'tissue'   : 'sample__tissue__name__icontains',
+    'sex'      : 'sample__sex__name__iexact', # otherwise 'male' is not a useful search term.
     'factor'   : 'factor__name__icontains',
     'antibody' : 'antibody__name__icontains',
     'experiment' : 'chipsample__icontains',
-    'individual' : 'individual__icontains',
+    'individual' : 'sample__name__icontains',
     'genomicsid' : 'lane__genomicssampleid__icontains',
     'flowcell'   : 'lane__flowcell__icontains',
     'accession'  : 'lane__external_records__accession__icontains',
@@ -97,13 +97,14 @@ class LibraryListView(FilterMixin, FormListView):
     # clause allows us to greatly reduce the number of SQL queries a
     # given page view triggers.
     self.queryset = Library.objects\
-        .select_related('genome', 'tissue', 'libtype', 'strain', 'factor', 'antibody')\
+        .select_related('genome', 'libtype', 'factor', 'antibody')\
         .prefetch_related('lane_set', 'lane_set__facility', 'lane_set__lanefile_set',
                           'lane_set__alignment_set', 'lane_set__alignment_set__genome',
                           'lane_set__alignment_set__provenance__program', 'lane_set__alignment_set__lane',
                           'lane_set__lanefile_set__filetype',
                           'lane_set__alignment_set__alnfile_set',
-                          'lane_set__alignment_set__alnfile_set__filetype')\
+                          'lane_set__alignment_set__alnfile_set__filetype',
+                          'sample', 'sample__tissue', 'sample__strain')\
         .filter(projects=self._project)\
         .order_by('extra__code_text_prefix',
                   'extra__code_numeric_suffix')

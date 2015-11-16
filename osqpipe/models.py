@@ -231,18 +231,32 @@ class Project(ControlledVocab):
     db_table = u'project'
     ordering = ['name']
 
+class Sample(models.Model):
+  name         = models.CharField(max_length=64, unique=True)
+  tissue       = models.ForeignKey(Tissue, on_delete=models.PROTECT)
+  strain       = models.ForeignKey(Strain, on_delete=models.PROTECT, null=True, blank=True)
+  sex          = models.ForeignKey(Sex, on_delete=models.PROTECT, null=True, blank=True)
+
+  def __unicode__(self):
+    return self.name
+
+  class Meta:
+    db_table = u'sample'
+    ordering = ['name']
+
 class Library(models.Model):
   code         = models.CharField(max_length=128, unique=True,
                                   validators=[validate_library_code])
   genome       = models.ForeignKey(Genome, on_delete=models.PROTECT,
                                    help_text="The genome against which the sequence"
                                    + " data from this library should be aligned.")
-  tissue       = models.ForeignKey(Tissue, on_delete=models.PROTECT)
+  sample       = models.ForeignKey(Sample, on_delete=models.PROTECT)
+#  tissue       = models.ForeignKey(Tissue, on_delete=models.PROTECT)
   antibody     = models.ForeignKey(Antibody, on_delete=models.PROTECT, null=True, blank=True)
-  individual   = models.CharField(max_length=255, null=True, blank=True)
+#  individual   = models.CharField(max_length=255, null=True, blank=True)
   factor       = models.ForeignKey(Factor, on_delete=models.PROTECT, null=True, blank=True)
-  strain       = models.ForeignKey(Strain, on_delete=models.PROTECT, null=True, blank=True)
-  sex          = models.ForeignKey(Sex, on_delete=models.PROTECT, null=True, blank=True)
+#  strain       = models.ForeignKey(Strain, on_delete=models.PROTECT, null=True, blank=True)
+#  sex          = models.ForeignKey(Sex, on_delete=models.PROTECT, null=True, blank=True)
   bad          = models.BooleanField(default=False)
   projects     = models.ManyToManyField(Project, db_table='library_project', related_name='libraries')
   libtype      = models.ForeignKey(Libtype, on_delete=models.PROTECT)
@@ -264,10 +278,10 @@ class Library(models.Model):
     """
     fac = self.factor.name   if self.factor     else 'unk'
     ant = self.antibody.name if self.antibody   else 'unk'
-    ind = self.individual    if self.individual else ''
-    sta = self.strain.name   if self.strain     else ''
+    ind = self.sample.name
+    sta = self.sample.strain.name if self.sample.strain  else ''
 
-    tis = self.tissue.name
+    tis = self.sample.tissue.name
     gen = self.genome.code
 
     return("%s_%s_%s_%s_%s%s%s"

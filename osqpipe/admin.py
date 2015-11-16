@@ -159,6 +159,17 @@ class LibfileAdmin(admin.ModelAdmin):
 admin.site.register(Libfile, LibfileAdmin)
 
 #############################################
+class SampleAdmin(admin.ModelAdmin):
+  list_display       = ('__unicode__', 'strain', 'tissue', 'sex')
+
+  search_fields  = ('name', 'strain__name', 'sex__name',
+                    'tissue__name')
+
+  fields = ('name', 'strain', 'tissue', 'sex')
+  
+admin.site.register(Sample, SampleAdmin)
+
+#############################################
 class LibraryAdminForm(forms.ModelForm):
 
   '''A custom form allowing us to override the default height of
@@ -173,19 +184,20 @@ class LibraryAdminForm(forms.ModelForm):
 class LibraryAdmin(admin.ModelAdmin):
   form = LibraryAdminForm
   
-  list_display       = ('__unicode__', 'genome_link', 'libtype', 'chipsample', 'strain',
-                        'individual', 'tissue', 'factor', 'antibody')
+  list_display       = ('__unicode__', 'genome_link', 'libtype', 'chipsample',
+                        'sample_link', 'factor', 'antibody')
 
-  search_fields  = ('code', 'genome__code', 'libtype__name', 'sex__name',
-                    'strain__name', 'individual', 'chipsample',
-                    'factor__name', 'tissue__name', 'antibody__name')
+  search_fields  = ('code', 'genome__code', 'libtype__name', 'sample__sex__name',
+                    'sample__strain__name', 'sample__name', 'chipsample',
+                    'factor__name', 'sample__tissue__name', 'antibody__name')
 
   fieldsets = [
     (None,
      {'fields': ['code'] }),
     ('Sample Annotation',
-     {'fields': ['strain', 'individual', 'tissue', 'sex',
-                 'factor', 'antibody'] }),
+     {'fields': ['sample'] }),
+    ('Library Details',
+     {'fields': ['factor', 'antibody'] }),
     ('Technical Info',
      {'fields': ['libtype', 'genome', 'paired',
                  'adapter', 'linkerset', 'barcode', 'bad']}),
@@ -193,6 +205,9 @@ class LibraryAdmin(admin.ModelAdmin):
      {'fields': ['projects', 'chipsample', 'comment']})
     ]
 
+  def sample_link(self, obj):
+    url = reverse('admin:osqpipe_sample_change', args=(obj.sample.pk,))
+    return '<a href="%s">%s</a>' % (url, obj.sample)
   def genome_link(self, obj):
     url = reverse('admin:osqpipe_genome_change', args=(obj.genome.pk,))
     return '<a href="%s">%s</a>' % (url, obj.genome)

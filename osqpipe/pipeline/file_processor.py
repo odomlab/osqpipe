@@ -450,13 +450,13 @@ class GenericFileProcessor(object):
     # If RNA-Seq, align using tophat2. If not, use our default bwa.
     if self.library.libtype.code == 'rnaseq':
       aligner = FastqTophatAligner(test_mode=self.test_mode,
-                                   samplename=self.library.individual,
+                                   samplename=self.library.sample.name,
                                    finaldir=repo_incoming)
       if nocc is not None:
         LOGGER.warning("Unsupported attempt to run tophat2 with read reallocation.")
     else:
       aligner = FastqBwaAligner(test_mode=self.test_mode,
-                                samplename=self.library.individual,
+                                samplename=self.library.sample.name,
                                 finaldir=repo_incoming)
     
     aligner.align_standalone(filepaths=tfiles,
