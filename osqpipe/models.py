@@ -104,6 +104,7 @@ class Genome(ControlledVocab):
   notes        = models.TextField(null=True, blank=True)
   version      = models.CharField(max_length=255, null=True, blank=True)
   url          = models.CharField(max_length=256, null=True, blank=True)
+  taxonomy_id  = models.IntegerField()
 
   _controlled_field = 'code'
   
