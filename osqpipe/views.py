@@ -62,10 +62,10 @@ class LibraryListView(FilterMixin, FormListView):
   allowed_filters = {
     'code'     : 'code__icontains',
     'libtype'  : 'libtype__name__icontains',
-    'strain'   : 'sample__strain__name__icontains',
+    'strain'   : 'sample__source__strain__name__icontains',
     'genome'   : 'genome__code__icontains',
     'tissue'   : 'sample__tissue__name__icontains',
-    'sex'      : 'sample__sex__name__iexact', # otherwise 'male' is not a useful search term.
+    'sex'      : 'sample__source__sex__name__iexact', # otherwise 'male' is not a useful search term.
     'factor'   : 'factor__name__icontains',
     'antibody' : 'antibody__name__icontains',
     'experiment' : 'chipsample__icontains',
@@ -104,7 +104,8 @@ class LibraryListView(FilterMixin, FormListView):
                           'lane_set__lanefile_set__filetype',
                           'lane_set__alignment_set__alnfile_set',
                           'lane_set__alignment_set__alnfile_set__filetype',
-                          'sample', 'sample__tissue', 'sample__strain')\
+                          'sample', 'sample__tissue', 'sample__source',
+                          'sample__source__strain')\
         .filter(projects=self._project)\
         .order_by('extra__code_text_prefix',
                   'extra__code_numeric_suffix')

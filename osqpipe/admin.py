@@ -160,14 +160,23 @@ admin.site.register(Libfile, LibfileAdmin)
 
 #############################################
 class SampleAdmin(admin.ModelAdmin):
-  list_display       = ('__unicode__', 'strain', 'tissue', 'sex')
+  list_display       = ('__unicode__', 'source', 'tissue')
 
-  search_fields  = ('name', 'strain__name', 'sex__name',
-                    'tissue__name')
+  search_fields  = ('name', 'source__name', 'tissue__name')
 
-  fields = ('name', 'strain', 'tissue', 'sex')
+  fields = ('name', 'source', 'tissue')
   
 admin.site.register(Sample, SampleAdmin)
+
+#############################################
+class SourceAdmin(admin.ModelAdmin):
+  list_display       = ('__unicode__', 'strain', 'sex')
+
+  search_fields  = ('name', 'strain__name', 'sex__name')
+
+  fields = ('name', 'strain', 'sex')
+  
+admin.site.register(Source, SourceAdmin)
 
 #############################################
 class LibraryAdminForm(forms.ModelForm):

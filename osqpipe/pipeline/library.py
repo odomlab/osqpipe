@@ -11,7 +11,7 @@ import copy
 from config import Config
 
 from ..models import Factor, Genome, Antibody, Strain, Sex, Tissue, \
-    Library, Libtype, Project, Adapter, Linkerset
+    Library, Libtype, Project, Adapter, Linkerset, Sample, Source
 
 from django.db import transaction
 
@@ -111,19 +111,55 @@ class LibraryHandler(object):
     '''
     Method to save library to the database, and link it with the
     appropriate projects. It is this project link which is the sole
-    reason for wrapping this method in a database transaction.
+    reason for wrapping this method in a database transaction. Sample
+    and Source objects will be created as necessary.
     '''
-    sample_fields = ['tissue', 'strain', 'sex']
-    samplekeys = dict( k, v for (k, v) in keys.iteritems() if k in sample_fields )
-    samplekeys['name'] = keys['individual']
-    sample = Sample(**samplekeys)
+    sample_fields = ['tissue']
+    source_fields = ['strain', 'sex']
+    namefield     = 'individual'
+    samplekeys = dict( (k, v) for (k, v) in keys.iteritems() if k in sample_fields )
+    sourcekeys = dict( (k, v) for (k, v) in keys.iteritems() if k in sample_fields )
+    try:
+      sample = Sample.objects.get(name=keys[namefield])
+      for field in sample_fields:
+        # Test that the returned object agrees with what we have here,
+        # throw exception if not. This is ugly but, I think, necessary.
+        if getattr(sample, field) != samplekeys[field]:
+          raise ValueError("Probable mislabeled sample ID, Sample fields"
+                           + " disagree with database: %s" % sample.name)
+    except Sample.DoesNotExist:
+
+      # This now needs to also handle Source retrieval/creation
+      try:
+
+        # Assume source and sample names are identical for initial
+        # import. If we want to model 1 source -> n samples we'll need
+        # to fix the database manually. This is likely only to be
+        # important for the HCC project which is importing all sample
+        # data in batches anyway.
+        source = Source.objects.get(name=keys[namefield])
+        for field in source_fields:
+          if getattr(source, field) != sourcekeys[field]:
+            raise ValueError("Probable mislabeled sample ID, Source fields"
+                             + " disagree with database: %s" % source.name)
+
+      except Source.DoesNotExist:
+        sourcekeys['name'] = keys[namefield]
+        source = Source(**sourcekeys)
+
+      samplekeys['name']   = keys[namefield]
+      sample = Sample(**samplekeys)
+      sample.source = source
     
-    keys   = dict( k, v for (k, v) in keys.iteritems() if k not in sample_fields + ['individual'] )
+    keys   = dict( (k, v) for (k, v) in keys.iteritems()
+                   if k not in sample_fields + source_fields + [namefield] )
     lib    = Library(**keys)
     lib.sample = sample
     
     if not self.test_mode:
-      LOGGER.info("Saving sample and library to database: %s; %s", sample.name, code)
+      LOGGER.info("Saving source, sample and library to database: %s; %s; %s",
+                  source.name, sample.name, code)
+      source.save()
       sample.save()
       lib.save()
 
