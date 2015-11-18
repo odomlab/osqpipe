@@ -269,11 +269,6 @@ class Library(models.Model):
   adapter      = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True, related_name='libraries')
   adapter2     = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True, related_name='libraries2')
   comment      = models.TextField(null=True, blank=True)
-  birthdate    = models.DateField()
-  harvestdate  = models.DateField()
-  treatmentdate = models.DateField()
-  treatmentagent = models.CharField(max_length=128, null=True, blank=True)
-  treatmentdose = models.CharField(max_length=128, null=True, blank=True)
 
   objects      = LibraryManager()
 

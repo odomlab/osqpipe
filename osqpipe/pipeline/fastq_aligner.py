@@ -22,7 +22,7 @@ class FastqAligner(object):
 
   __slots__ = ('conf', 'test_mode', 'finaldir', 'samplename')
 
-  def __init__(self, test_mode, finaldir=None, samplename=None):
+  def __init__(self, test_mode=False, finaldir=None, samplename=None):
     self.conf = Config()
     self.test_mode = test_mode
     if test_mode:
@@ -55,7 +55,7 @@ class FastqAligner(object):
       raise StandardError("Genome code not found in database: %s" % (genome,))
     return gobj
 
-  def align(self, library, facility, lanenum, genome,
+  def align(self, library, genome, facility=None, lanenum=None,
             destnames=None, nocc=None, nocleanup=False):
 
     '''Core method to retrieve all fastq files for a given library,
@@ -104,7 +104,7 @@ class FastqAligner(object):
         LOGGER.warning(
           "No %s files found in database for lane %s. Skipping.",
           wanted_filetype, lane)
-        return
+        continue
 
       if len(files) > 1 and not lane.paired:
         raise ValueError("Multiple %s files found for single-ended lane %s."
