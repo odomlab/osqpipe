@@ -247,7 +247,7 @@ class Source(models.Model):
     db_table = u'source'
     ordering = ['name']
 
-class TreatmentUnit(ControlledVocab):
+class DoseUnit(ControlledVocab):
   name         = models.CharField(max_length=32, unique=True)
   description  = models.CharField(max_length=128)
 
@@ -257,7 +257,21 @@ class TreatmentUnit(ControlledVocab):
     return self.name
 
   class Meta:
-    db_table = u'treatment_unit'
+    db_table = u'dose_unit'
+    ordering = ['name']
+
+class TreatmentAgent(ControlledVocab):
+  name         = models.CharField(max_length=64, unique=True)
+  description  = models.CharField(max_length=256)
+  accession    = models.CharField(max_length=32)
+
+  _controlled_field = 'name'
+
+  def __unicode__(self):
+    return self.name
+
+  class Meta:
+    db_table = u'treatment_agent'
     ordering = ['name']
 
 class SourceTreatment(models.Model):
@@ -267,9 +281,9 @@ class SourceTreatment(models.Model):
   '''
   source       = models.ForeignKey(Source, on_delete=models.PROTECT)
   date         = models.DateField()
-  agent        = models.CharField(max_length=128)
+  agent        = models.ForeignKey(TreatmentAgent, on_delete=models.PROTECT)
   dose         = models.CharField(max_length=128, null=True, blank=True)
-  dose_unit    = models.ForeignKey(TreatmentUnit, on_delete=models.PROTECT,
+  dose_unit    = models.ForeignKey(DoseUnit, on_delete=models.PROTECT,
                                    null=True, blank=True)
 
   def __unicode__(self):

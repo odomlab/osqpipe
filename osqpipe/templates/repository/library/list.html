@@ -80,7 +80,7 @@ function toggleAll(name, newClass) {
         <td>{{ lib.libtype|truncatechars:10 }}</td>
         <td>{{ lib.sample.tissue|truncatechars:13 }}</td>
         <td><a class="tooltip static" href="#">{{ lib.genome|truncatechars:10 }}<span class="tooltip-classic">Requested&nbsp;Genome:&nbsp;{{ lib.genome.scientific_name.split|join:"&nbsp;" }}&nbsp;({{ lib.genome.common_name.split|join:"&nbsp;" }})</span></a></td>
-        <td>{% if library.code == library.sample.name %}&nbsp;
+        <td>{% if lib.code == lib.sample.name %}&nbsp;
             {% else %}{{ lib.sample.name|truncatechars:14 }}{% endif %}</td>
         <td>{{ lib.sample.source.strain }}</td>
         <td>{{ lib.factor }}</td>
