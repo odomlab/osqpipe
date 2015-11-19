@@ -233,12 +233,16 @@ class Project(ControlledVocab):
 
 class Source(models.Model):
   '''
+  The original source organism from which tissue was taken.
   '''
   name         = models.CharField(max_length=64, unique=True)
   strain       = models.ForeignKey(Strain, on_delete=models.PROTECT, null=True, blank=True)
   sex          = models.ForeignKey(Sex, on_delete=models.PROTECT, null=True, blank=True)
   date_of_birth = models.DateField(null=True, blank=True)
   date_of_death = models.DateField(null=True, blank=True)
+  mother       = models.ForeignKey('Source', on_delete=models.PROTECT, null=True, blank=True, related_name='child_as_mother')
+  father       = models.ForeignKey('Source', on_delete=models.PROTECT, null=True, blank=True, related_name='child_as_father')
+  comment      = models.TextField(null=True, blank=True)
 
   def __unicode__(self):
     return self.name
@@ -248,6 +252,9 @@ class Source(models.Model):
     ordering = ['name']
 
 class DoseUnit(ControlledVocab):
+  '''
+  Chemical concentration, radiation or other unit of dosage.
+  '''
   name         = models.CharField(max_length=32, unique=True)
   description  = models.CharField(max_length=128)
 
@@ -261,6 +268,10 @@ class DoseUnit(ControlledVocab):
     ordering = ['name']
 
 class TreatmentAgent(ControlledVocab):
+  '''
+  Chemical or other agent used to treat a Source organism prior to
+  taking a Sample.
+  '''
   name         = models.CharField(max_length=64, unique=True)
   description  = models.CharField(max_length=256)
   accession    = models.CharField(max_length=32)
@@ -302,9 +313,13 @@ class SourceTreatment(models.Model):
     unique_together = ['source', 'date', 'agent']
 
 class Sample(models.Model):
+  '''
+  A tissue sample taken from a Source organism.
+  '''
   name         = models.CharField(max_length=64)
   tissue       = models.ForeignKey(Tissue, on_delete=models.PROTECT)
   source       = models.ForeignKey(Source, on_delete=models.PROTECT)
+  comment      = models.TextField(null=True, blank=True)
 
   def __unicode__(self):
     return self.name
