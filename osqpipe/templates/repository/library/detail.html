@@ -25,11 +25,12 @@
       <td>{% with gen=library.genome %}
         {{ gen }} ({{ gen.scientific_name }}; {{ gen.common_name }}; version: {{ gen.version }})
         {% endwith %}</td></tr>
-    <tr><th>Strain: </th><td>{{ library.strain }}</td></tr>
-    <tr><th>Tissue: </th><td>{{ library.tissue }}</td></tr>
-    <tr><th>Sex: </th><td>{{ library.sex }}</td></tr>
+    <tr><th>Strain: </th><td>{{ library.sample.source.strain }}</td></tr>
+    <tr><th>Tissue: </th><td>{{ library.sample.tissue }}</td></tr>
+    <tr><th>Sex: </th><td>{{ library.sample.source.sex }}</td></tr>
     <tr><th>Antibody: </th><td>{{ library.antibody }}</td></tr>
-    <tr><th>Individual: </th><td>{{ library.individual }}</td></tr>
+    <tr><th>Individual: </th><td>{% if library.code == library.sample.name %}&nbsp;
+                                 {% else %}{{ library.sample.name }}{% endif %}</td></tr>
     <tr><th>Factor: </th><td>{{ library.factor }}</td></tr>
     <tr><th>Library type: </th><td>{{ library.libtype }}</td></tr>
     <tr><th>Barcode: </th><td>{{ library.barcode }}</td></tr>

@@ -2,7 +2,7 @@
 
 '''
 Script used to update HCC project bam files such that the sample tag
-reflects library.individual. Currently in testing; we may wish to
+reflects library.sample.name. Currently in testing; we may wish to
 extend the tag to include tumour number as well as mouse ID.
 '''
 
@@ -57,7 +57,7 @@ def update_library_bam_readgroups(libcode):
            'INPUT=%s'  % bam.repository_file_path,
            'OUTPUT=%s' % tmpfile,
            'RGLB=%s'   % lib.code,
-           'RGSM=%s'   % lib.individual,
+           'RGSM=%s'   % lib.sample.name,
            'RGCN=%s'   % bam.alignment.lane.facility.code,
            'RGPU=%d'   % int(bam.alignment.lane.lanenum),
            'RGPL=illumina') + common_args

@@ -247,18 +247,113 @@ class Project(ControlledVocab):
     db_table = u'project'
     ordering = ['name']
 
+class Source(models.Model):
+  '''
+  The original source organism from which tissue was taken.
+  '''
+  name         = models.CharField(max_length=64, unique=True)
+  strain       = models.ForeignKey(Strain, on_delete=models.PROTECT, null=True, blank=True)
+  sex          = models.ForeignKey(Sex, on_delete=models.PROTECT, null=True, blank=True)
+  date_of_birth = models.DateField(null=True, blank=True)
+  date_of_death = models.DateField(null=True, blank=True)
+  mother       = models.ForeignKey('Source', on_delete=models.PROTECT, null=True, blank=True, related_name='child_as_mother')
+  father       = models.ForeignKey('Source', on_delete=models.PROTECT, null=True, blank=True, related_name='child_as_father')
+  comment      = models.TextField(null=True, blank=True)
+
+  def __unicode__(self):
+    return self.name
+
+  class Meta:
+    db_table = u'source'
+    ordering = ['name']
+
+class DoseUnit(ControlledVocab):
+  '''
+  Chemical concentration, radiation or other unit of dosage.
+  '''
+  name         = models.CharField(max_length=32, unique=True)
+  description  = models.CharField(max_length=128)
+
+  _controlled_field = 'name'
+  
+  def __unicode__(self):
+    return self.name
+
+  class Meta:
+    db_table = u'dose_unit'
+    ordering = ['name']
+
+class TreatmentAgent(ControlledVocab):
+  '''
+  Chemical or other agent used to treat a Source organism prior to
+  taking a Sample.
+  '''
+  name         = models.CharField(max_length=64, unique=True)
+  description  = models.CharField(max_length=256)
+  accession    = models.CharField(max_length=32)
+
+  _controlled_field = 'name'
+
+  def __unicode__(self):
+    return self.name
+
+  class Meta:
+    db_table = u'treatment_agent'
+    ordering = ['name']
+
+class SourceTreatment(models.Model):
+  '''
+  Each Source (i.e., originating organism) may be treated multiple
+  times in multiple ways.
+  '''
+  source       = models.ForeignKey(Source, on_delete=models.PROTECT)
+  date         = models.DateField()
+  agent        = models.ForeignKey(TreatmentAgent, on_delete=models.PROTECT)
+  dose         = models.CharField(max_length=128, null=True, blank=True)
+  dose_unit    = models.ForeignKey(DoseUnit, on_delete=models.PROTECT,
+                                   null=True, blank=True)
+
+  def __unicode__(self):
+    retval = "%s %s" % (self.date, self.agent)
+    if self.dose is not None:
+      retval += " (%s" % self.dose
+      if self.dose_unit is not None:
+        retval += " %s)" % self.dose_unit
+      else:
+        retval += ")"
+    return retval
+
+  class Meta:
+    db_table = u'source_treatment'
+    ordering = ['date', 'agent']
+    unique_together = ['source', 'date', 'agent']
+
+class Sample(models.Model):
+  '''
+  A tissue sample taken from a Source organism.
+  '''
+  name         = models.CharField(max_length=64)
+  tissue       = models.ForeignKey(Tissue, on_delete=models.PROTECT)
+  source       = models.ForeignKey(Source, on_delete=models.PROTECT)
+  comment      = models.TextField(null=True, blank=True)
+
+  def __unicode__(self):
+    return self.name
+
+  class Meta:
+    db_table = u'sample'
+    ordering = ['name']
+    unique_together = ['name', 'tissue']
+
 class Library(models.Model):
   code         = models.CharField(max_length=128, unique=True,
                                   validators=[validate_library_code])
   genome       = models.ForeignKey(Genome, on_delete=models.PROTECT,
                                    help_text="The genome against which the sequence"
                                    + " data from this library should be aligned.")
-  tissue       = models.ForeignKey(Tissue, on_delete=models.PROTECT)
+  sample       = models.ForeignKey(Sample, on_delete=models.PROTECT)
   antibody     = models.ForeignKey(Antibody, on_delete=models.PROTECT, null=True, blank=True)
-  individual   = models.CharField(max_length=255, null=True, blank=True)
   factor       = models.ForeignKey(Factor, on_delete=models.PROTECT, null=True, blank=True)
-  strain       = models.ForeignKey(Strain, on_delete=models.PROTECT, null=True, blank=True)
-  sex          = models.ForeignKey(Sex, on_delete=models.PROTECT, null=True, blank=True)
   bad          = models.BooleanField(default=False)
   projects     = models.ManyToManyField(Project, db_table='library_project', related_name='libraries')
   libtype      = models.ForeignKey(Libtype, on_delete=models.PROTECT)
@@ -280,10 +375,10 @@ class Library(models.Model):
     """
     fac = self.factor.name   if self.factor     else 'unk'
     ant = self.antibody.name if self.antibody   else 'unk'
-    ind = self.individual    if self.individual else ''
-    sta = self.strain.name   if self.strain     else ''
+    ind = self.sample.name
+    sta = self.sample.strain.name if self.sample.strain  else ''
 
-    tis = self.tissue.name
+    tis = self.sample.tissue.name
     gen = self.genome.code
 
     return("%s_%s_%s_%s_%s%s%s"

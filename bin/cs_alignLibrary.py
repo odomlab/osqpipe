@@ -47,9 +47,9 @@ if __name__ == '__main__':
   # tailor this to other aligners in future.
   library = Library.objects.get(code=ARGS.library)
   if library.libtype.code == 'rnaseq':
-    BWA = FastqTophatAligner(test_mode=ARGS.testMode, samplename=library.individual)
+    BWA = FastqTophatAligner(test_mode=ARGS.testMode, samplename=library.sample.name)
   else:
-    BWA = FastqBwaAligner(test_mode=ARGS.testMode, samplename=library.individual)
+    BWA = FastqBwaAligner(test_mode=ARGS.testMode, samplename=library.sample.name)
   
   BWA.align(library = ARGS.library,
             facility = ARGS.facility,
