@@ -328,6 +328,22 @@ class SourceTreatment(models.Model):
     ordering = ['date', 'agent']
     unique_together = ['source', 'date', 'agent']
 
+class TumourGrading(ControlledVocab):
+  '''
+  A tumour grading applied to the sample.
+  '''
+  name         = models.CharField(max_length=64, unique=True)
+  description  = models.CharField(max_length=256)
+
+  _controlled_name = 'name'
+
+  def __unicode__(self):
+    return self.name
+
+  class Meta:
+    db_table = u'tumour_grading'
+    ordering = ['name']
+
 class Sample(models.Model):
   '''
   A tissue sample taken from a Source organism.
@@ -335,6 +351,8 @@ class Sample(models.Model):
   name         = models.CharField(max_length=64)
   tissue       = models.ForeignKey(Tissue, on_delete=models.PROTECT)
   source       = models.ForeignKey(Source, on_delete=models.PROTECT)
+  tumour_grading = models.ForeignKey(TumourGrading, on_delete=models.PROTECT,
+                                     null=True, blank=True)
   comment      = models.TextField(null=True, blank=True)
 
   def __unicode__(self):
@@ -376,7 +394,7 @@ class Library(models.Model):
     fac = self.factor.name   if self.factor     else 'unk'
     ant = self.antibody.name if self.antibody   else 'unk'
     ind = self.sample.name
-    sta = self.sample.strain.name if self.sample.strain  else ''
+    sta = self.sample.source.strain.name if self.sample.source.strain  else ''
 
     tis = self.sample.tissue.name
     gen = self.genome.code

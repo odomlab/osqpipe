@@ -162,9 +162,9 @@ admin.site.register(Libfile, LibfileAdmin)
 class SampleAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'source', 'tissue')
 
-  search_fields  = ('name', 'source__name', 'tissue__name')
+  search_fields  = ('name', 'source__name', 'tissue__name', 'tumour_grading__name')
 
-  fields = ('name', 'source', 'tissue')
+  fields = ('name', 'source', 'tissue', 'tumour_grading')
   
 admin.site.register(Sample, SampleAdmin)
 
@@ -174,9 +174,20 @@ class SourceAdmin(admin.ModelAdmin):
 
   search_fields  = ('name', 'strain__name', 'sex__name')
 
-  fields = ('name', 'strain', 'sex')
+  fields = ('name', 'strain', 'sex', 'date_of_birth',
+            'date_of_death', 'mother', 'father', 'comment')
   
 admin.site.register(Source, SourceAdmin)
+
+#############################################
+class SourceTreatmentAdmin(admin.ModelAdmin):
+  list_display       = ('source', 'agent', 'dose', 'dose_unit')
+
+  search_fields  = ('source', 'agent')
+
+  fields = ('agent', 'date', 'dose', 'dose_unit')
+  
+admin.site.register(SourceTreatment, SourceTreatmentAdmin)
 
 #############################################
 class LibraryAdminForm(forms.ModelForm):
@@ -356,6 +367,27 @@ class TissueAdmin(admin.ModelAdmin):
   search_fields = ('name', 'description')
 
 admin.site.register(Tissue, TissueAdmin)
+
+#############################################
+class DoseUnitAdmin(admin.ModelAdmin):
+  list_display = ('__unicode__', 'description')
+  search_fields = ('name', 'description')
+
+admin.site.register(DoseUnit, DoseUnitAdmin)
+
+#############################################
+class TumourGradingAdmin(admin.ModelAdmin):
+  list_display = ('__unicode__', 'description')
+  search_fields = ('name', 'description')
+
+admin.site.register(TumourGrading, TumourGradingAdmin)
+
+#############################################
+class TreatmentAgentAdmin(admin.ModelAdmin):
+  list_display = ('__unicode__', 'description', 'accession')
+  search_fields = ('name', 'description', 'accession')
+
+admin.site.register(TreatmentAgent, TreatmentAgentAdmin)
 
 #############################################
 class ExternalRecordAdmin(admin.ModelAdmin):
