@@ -143,22 +143,6 @@ class LanefileAdmin(admin.ModelAdmin):
 admin.site.register(Lanefile, LanefileAdmin)
 
 #############################################
-class LibfileAdmin(admin.ModelAdmin):
-  list_display       = ('__unicode__', 'library_link', 'filetype')
-
-  search_fields = ('filename', 'library__code', 'filetype__name')
-
-  fields = ('filename', 'library', 'checksum',
-            'filetype', 'description')
-
-  def library_link(self, obj):
-    url = reverse('admin:osqpipe_library_change', args=(obj.library.pk,))
-    return '<a href="%s">%s</a>' % (url, obj.library)
-  library_link.allow_tags = True
-  
-admin.site.register(Libfile, LibfileAdmin)
-
-#############################################
 class SampleAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'source', 'tissue')
 
@@ -339,6 +323,23 @@ class QCfileAdmin(admin.ModelAdmin):
   laneqc_link.allow_tags = True
 
 admin.site.register(QCfile, QCfileAdmin)
+
+#############################################
+class HistologyImagefileAdmin(admin.ModelAdmin):
+  list_display       = ('__unicode__', 'sample_link', 'filetype')
+
+  search_fields   = ('filename', 'filetype__name')
+  readonly_fields = ('sample', 'date')
+  
+  fields = ('filename', 'checksum', 'filetype',
+            'sample', 'date', 'block', 'image', 'description')
+
+  def sample_link(self, obj):
+    url = reverse('admin:osqpipe_sample_change', args=(obj.sample.pk,))
+    return '<a href="%s">%s</a>' % (url, obj.sample)
+  sample_link.allow_tags = True
+
+admin.site.register(HistologyImagefile, HistologyImagefileAdmin)
 
 #############################################
 class StatusAdmin(admin.ModelAdmin):
