@@ -789,18 +789,21 @@ class MergedAlnfile(Datafile):
     db_table = u'merged_alnfile'
     ordering = ['filename']
 
-class Libfile(models.Model):
-  library      = models.ForeignKey(Library, on_delete=models.PROTECT)
-  filename     = models.CharField(max_length=1024, unique=True)
-  checksum     = models.CharField(max_length=128)
-  filetype     = models.ForeignKey(Filetype, on_delete=models.PROTECT)
-  description  = models.TextField(null=True, blank=True)
+class HistologyImagefile(Datafile):
+  sample    = models.ForeignKey(Sample, on_delete=models.PROTECT)
+  block     = models.CharField(max_length=32)
+  image     = models.CharField(max_length=32)
 
-  def __unicode__(self):
-    return self.filename
+  @property
+  def repository_file_path(self):
+    fname   = self.filename
+    if self.filetype.gzip:
+      fname += CONFIG.gzsuffix
 
+    return os.path.join(self.repository_root, CONFIG.histology_image_dir, fname)
+    
   class Meta:
-    db_table = u'libfile'
+    db_table = u'histology_imagefile'
     ordering = ['filename']
 
 # FIXME could also be deprecated, might conceivably be useful though.
