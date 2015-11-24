@@ -148,6 +148,7 @@ class SampleAdmin(admin.ModelAdmin):
 
   search_fields  = ('name', 'source__name', 'tissue__name', 'tumour_grading__name')
 
+  readonly_fields = ('source',)
   fields = ('name', 'source', 'tissue', 'tumour_grading')
   
 admin.site.register(Sample, SampleAdmin)
@@ -332,7 +333,7 @@ class HistologyImagefileAdmin(admin.ModelAdmin):
   readonly_fields = ('sample', 'date')
   
   fields = ('filename', 'checksum', 'filetype',
-            'sample', 'date', 'block', 'image', 'description')
+            'sample', 'date', 'block', 'batch', 'description')
 
   def sample_link(self, obj):
     url = reverse('admin:osqpipe_sample_change', args=(obj.sample.pk,))

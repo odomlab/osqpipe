@@ -792,7 +792,7 @@ class MergedAlnfile(Datafile):
 class HistologyImagefile(Datafile):
   sample    = models.ForeignKey(Sample, on_delete=models.PROTECT)
   block     = models.CharField(max_length=32)
-  image     = models.CharField(max_length=32)
+  batch     = models.CharField(max_length=32)
 
   @property
   def repository_file_path(self):
