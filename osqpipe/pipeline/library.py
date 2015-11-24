@@ -118,7 +118,7 @@ class LibraryHandler(object):
     source_fields = ['strain', 'sex']
     namefield     = 'individual'
     samplekeys = dict( (k, v) for (k, v) in keys.iteritems() if k in sample_fields )
-    sourcekeys = dict( (k, v) for (k, v) in keys.iteritems() if k in sample_fields )
+    sourcekeys = dict( (k, v) for (k, v) in keys.iteritems() if k in source_fields )
     try:
       sample = Sample.objects.get(name=keys[namefield])
       for field in sample_fields:
@@ -208,8 +208,9 @@ class LibraryHandler(object):
 
     # A sensible fallback to make sure samples are treated
     # appropriately.
-    if keys['individual'] is None or keys['individual'] == '':
-      keys['individual'] = code
+    indivkey = 'individual'
+    if indivkey not in keys or keys[indivkey] is None or keys[indivkey] == '':
+      keys[indivkey] = code
 
     # If we're using approximate matching, check our synonyms
     # list. Note that we *could* store these directly in the
