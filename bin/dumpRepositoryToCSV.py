@@ -168,8 +168,13 @@ class RepositoryDumper(object):
       # filter out virtual lanes (where passedpf=NULL).
       lanes = Lane.objects\
           .select_related('facility', 'library')\
-          .prefetch_related('library__genome', 'library__tissue','library__libtype',
-                            'library__strain','library__factor','library__antibody',
+          .prefetch_related('library__genome','library__libtype',
+                            'library__factor','library__antibody',
+                            'library__sample',
+                            'library__sample__tissue',
+                            'library__sample__source',
+                            'library__sample__source__strain',
+                            'library__sample__source__sex',
                             'lanefile_set', 'lanefile_set__filetype',
                             'laneqc_set', 'laneqc_set__qcfile_set',
                             'laneqc_set__qcfile_set__filetype',

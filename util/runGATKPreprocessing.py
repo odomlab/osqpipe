@@ -36,17 +36,29 @@ if __name__ == '__main__':
   PARSER = ArgumentParser(description=\
                'Script to initiate the HCC GATK preprocessing pipeline.')
   
-  PARSER.add_argument('libraries', metavar='<libcodes>', type=str, nargs='*',
-                      help='The names of the libraries to merge and load'
-                      + ' into the pipeline. All the files on the command'
-                      + ' line should come from the same HCC nodule. Either this'
-                      + ' or the --merged-bam argument must be supplied.')
-
   PARSER.add_argument('-g', '--genome', dest='genome', type=str, required=False,
                       help='The alignment genome used to filter the input files.')
 
-  PARSER.add_argument('-m', '--merged-bam', dest='mergedbam', type=str, required=False,
-                      help='The (optional) name of a merged bam file to use instead of library codes.')
+  GROUP = PARSER.add_mutually_exclusive_group(required=True)
+
+  # I'd personally love to have this on GROUP, but it's not compatible
+  # with nargs='*' and insists on nargs='?'. I personally think this
+  # is a bug in argparse.
+  PARSER.add_argument('libraries', metavar='<libcodes>', type=str, nargs='*',
+                      help='The names of the libraries to merge and load'
+                      + ' into the pipeline. All the files on the command'
+                      + ' line should come from the same HCC nodule. Either this,'
+                      + ' the --sample, '
+                      + ' or the --merged-bam arguments must be supplied.')
+
+  GROUP.add_argument('-s', '--sample', dest='sample', type=str,
+                     help='The Sample ID to process; all libraries linked'
+                     + ' to this sample (optionally filtered by genome)'
+                     + ' will be combined.')
+
+  GROUP.add_argument('-m', '--merged-bam', dest='mergedbam', type=str,
+                     help='The name of a merged bam file to use instead'
+                     + ' of library codes or sample ID.')
 
   ARGS = PARSER.parse_args()
 
@@ -54,5 +66,7 @@ if __name__ == '__main__':
 
   if ARGS.mergedbam is not None:
     PROC.gatk_preprocess_bam(ARGS.mergedbam)
+  elif ARGS.sample is not None:
+    PROC.gatk_preprocess_sample(ARGS.sample, genome=ARGS.genome)
   else:
     PROC.gatk_preprocess_libraries(ARGS.libraries, genome=ARGS.genome)
