@@ -467,6 +467,7 @@ class ExternalRecord(ControlledVocab):
   accession    = models.CharField(max_length=32, unique=True)
   repository   = models.ForeignKey(ExternalRepository, on_delete=models.PROTECT)
   is_public    = models.BooleanField(default=False)
+  release_date = models.DateField()
 
   _controlled_field = 'accession'
   
