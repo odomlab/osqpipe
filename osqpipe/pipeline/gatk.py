@@ -240,13 +240,15 @@ class GATKPreprocessor(ClusterJobManager):
     if not os.path.exists(output_fn):
       raise StandardError("Merged output file does not exist: %s", output_fn)
 
-  def gatk_preprocess_sample(self, sample, genome=None,
+  def gatk_preprocess_sample(self, sample, genome=None, libtype=None,
                              outprefix=OUTPREF):
     '''
     Convenience method to look up all the libraries for a sample and
     submit them to gatk_preprocess_libraries.
     '''
     libs = Library.objects.filter(sample__name=sample)
+    if libtype is not None:
+      libs = libs.filter(libtype__code__iexact=libtype)
     libcodes = [ lib.code for lib in libs ]
     self.gatk_preprocess_libraries(libcodes, genome, outprefix)
 

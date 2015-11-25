@@ -39,6 +39,9 @@ if __name__ == '__main__':
   PARSER.add_argument('-g', '--genome', dest='genome', type=str, required=False,
                       help='The alignment genome used to filter the input files.')
 
+  PARSER.add_argument('-l', '--libtype', dest='libtype', type=str, required=False,
+                      help='The library type (genome, exome) used to filter the input files.')
+
   GROUP = PARSER.add_mutually_exclusive_group(required=True)
 
   # I'd personally love to have this on GROUP, but it's not compatible
@@ -53,7 +56,7 @@ if __name__ == '__main__':
 
   GROUP.add_argument('-s', '--sample', dest='sample', type=str,
                      help='The Sample ID to process; all libraries linked'
-                     + ' to this sample (optionally filtered by genome)'
+                     + ' to this sample (optionally filtered by genome and library type)'
                      + ' will be combined.')
 
   GROUP.add_argument('-m', '--merged-bam', dest='mergedbam', type=str,
@@ -67,6 +70,6 @@ if __name__ == '__main__':
   if ARGS.mergedbam is not None:
     PROC.gatk_preprocess_bam(ARGS.mergedbam)
   elif ARGS.sample is not None:
-    PROC.gatk_preprocess_sample(ARGS.sample, genome=ARGS.genome)
+    PROC.gatk_preprocess_sample(ARGS.sample, genome=ARGS.genome, libtype=ARGS.libtype)
   else:
     PROC.gatk_preprocess_libraries(ARGS.libraries, genome=ARGS.genome)
