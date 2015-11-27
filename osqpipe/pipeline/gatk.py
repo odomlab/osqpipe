@@ -249,6 +249,10 @@ class GATKPreprocessor(ClusterJobManager):
     libs = Library.objects.filter(sample__name=sample)
     if libtype is not None:
       libs = libs.filter(libtype__code__iexact=libtype)
+    if libs.count() == 0:
+      raise StandardError("No libraries found for sample %s (libtype %s)"
+                          % (sample, libtype))
+
     libcodes = [ lib.code for lib in libs ]
     self.gatk_preprocess_libraries(libcodes, genome, outprefix)
 
@@ -261,6 +265,9 @@ class GATKPreprocessor(ClusterJobManager):
     all against the same genome.
     '''
     libs = Library.objects.filter(code__in=libcodes)
+
+    if libs.count() == 0:
+      raise StandardError("No libraries match libcodes %s" % ",".join(libcodes))
 
     # Quick sanity check.
     indivs = list(set([ lib.sample.name for lib in libs]))
