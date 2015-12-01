@@ -149,18 +149,18 @@ class LibraryHandler(object):
 
       samplekeys['name']   = keys[namefield]
       sample = Sample(**samplekeys)
-      sample.source = source
     
     keys   = dict( (k, v) for (k, v) in keys.iteritems()
                    if k not in sample_fields + source_fields + [namefield] )
     lib    = Library(**keys)
-    lib.sample = sample
     
     if not self.test_mode:
       LOGGER.info("Saving source, sample and library to database: %s; %s; %s",
                   source.name, sample.name, code)
       source.save()
+      sample.source = source
       sample.save()
+      lib.sample = sample
       lib.save()
 
       # Add to the specified project(s).
