@@ -42,7 +42,7 @@ if __name__ == '__main__':
   PARSER.add_argument('-l', '--libtype', dest='libtype', type=str, required=False,
                       help='The library type (genome, exome) used to filter the input files.')
 
-  GROUP = PARSER.add_mutually_exclusive_group(required=True)
+  GROUP = PARSER.add_mutually_exclusive_group(required=False)
 
   # I'd personally love to have this on GROUP, but it's not compatible
   # with nargs='*' and insists on nargs='?'. I personally think this
