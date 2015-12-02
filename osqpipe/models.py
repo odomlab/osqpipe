@@ -393,7 +393,7 @@ class Library(models.Model):
     """
     fac = self.factor.name   if self.factor     else 'unk'
     ant = self.antibody.name if self.antibody   else 'unk'
-    ind = self.sample.name
+    ind = self.sample.name   if self.sample.name != self.code else ''
     sta = self.sample.source.strain.name if self.sample.source.strain  else ''
 
     tis = self.sample.tissue.name

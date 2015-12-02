@@ -244,6 +244,13 @@ class LinkersetAdmin(admin.ModelAdmin):
 admin.site.register(Linkerset, LinkersetAdmin)
 
 #############################################
+class MachineAdmin(admin.ModelAdmin):
+  list_display = ('code', 'platform', 'name')
+  fields       = ('code', 'platform', 'name')
+
+admin.site.register(Machine, MachineAdmin)
+
+#############################################
 class PeakcallingAdmin(admin.ModelAdmin):
   # FIXME provenance here also.
   list_display    = ('code',
