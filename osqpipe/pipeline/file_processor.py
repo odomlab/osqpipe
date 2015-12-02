@@ -382,7 +382,11 @@ class GenericFileProcessor(object):
         self.lane.rundate = date(2008, 1, 1)
       return
     self.lane.rundate = lims_fc.finish_date
-    self.lane.machine = lims_fc.instrument
+    try:
+      machine = Machine.objects.get(code=lims_fc.instrument)
+    except:
+      sys.exit("Sequencing machine '%s' missing in repository!" % lims_fc.instrument)
+    self.lane.machine = machine
     lims_lane = lims_fc.get_sample_lane(self.flowlane, self.libcode)
     if lims_lane != None:
       self.lane.usersampleid = lims_lane.user_sample_id
