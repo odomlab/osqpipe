@@ -119,8 +119,10 @@ class LibraryHandler(object):
     namefield     = 'individual'
     samplekeys = dict( (k, v) for (k, v) in keys.iteritems() if k in sample_fields )
     sourcekeys = dict( (k, v) for (k, v) in keys.iteritems() if k in source_fields )
+    sample_exists = False
     try:
       sample = Sample.objects.get(name=keys[namefield])
+      sample_exists = True
       for field in sample_fields:
         # Test that the returned object agrees with what we have here,
         # throw exception if not. This is ugly but, I think, necessary.
@@ -155,11 +157,13 @@ class LibraryHandler(object):
     lib    = Library(**keys)
     
     if not self.test_mode:
-      LOGGER.info("Saving source, sample and library to database: %s; %s; %s",
-                  source.name, sample.name, code)
-      source.save()
-      sample.source = source
-      sample.save()
+      if not sample_exists:
+        LOGGER.info("Saving source and sample to database: %s; %s",
+                    source.name, sample.name)
+        source.save()
+        sample.source = source
+        sample.save()
+      LOGGER.info("Saving library to database: %s", code)
       lib.sample = sample
       lib.save()
 
