@@ -18,7 +18,7 @@ from utilities import parse_incoming_fastq_name, call_subprocess, \
     set_file_permissions, get_filename_libcode
 from config import Config
 from ..models import Filetype, Library, Lane, Lanefile, Facility, \
-    Status, LibraryNameMap
+    Status, LibraryNameMap, Machine
 from fastq_aligner import FastqBwaAligner, FastqTophatAligner
 from upstream_lims import Lims
 from fetch_mga import fetch_mga
@@ -382,11 +382,12 @@ class GenericFileProcessor(object):
         self.lane.rundate = date(2008, 1, 1)
       return
     self.lane.rundate = lims_fc.finish_date
-    try:
-      machine = Machine.objects.get(code=lims_fc.instrument)
-    except:
-      sys.exit("Sequencing machine '%s' missing in repository!" % lims_fc.instrument)
-    self.lane.machine = machine
+
+    # This will already raise an error if machine not found, no
+    # further try-catch required. Also, coding it like this allowed me
+    # to figure out why it was failing (Machine was not being
+    # imported). Don't just catch all exceptions, be specific.
+    self.lane.machine = Machine.objects.get(code=str(lims_fc.instrument))
     lims_lane = lims_fc.get_sample_lane(self.flowlane, self.libcode)
     if lims_lane != None:
       self.lane.usersampleid = lims_lane.user_sample_id
@@ -406,7 +407,7 @@ class GenericFileProcessor(object):
       if self.lane.rundate is None:
         self.lane.rundate = date(2008, 1, 1)
       if self.lane.machine is None:
-        self.lane.machine = 'unknown'
+        self.lane.machine = Machine.objects.get(code='unknown')
       self.lane.reads    = 0
       self.lane.passedpf = 0
       self.lane.seqsamplepf  = ''
@@ -416,7 +417,7 @@ class GenericFileProcessor(object):
     self.lane.usersampleid = lims_lane.user_sample_id
     self.lane.genomicssampleid = lims_lane.genomics_sample_id
     self.lane.rundate = lims_fc.finish_date
-    self.lane.machine = lims_fc.instrument
+    self.lane.machine = Machine.objects.get(code=str(lims_fc.instrument))
     self.lane.runnumber = lims_fc.run_number
     self.lane.flowlane = self.flowlane
     self.lane.seqsamplepf = ''
