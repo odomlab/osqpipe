@@ -387,7 +387,7 @@ class GenericFileProcessor(object):
     # further try-catch required. Also, coding it like this allowed me
     # to figure out why it was failing (Machine was not being
     # imported). Don't just catch all exceptions, be specific.
-    self.lane.machine = Machine.objects.get(code=str(lims_fc.instrument))
+    self.lane.machine = Machine.objects.get(code__iexact=str(lims_fc.instrument))
     lims_lane = lims_fc.get_sample_lane(self.flowlane, self.libcode)
     if lims_lane != None:
       self.lane.usersampleid = lims_lane.user_sample_id
@@ -407,7 +407,7 @@ class GenericFileProcessor(object):
       if self.lane.rundate is None:
         self.lane.rundate = date(2008, 1, 1)
       if self.lane.machine is None:
-        self.lane.machine = Machine.objects.get(code='unknown')
+        self.lane.machine = Machine.objects.get(code__iexact='unknown')
       self.lane.reads    = 0
       self.lane.passedpf = 0
       self.lane.seqsamplepf  = ''
@@ -417,7 +417,7 @@ class GenericFileProcessor(object):
     self.lane.usersampleid = lims_lane.user_sample_id
     self.lane.genomicssampleid = lims_lane.genomics_sample_id
     self.lane.rundate = lims_fc.finish_date
-    self.lane.machine = Machine.objects.get(code=str(lims_fc.instrument))
+    self.lane.machine = Machine.objects.get(code__iexact=str(lims_fc.instrument))
     self.lane.runnumber = lims_fc.run_number
     self.lane.flowlane = self.flowlane
     self.lane.seqsamplepf = ''

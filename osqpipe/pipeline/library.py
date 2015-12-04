@@ -119,26 +119,31 @@ class LibraryHandler(object):
     namefield     = 'individual'
     samplekeys = dict( (k, v) for (k, v) in keys.iteritems() if k in sample_fields )
     sourcekeys = dict( (k, v) for (k, v) in keys.iteritems() if k in source_fields )
-    sample_exists = False
+    samplename = str(keys[namefield]) # may have tissue name appended below.
     try:
-      sample = Sample.objects.get(name=keys[namefield])
-      sample_exists = True
+      sample = Sample.objects.get(name=samplename)
+      sample_ok = True
       for field in sample_fields:
         # Test that the returned object agrees with what we have here,
         # throw exception if not. This is ugly but, I think, necessary.
         if getattr(sample, field) != samplekeys[field]:
-          raise ValueError("Probable mislabeled sample ID, Sample fields"
-                           + " disagree with database: %s" % sample.name)
+          sample_ok = False
+          break
+      if not sample_ok: # Attempt a second round, this time appending tissue name to sample name.
+        LOGGER.warning("Sample with id %s does not match annotation; trying again with tissue name appended."
+                       % samplename)
+        samplename += " %s" % samplekeys['tissue']
+        sample = Sample.objects.get(name=samplename)
+        for field in sample_fields:
+          # Test that the returned object agrees with what we have here,
+          # throw exception if not. This is ugly but, I think, necessary.
+          if getattr(sample, field) != samplekeys[field]:
+            raise ValueError("Probable mislabeled sample ID, Sample fields"
+                             + " disagree with database: %s" % sample.name)
     except Sample.DoesNotExist:
 
       # This now needs to also handle Source retrieval/creation
       try:
-
-        # Assume source and sample names are identical for initial
-        # import. If we want to model 1 source -> n samples we'll need
-        # to fix the database manually. This is likely only to be
-        # important for the HCC project which is importing all sample
-        # data in batches anyway.
         source = Source.objects.get(name=keys[namefield])
         for field in source_fields:
           if getattr(source, field) != sourcekeys[field]:
@@ -148,21 +153,21 @@ class LibraryHandler(object):
       except Source.DoesNotExist:
         sourcekeys['name'] = keys[namefield]
         source = Source(**sourcekeys)
+        if not self.test_mode:
+          LOGGER.info("Saving source to database: %s", source.name)
+          source.save()
 
-      samplekeys['name']   = keys[namefield]
+      samplekeys['name']   = samplename # may include tissue name.
       sample = Sample(**samplekeys)
+      sample.source = source
     
     keys   = dict( (k, v) for (k, v) in keys.iteritems()
                    if k not in sample_fields + source_fields + [namefield] )
     lib    = Library(**keys)
     
     if not self.test_mode:
-      if not sample_exists:
-        LOGGER.info("Saving source and sample to database: %s; %s",
-                    source.name, sample.name)
-        source.save()
-        sample.source = source
-        sample.save()
+      LOGGER.info("Saving sample to database: %s", sample.name)
+      sample.save()
       LOGGER.info("Saving library to database: %s", code)
       lib.sample = sample
       lib.save()
