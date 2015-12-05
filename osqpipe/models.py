@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 import dbarray # https://github.com/ecometrica/django-dbarray
 import re
+import string
 import os
 
 from managers import ControlledVocabManager, AntibodyManager, FiletypeManager,\
@@ -398,6 +399,14 @@ class Library(models.Model):
 
     tis = self.sample.tissue.name
     gen = self.genome.code
+
+    # Here we pull out unnecessary duplication of the tissue name
+    # which may have been introduced when generating a new sample name
+    # (see osqpipe.pipeline.library).
+    ind = string.replace(ind, tis, '')
+
+    # Try to strip out not just trailing space, but some other characters we might use at a later date.
+    ind = re.sub('[- _/;:.,]$', '', ind)
 
     return("%s_%s_%s_%s_%s%s%s"
            % (self.code, fac, tis, ant, gen, sta, ind))
