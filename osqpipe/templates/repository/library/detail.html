@@ -4,6 +4,8 @@
 
 {% load humanize %}
 
+{% load to_class_name %}
+
 {% block title %} Library {{ library }} Summary {% endblock %}
 
 {% block content %}
@@ -118,6 +120,8 @@
               width="1024" height="1024" alt="{{ file.filename }}"/>
       {% endif %}
     {% endfor %}
+  {% else %}
+    No Histology Images found.
   {% endif %}
 
 {% else %}

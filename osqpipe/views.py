@@ -388,6 +388,9 @@ class FileDownloadView(RestrictedFileDownloadView):
     elif cls == 'mergedalnfile':
       model = MergedAlnfile
       lanerel = lambda x: x.alignment.alignments.all()[0].lane # First alignment determines access FIXME.
+    elif cls == 'histologyimagefile':
+      model = HistologyImagefile
+      lanerel = lambda x: x.sample.library_set.all()[0].lane_set.all()[0] # First lane of first library determines access FIXME.
     else:
       raise ValueError("Unrecognised file class for download: %s" % (cls))
 
