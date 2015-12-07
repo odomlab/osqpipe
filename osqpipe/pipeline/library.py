@@ -117,47 +117,44 @@ class LibraryHandler(object):
     sample_fields = ['tissue']
     source_fields = ['strain', 'sex']
     namefield     = 'individual'
-    samplekeys = dict( (k, v) for (k, v) in keys.iteritems() if k in sample_fields )
+
     sourcekeys = dict( (k, v) for (k, v) in keys.iteritems() if k in source_fields )
-    samplename = str(keys[namefield]) # may have tissue name appended below.
+
+    samplekeys = dict( (k, v) for (k, v) in keys.iteritems() if k in sample_fields )
+    samplekeys['name'] = str(keys[namefield])
+
     try:
-      sample = Sample.objects.get(name=samplename)
-      sample_ok = True
-      for field in sample_fields:
-        # Test that the returned object agrees with what we have here,
-        # throw exception if not. This is ugly but, I think, necessary.
-        if getattr(sample, field) != samplekeys[field]:
-          sample_ok = False
-          break
-      if not sample_ok: # Attempt a second round, this time appending tissue name to sample name.
-        LOGGER.warning("Sample with id %s does not match annotation; trying again with tissue name appended."
-                       % samplename)
-        samplename += " %s" % samplekeys['tissue']
-        sample = Sample.objects.get(name=samplename)
-        for field in sample_fields:
-          # Test that the returned object agrees with what we have here,
-          # throw exception if not. This is ugly but, I think, necessary.
-          if getattr(sample, field) != samplekeys[field]:
-            raise ValueError("Probable mislabeled sample ID, Sample fields"
-                             + " disagree with database: %s" % sample.name)
+
+      # The Sample table has (name, tissue) as a unique key, which
+      # greatly simplifies the business of pulling out a correctly
+      # annotated Sample object. We could remove sample.name
+      # altogether and key by (source, tissue); however this would not
+      # allow the HCC project special case to work as well.
+      sample = Sample.objects.get(**samplekeys)
+
+      # A quick check on the linked Source is advisable nonetheless.
+      for field in source_fields:
+        if getattr(sample.source, field) != sourcekeys[field]:
+          raise ValueError("Probable mislabeled sample ID, Source fields"
+                           + " disagree with database: %s" % sample.source.name)
+      
     except Sample.DoesNotExist:
 
-      # This now needs to also handle Source retrieval/creation
+      # This now needs to also handle Source retrieval/creation:
       try:
-        source = Source.objects.get(name=keys[namefield])
+        source = Source.objects.get(name=str(keys[namefield]))
         for field in source_fields:
           if getattr(source, field) != sourcekeys[field]:
             raise ValueError("Probable mislabeled sample ID, Source fields"
                              + " disagree with database: %s" % source.name)
 
       except Source.DoesNotExist:
-        sourcekeys['name'] = keys[namefield]
+        sourcekeys['name'] = str(keys[namefield])
         source = Source(**sourcekeys)
         if not self.test_mode:
           LOGGER.info("Saving source to database: %s", source.name)
           source.save()
 
-      samplekeys['name']   = samplename # may include tissue name.
       sample = Sample(**samplekeys)
       sample.source = source
     
