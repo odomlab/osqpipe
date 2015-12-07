@@ -107,6 +107,19 @@
     No Merged Alignments found.
   {% endif %}
 
+  <h2>Histology Images</h2>
+  {% if histology_images.count > 0 %}
+    {% with files=histology_images|sortby:"filetype.name" %}
+      {% include "repository/file_table.html" %}
+    {% endwith %}
+    {% for file in histology_images %}
+      {% if file.filetype.code == 'jpg' %}
+         <img src="{% url "file-download" file|to_class_name|lower pk=file.pk %}"
+              width="1024" height="1024" alt="{{ file.filename }}"/>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
 {% else %}
   <p>No library provided.</p>
 {% endif %}

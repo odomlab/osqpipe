@@ -10,7 +10,7 @@ from django.views.generic.edit import FormMixin
 from collections import OrderedDict
 
 from models import Library, Project, Genome, Lane, Alnfile, Lanefile, QCfile,\
-    Peakfile, MergedAlignment, MergedAlnfile
+    Peakfile, MergedAlignment, MergedAlnfile, HistologyImagefile
 from forms import SimpleSearchForm, LibrarySearchForm, LibraryEditForm,\
     LibraryProjectPicker
 
@@ -261,6 +261,9 @@ class LibraryDetailView(FormMixin, MyDetailView):
 
     # Include any MergedAlignment objects linked to this library in the output.
     context['merged_alignments'] = MergedAlignment.objects.filter(alignments__lane__library=self.object).distinct()
+
+    # Also include any linked HistologyImages.
+    context['histology_images']  = HistologyImagefile.objects.filter(sample__library=self.object).distinct()
     
     return self.render_to_response(context)
 
@@ -412,7 +415,7 @@ class FileDownloadView(RestrictedFileDownloadView):
     fname = fobj.filename
     if fobj.filetype.gzip:
       fname += ".gz"
-    if fobj.filetype.code == 'pdf' and not fobj.filetype.gzip:
+    if fobj.filetype.code in ('pdf','jpg') and not fobj.filetype.gzip:
       mtype    = guess_type(fname)
       response = HttpResponse(mimetype=mtype[0])
     else:
