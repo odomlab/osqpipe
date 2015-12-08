@@ -15,8 +15,6 @@ from django.core.urlresolvers import reverse_lazy
 # url(r'^cs_pipeline/', include('cs_pipeline.foo.urls')),
 
 # Repository app
-app_name    = 'repository'
-
 urlpatterns = [
 
   url(r'^$',
