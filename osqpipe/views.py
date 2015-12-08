@@ -375,22 +375,22 @@ class FileDownloadView(RestrictedFileDownloadView):
 
     if cls == 'alnfile':
       model = Alnfile
-      lanerel = lambda x: x.alignment.lane
+      libraryrel = lambda x: x.alignment.lane.library
     elif cls == 'lanefile':
       model = Lanefile
-      lanerel = lambda x: x.lane
+      libraryrel = lambda x: x.lane.library
     elif cls == 'qcfile':
       model = QCfile
-      lanerel = lambda x: x.laneqc.lane
+      libraryrel = lambda x: x.laneqc.lane.library
     elif cls == 'peakfile':
       model = Peakfile
-      lanerel = lambda x: x.peakcalling.factor_align.lane
+      libraryrel = lambda x: x.peakcalling.factor_align.lane.library
     elif cls == 'mergedalnfile':
       model = MergedAlnfile
-      lanerel = lambda x: x.alignment.alignments.all()[0].lane # First alignment determines access FIXME.
+      libraryrel = lambda x: x.alignment.alignments.all()[0].lane.library # First alignment determines access FIXME.
     elif cls == 'histologyimagefile':
       model = HistologyImagefile
-      lanerel = lambda x: x.sample.library_set.all()[0].lane_set.all()[0] # First lane of first library determines access FIXME.
+      libraryrel = lambda x: x.sample.library_set.all()[0] # First library determines access FIXME.
     else:
       raise ValueError("Unrecognised file class for download: %s" % (cls))
 
@@ -398,8 +398,8 @@ class FileDownloadView(RestrictedFileDownloadView):
     filepath = fobj.repository_file_path
 
     # Per-project user authorization.
-    lane = lanerel(fobj)
-    allowed_users = [ person for project in lane.library.projects.all()
+    library = libraryrel(fobj)
+    allowed_users = [ person for project in library.projects.all()
                              for person  in project.people.all() ]
     if self.request.user not in allowed_users:
       return redirect('denied')
