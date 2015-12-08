@@ -116,8 +116,10 @@
     {% endwith %}
     {% for file in histology_images %}
       {% if file.filetype.code == 'jpg' %}
-         <img src="{% url "file-download" file|to_class_name|lower pk=file.pk %}"
-              width="1024" height="1024" alt="{{ file.filename }}"/>
+         <a href="{% url "file-download" cls=file|to_class_name|lower pk=file.pk %}">
+           <img src="{% url "file-download" cls=file|to_class_name|lower pk=file.pk %}"
+                width="400" height="400" alt="{{ file.filename }}"/>
+	 </a>
       {% endif %}
     {% endfor %}
   {% else %}
