@@ -537,7 +537,10 @@ class Lane(models.Model):
 
   @property
   def notes_formatted(self):
-    return "\n".join(self.notes.split(";"))
+    if self.notes is None:
+      return ''
+    else:
+      return "\n".join(self.notes.split(";"))
 
   @property
   def model_parent(self):
