@@ -118,7 +118,7 @@
       {% if file.filetype.code == 'jpg' %}
          <a href="{% url "file-download" cls=file|to_class_name|lower pk=file.pk %}">
            <img src="{% url "file-download" cls=file|to_class_name|lower pk=file.pk %}"
-                width="400" height="400" alt="{{ file.filename }}"/>
+                width="300" alt="{{ file.filename }}"/>
 	 </a>
       {% endif %}
     {% endfor %}
