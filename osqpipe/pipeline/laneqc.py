@@ -76,7 +76,7 @@ class LaneQCReport(object):
     '''
     raise NotImplementedError()
 
-  @transaction.commit_on_success
+  @transaction.atomic
   def insert_into_repository(self):
 
     '''Insert self.output_files into the database.'''

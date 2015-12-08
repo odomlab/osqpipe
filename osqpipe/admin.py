@@ -10,14 +10,14 @@ from django import forms
 # could be deprecated.
 
 #############################################
+@admin.register(Adapter)
 class AdapterAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'sequence', 'protocol')
   search_fields = ('code', 'sequence')
 
-admin.site.register(Adapter, AdapterAdmin)
-
 #############################################
 #FIXME we need to handle provenance (program/parameters) here
+@admin.register(Alignment)
 class AlignmentAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'lane_link', 'genome')
   search_fields = ('lane__library__code', 'genome__code')
@@ -29,10 +29,9 @@ class AlignmentAdmin(admin.ModelAdmin):
     url = reverse('admin:osqpipe_lane_change', args=(obj.lane.pk,))
     return '<a href="%s">%s</a>' % (url, obj.lane)
   lane_link.allow_tags = True
-  
-admin.site.register(Alignment, AlignmentAdmin)
 
 #############################################
+@admin.register(Alnfile)
 class AlnfileAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'alignment_link', 'filetype')
 
@@ -47,35 +46,30 @@ class AlnfileAdmin(admin.ModelAdmin):
     return '<a href="%s">%s</a>' % (url, obj.alignment)
   alignment_link.allow_tags = True
 
-admin.site.register(Alnfile, AlnfileAdmin)
-
 #############################################
+@admin.register(Antibody)
 class AntibodyAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'lot_number', 'description')
   search_fields = ('name', 'lot_number')
 
-admin.site.register(Antibody, AntibodyAdmin)
-
 #############################################
+@admin.register(Facility)
 class FacilityAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'name', 'description')
 
-admin.site.register(Facility, FacilityAdmin)
-
 #############################################
+@admin.register(Factor)
 class FactorAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'description')
   search_fields = ('name',)
 
-admin.site.register(Factor, FactorAdmin)
-
 #############################################
+@admin.register(Filetype)
 class FiletypeAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'name', 'suffix', 'description')
 
-admin.site.register(Filetype, FiletypeAdmin)
-
 #############################################
+@admin.register(Genome)
 class GenomeAdmin(admin.ModelAdmin):
   list_display  = ('__unicode__', 'common_name', 'scientific_name', 'version')
   
@@ -84,9 +78,8 @@ class GenomeAdmin(admin.ModelAdmin):
   fields = ('code', 'scientific_name', 'common_name', 'fasta',
             'fasta_md5sum', 'url', 'notes', 'version', 'blastdb')
 
-admin.site.register(Genome, GenomeAdmin)
-
 #############################################
+@admin.register(Lane)
 class LaneAdmin(admin.ModelAdmin):
   list_display  = ('library', 'facility', 'lanenum',
                    'flowcell', 'runnumber', 'rundate')
@@ -108,9 +101,8 @@ class LaneAdmin(admin.ModelAdmin):
      {'fields': ['external_records', 'notes'] })
     ]
 
-admin.site.register(Lane, LaneAdmin)
-
 #############################################
+@admin.register(LaneQC)
 class LaneQCAdmin(admin.ModelAdmin):
   # FIXME provenance here also
   list_display = ('__unicode__', 'lane_link')
@@ -122,10 +114,9 @@ class LaneQCAdmin(admin.ModelAdmin):
     url = reverse('admin:osqpipe_lane_change', args=(obj.lane.pk,))
     return '<a href="%s">%s</a>' % (url, obj.lane)
   lane_link.allow_tags = True
-  
-admin.site.register(LaneQC, LaneQCAdmin)
 
 #############################################
+@admin.register(Lanefile)
 class LanefileAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'lane_link', 'filetype')
 
@@ -139,10 +130,9 @@ class LanefileAdmin(admin.ModelAdmin):
     url = reverse('admin:osqpipe_lane_change', args=(obj.lane.pk,))
     return '<a href="%s">%s</a>' % (url, obj.lane)
   lane_link.allow_tags = True
-  
-admin.site.register(Lanefile, LanefileAdmin)
 
 #############################################
+@admin.register(Sample)
 class SampleAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'source', 'tissue')
 
@@ -150,10 +140,9 @@ class SampleAdmin(admin.ModelAdmin):
 
   readonly_fields = ('source',)
   fields = ('name', 'source', 'tissue', 'tumour_grading')
-  
-admin.site.register(Sample, SampleAdmin)
 
 #############################################
+@admin.register(Source)
 class SourceAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'strain', 'sex')
 
@@ -161,18 +150,15 @@ class SourceAdmin(admin.ModelAdmin):
 
   fields = ('name', 'strain', 'sex', 'date_of_birth',
             'date_of_death', 'mother', 'father', 'comment')
-  
-admin.site.register(Source, SourceAdmin)
 
 #############################################
+@admin.register(SourceTreatment)
 class SourceTreatmentAdmin(admin.ModelAdmin):
   list_display       = ('source', 'agent', 'dose', 'dose_unit')
 
   search_fields  = ('source', 'agent')
 
   fields = ('agent', 'date', 'dose', 'dose_unit')
-  
-admin.site.register(SourceTreatment, SourceTreatmentAdmin)
 
 #############################################
 class LibraryAdminForm(forms.ModelForm):
@@ -181,11 +167,11 @@ class LibraryAdminForm(forms.ModelForm):
   multi-select boxes.'''
 
   class Meta:
-    model = Library
     widgets = {
       'projects': forms.SelectMultiple(attrs={ 'size': 15 })
       }
 
+@admin.register(Library)
 class LibraryAdmin(admin.ModelAdmin):
   form = LibraryAdminForm
   
@@ -213,44 +199,40 @@ class LibraryAdmin(admin.ModelAdmin):
   def sample_link(self, obj):
     url = reverse('admin:osqpipe_sample_change', args=(obj.sample.pk,))
     return '<a href="%s">%s</a>' % (url, obj.sample)
+  sample_link.allow_tags = True
   def genome_link(self, obj):
     url = reverse('admin:osqpipe_genome_change', args=(obj.genome.pk,))
     return '<a href="%s">%s</a>' % (url, obj.genome)
   genome_link.allow_tags = True
-  
-admin.site.register(Library, LibraryAdmin)
 
 #############################################
+@admin.register(LibraryNameMap)
 class LibraryNameMapAdmin(admin.ModelAdmin):
   list_display  = ('limsname', 'libname')
   fields        = ('limsname', 'libname')
   search_fields = ('limsname', 'libname')
 
-admin.site.register(LibraryNameMap, LibraryNameMapAdmin)
-
 #############################################
+@admin.register(Libtype)
 class LibtypeAdmin(admin.ModelAdmin):
   list_display = ('name', 'code', 'description')
   fields       = ('name', 'code', 'description')
 
-admin.site.register(Libtype, LibtypeAdmin)
-
 #############################################
+@admin.register(Linkerset)
 class LinkersetAdmin(admin.ModelAdmin):
   list_display = ('name',)
   fields       = ('name', 'fivep', 'threep')
   search_fields = ('name', 'fivep', 'threep')
 
-admin.site.register(Linkerset, LinkersetAdmin)
-
 #############################################
+@admin.register(Machine)
 class MachineAdmin(admin.ModelAdmin):
   list_display = ('code', 'platform', 'name')
   fields       = ('code', 'platform', 'name')
 
-admin.site.register(Machine, MachineAdmin)
-
 #############################################
+@admin.register(Peakcalling)
 class PeakcallingAdmin(admin.ModelAdmin):
   # FIXME provenance here also.
   list_display    = ('code',
@@ -271,9 +253,8 @@ class PeakcallingAdmin(admin.ModelAdmin):
     return '<a href="%s">%s</a>' % (url, obj.input_align)
   input_align_link.allow_tags = True
 
-admin.site.register(Peakcalling, PeakcallingAdmin)
-
 #############################################
+@admin.register(Peakfile)
 class PeakfileAdmin(admin.ModelAdmin):
   list_display    = ('filename', 'peakcalling_link', 'filetype')
   search_fields   = ('filename', 'filetype__name')
@@ -285,15 +266,12 @@ class PeakfileAdmin(admin.ModelAdmin):
     return '<a href="%s">%s</a>' % (url, obj.peakcalling)
   peakcalling_link.allow_tags = True
 
-admin.site.register(Peakfile, PeakfileAdmin)
-
 #############################################
+@admin.register(Program)
 class ProgramAdmin(admin.ModelAdmin):
   list_display  = ('program', 'version', 'type')
   fields        = ('program', 'version', 'type',
                    'options', 'files', 'description')
-
-admin.site.register(Program, ProgramAdmin)
 
 #############################################
 class ProjectAdminForm(forms.ModelForm):
@@ -302,20 +280,19 @@ class ProjectAdminForm(forms.ModelForm):
   multi-select boxes.'''
 
   class Meta:
-    model = Project
     widgets = {
       'people': forms.SelectMultiple(attrs={ 'size': 15 })
       }
 
+@admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
   form          = ProjectAdminForm
   list_display  = ('name', 'code', 'description')
   fields        = ('name', 'code', 'lab',
                    'shortnames', 'filtered', 'description', 'people')
 
-admin.site.register(Project, ProjectAdmin)
-
 #############################################
+@admin.register(QCfile)
 class QCfileAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'laneqc_link', 'filetype')
 
@@ -330,9 +307,8 @@ class QCfileAdmin(admin.ModelAdmin):
     return '<a href="%s">%s</a>' % (url, obj.laneqc)
   laneqc_link.allow_tags = True
 
-admin.site.register(QCfile, QCfileAdmin)
-
 #############################################
+@admin.register(HistologyImagefile)
 class HistologyImagefileAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'sample_link', 'filetype')
 
@@ -347,61 +323,51 @@ class HistologyImagefileAdmin(admin.ModelAdmin):
     return '<a href="%s">%s</a>' % (url, obj.sample)
   sample_link.allow_tags = True
 
-admin.site.register(HistologyImagefile, HistologyImagefileAdmin)
-
 #############################################
+@admin.register(Status)
 class StatusAdmin(admin.ModelAdmin):
   list_display  = ('code', 'description', 'colour', 'authority')
   fields        = ('code', 'description', 'colour', 'authority',
                    'lanerelevant', 'libraryrelevant', 'sortcode')
 
-admin.site.register(Status, StatusAdmin)
-
 #############################################
+@admin.register(Strain)
 class StrainAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'description')
   search_fields = ('name', 'description')
 
-admin.site.register(Strain, StrainAdmin)
-
 #############################################
+@admin.register(Sex)
 class SexAdmin(admin.ModelAdmin):
   list_display = ('__unicode__',)
 
-admin.site.register(Sex, SexAdmin)
-
 #############################################
+@admin.register(Tissue)
 class TissueAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'description')
   search_fields = ('name', 'description')
 
-admin.site.register(Tissue, TissueAdmin)
-
 #############################################
+@admin.register(DoseUnit)
 class DoseUnitAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'description')
   search_fields = ('name', 'description')
 
-admin.site.register(DoseUnit, DoseUnitAdmin)
-
 #############################################
+@admin.register(TumourGrading)
 class TumourGradingAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'description')
   search_fields = ('name', 'description')
 
-admin.site.register(TumourGrading, TumourGradingAdmin)
-
 #############################################
+@admin.register(TreatmentAgent)
 class TreatmentAgentAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'description', 'accession')
   search_fields = ('name', 'description', 'accession')
 
-admin.site.register(TreatmentAgent, TreatmentAgentAdmin)
-
 #############################################
+@admin.register(ExternalRecord)
 class ExternalRecordAdmin(admin.ModelAdmin):
   list_display = ('accession', 'repository', 'is_public')
   search_fields = ('accession', 'repository')
-
-admin.site.register(ExternalRecord, ExternalRecordAdmin)
 

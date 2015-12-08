@@ -317,7 +317,7 @@ class ArchiveManager(object):
     # are likely not within a transaction.
     return
 
-  @transaction.commit_on_success
+  @transaction.atomic
   def _register_file_in_archive(self, fobj):
     '''
     Given a file name (or file path), and the name of an archive as recorded
@@ -430,7 +430,7 @@ class ArchiveManager(object):
     else:
       LOGGER.warning("%d files removed from repository.", files_deleted)
 
-  @transaction.commit_on_success
+  @transaction.atomic
   def restore_file_from_archive(self, fpath):
     '''
     Method restores the file in the archive back into the main

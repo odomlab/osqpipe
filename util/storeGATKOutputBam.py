@@ -21,7 +21,7 @@ from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging(level=INFO)
 CONFIG = Config()
 
-@transaction.commit_on_success
+@transaction.atomic
 def load_merged_bam(bam, genome=None):
 
   LOGGER.info("Storing bam file %s in repository.", bam)

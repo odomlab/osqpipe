@@ -20,7 +20,7 @@ from shutil import move
 
 CONFIG = Config()
 
-@transaction.commit_on_success
+@transaction.atomic
 def update_repo_bamfile(bam, newfile):
   '''
   Carefully replace a bam file in the repository.

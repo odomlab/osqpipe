@@ -1,5 +1,7 @@
-from django.conf.urls import patterns, include, url
+from django.conf.urls import include, url
 from django.views.generic import DetailView, ListView, UpdateView, TemplateView
+from django.contrib.auth.views import login as authlogin
+from django.contrib.auth.views import logout as authlogout
 from models import Project
 from views import ProjectListView, LibraryListView, \
     GenomeListView, DefaultGenomeListView, \
@@ -13,8 +15,9 @@ from django.core.urlresolvers import reverse_lazy
 # url(r'^cs_pipeline/', include('cs_pipeline.foo.urls')),
 
 # Repository app
-urlpatterns = patterns(
-  '',
+app_name    = 'repository'
+
+urlpatterns = [
 
   url(r'^$',
       TemplateView.as_view(
@@ -73,10 +76,10 @@ urlpatterns = patterns(
 
   # Our login and logout urls are managed within this application but
   # use the django.contrib.auth backend.
-  url(r'^login$',  'django.contrib.auth.views.login', name='auth_login'),
-  url(r'^logout$', 'django.contrib.auth.views.logout', {'next_page': reverse_lazy('repo-home')}, name='auth_logout'),
+  url(r'^login$',  authlogin, name='auth_login'),
+  url(r'^logout$', authlogout, {'next_page': reverse_lazy('repo-home')}, name='auth_logout'),
   url(r'^denied/?$',
       TemplateView.as_view(
       template_name='repository/denied.html'),
       name='denied'),
-)
+]

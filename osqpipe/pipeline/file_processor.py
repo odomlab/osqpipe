@@ -562,7 +562,7 @@ class GenericFileProcessor(object):
       if not self.test_mode:
         os.unlink(fname)
 
-  @transaction.commit_on_success
+  @transaction.atomic
   def save_all_to_database(self):
     '''
     Save all our files and metadata to the repository database. This

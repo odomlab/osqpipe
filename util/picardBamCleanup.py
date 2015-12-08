@@ -24,7 +24,7 @@ from django.db import transaction
 
 CONFIG = Config()
 
-@transaction.commit_on_success
+@transaction.atomic
 def replace_repo_file(bam, newbam):
 
   bam = Alnfile.objects.get(id=bam.id) # Reload passed object within transaction.

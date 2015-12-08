@@ -255,7 +255,7 @@ class ExternalDataHandler(object):
       fname = unzip_file(fname, overwrite=True)
     return fname
 
-  @transaction.commit_on_success
+  @transaction.atomic
   def _save_lane_to_database(self, lane, lanefiles):
 
     # Finally, save everything to database. We save before trying to
@@ -279,7 +279,7 @@ class ExternalDataHandler(object):
         move(fastq, dest)
         set_file_permissions(self.config.group, dest)
 
-  @transaction.commit_on_success
+  @transaction.atomic
   def _save_aln_to_database(self, aln, alnfiles, progname, progvers):
     # Handle the alignment.
     aln.save()

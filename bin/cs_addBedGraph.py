@@ -48,7 +48,7 @@ class BedGraphCreator(object):
     bed = aln.alnfile_set.filter(filetype=self.bedtype).exclude(filename__contains='chr21')
     return (len(bed) == 1 and len(bgr) == 0)
 
-  @transaction.commit_on_success
+  @transaction.atomic
   def make_bed_graph(self, aln):
     '''
     Code wrapper for makeWiggle.

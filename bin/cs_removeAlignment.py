@@ -74,7 +74,7 @@ def unlink_file(path):
     else:
       LOGGER.warning("missing file: '%s' (and '%s')" % (path, comp))
 
-@transaction.commit_on_success
+@transaction.atomic
 def delete_alignment(aln, deltype):
   '''
   Delete an alignment from the repository, including all associated
@@ -97,7 +97,7 @@ def delete_alignment(aln, deltype):
   if not TEST_MODE:
     aln.delete()
 
-@transaction.commit_on_success
+@transaction.atomic
 def delete_lane(lane):
   '''
   Delete a given lane from the repository, including all associated

@@ -77,7 +77,7 @@ library has not yet been entered in the repository:
 
   return text
 
-@transaction.commit_on_success
+@transaction.atomic
 def _retrieve_and_mark_ready_lanes(recent_only=False):
 
   # Run a query of the Genologics LIMS REST API

@@ -21,7 +21,7 @@ from osqpipe.pipeline.config import Config
 
 CONFIG = Config()
 
-@transaction.commit_on_success
+@transaction.atomic
 def _save_file_to_database(fname, aln, chksum):
   '''
   Transaction-managed smallest unit of work that we can do with the

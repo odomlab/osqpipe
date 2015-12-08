@@ -366,6 +366,7 @@ class SangerLims(object):
     else:
       return False # A dubious default (FIXME review this).
 
+  @transaction.atomic
   def _get_runs(self, querynum=100):
 
     # FIXME it might also be good to provide the option to pass in a
@@ -417,18 +418,13 @@ class SangerLims(object):
   def _generate_error_email(self, message):
     email_admins('[SangerPipe] Error Encountered', message)
 
-  @transaction.commit_manually
   def get_runs(self, querynum=100):
     try:
       self._get_runs(querynum)
     except Exception, err:
-      LOGGER.info("Rolling back database transaction.")
+      LOGGER.info("Rolled back database transaction.")
       self._generate_error_email(str(err))
-      transaction.rollback()
       raise # must do this to signal failure to our context manager.
-    else:
-      LOGGER.info("Committing database transaction.")
-      transaction.commit()
     
 if __name__ == '__main__':
 

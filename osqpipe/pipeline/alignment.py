@@ -283,7 +283,7 @@ class AlignmentHandler(object):
     else:
       return bams[0]
 
-  @transaction.commit_on_success
+  @transaction.atomic
   def _save_to_repository(self, files, chksums, aln, final_status=None):
     '''
     Method used to move files into the repository filesystem and

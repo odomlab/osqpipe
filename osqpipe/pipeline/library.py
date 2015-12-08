@@ -106,7 +106,7 @@ class LibraryHandler(object):
       raise ValueError("Multiple fuzzy CV matches found in database: %s"
                        % ( ", ".join([x.controlled_name for x in db_values])))
 
-  @transaction.commit_on_success
+  @transaction.atomic
   def _save_lib_to_database(self, code, keys, projects):
     '''
     Method to save library to the database, and link it with the

@@ -160,7 +160,7 @@ def _edit_bam_readgroup_data(bam, platform_unit=None, library=None, sample=None,
   bam.save()
   os.unlink(tmpbam)
 
-@transaction.commit_on_success
+@transaction.atomic
 def _update_alnfile_bam_readgroups(bam):
   '''
   Updates read group PU, LB, SM and CN tags based on the annotation
@@ -174,7 +174,7 @@ def _update_alnfile_bam_readgroups(bam):
                            sample        = sanitize_samplename(library.sample.name),
                            center        = bam.alignment.lane.facility.code)
 
-@transaction.commit_on_success
+@transaction.atomic
 def _update_mergedalnfile_bam_readgroups(bam):
   '''
   Updates read group SM tag based on the annotation stored in the
