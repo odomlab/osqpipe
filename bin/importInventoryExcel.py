@@ -215,6 +215,9 @@ class InventoryImporter(object):
         elif prottag in ('thruplex',):
           adapter = 'iPCRtagT' + barcode
 
+        elif prottag in ('haloplex', 'agilenthaloplex'):
+          adapter = 'HAL' + barcode
+
         else:
           LOGGER.error('Uncertain which adapter scheme (e.g. TruSeq) has been used: %s',
                        libcode)

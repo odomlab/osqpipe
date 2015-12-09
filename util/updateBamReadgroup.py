@@ -8,7 +8,7 @@ extend the tag to include tumour number as well as mouse ID.
 
 import os
 from osqpipe.models import Alnfile, Library
-from osqpipe.pipeline.utilities import checksum_file, call_subprocess
+from osqpipe.pipeline.utilities import checksum_file, call_subprocess, sanitize_samplename
 from osqpipe.pipeline.config import Config
 
 from logging import INFO
@@ -57,7 +57,7 @@ def update_library_bam_readgroups(libcode):
            'INPUT=%s'  % bam.repository_file_path,
            'OUTPUT=%s' % tmpfile,
            'RGLB=%s'   % lib.code,
-           'RGSM=%s'   % lib.sample.name,
+           'RGSM=%s'   % sanitize_samplename(lib.sample.name),
            'RGCN=%s'   % bam.alignment.lane.facility.code,
            'RGPU=%d'   % int(bam.alignment.lane.lanenum),
            'RGPL=illumina') + common_args
