@@ -420,9 +420,9 @@ class FileDownloadView(RestrictedFileDownloadView):
       fname += ".gz"
     if fobj.filetype.code in ('pdf','jpg') and not fobj.filetype.gzip:
       mtype    = guess_type(fname)
-      response = HttpResponse(mimetype=mtype[0])
+      response = HttpResponse(content_type=mtype[0])
     else:
-      response = HttpResponse(mimetype='application/force-download')
+      response = HttpResponse(content_type='application/force-download')
       response['Content-Disposition'] = 'attachment; filename=%s' % smart_str(fname)
     response['X-Sendfile']          = smart_str(filepath)
     # You can also set any other required headers: Cache-Control, etc.
@@ -444,7 +444,7 @@ class TempfileDownloadView(RestrictedFileDownloadView):
       raise Http404(_(u"Requested temporary file not found: %s" % (fname,)))
 
     mtype    = guess_type(fname)
-    response = HttpResponse(mimetype=mtype[0])
+    response = HttpResponse(content_type=mtype[0])
     response['Content-Encoding'] = mtype[1]
     response['X-Sendfile']       = smart_str(filepath)
 
