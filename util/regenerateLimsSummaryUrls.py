@@ -9,6 +9,10 @@ replacement or not.'''
 import httplib
 from urlparse import urlparse
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 from osqpipe.models import Lane
 from osqpipe.pipeline.upstream_lims import Lims
 

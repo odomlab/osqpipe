@@ -5,6 +5,10 @@ lanes in the database which don't already have them.'''
 
 import os
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 from osqpipe.models import Lane
 
 from osqpipe.pipeline.laneqc import LaneFastQCReport

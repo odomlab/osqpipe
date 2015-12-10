@@ -4,6 +4,10 @@
 file with library codes in one column and adapter names in the
 second.'''
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 from osqpipe.models import Library, Adapter
 
 def update_adapters(filename):

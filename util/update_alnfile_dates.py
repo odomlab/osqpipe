@@ -9,6 +9,10 @@ import os
 import time
 import re
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 from osqpipe.models import Alnfile
 
 gz_re = re.compile('\.gz$')

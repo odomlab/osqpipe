@@ -13,11 +13,15 @@ from datetime import date
 from pipes import quote
 from shutil import move
 
-from django.db import transaction
-
 from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
+
+# New in Django 1.7 and above.
+import django
+django.setup()
+
+from django.db import transaction
 
 from osqpipe.pipeline.utilities import call_subprocess, checksum_file, rezip_file, set_file_permissions
 from osqpipe.models import Filetype, Library, Lane, Alignment, Alnfile, Facility

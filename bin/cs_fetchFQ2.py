@@ -8,6 +8,10 @@ from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 from osqpipe.pipeline.fetch_fastq import FQFileFetcher
 
 ###############################################################################

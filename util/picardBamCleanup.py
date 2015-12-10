@@ -15,6 +15,10 @@ from osqpipe.pipeline.config import Config
 from logging import INFO, DEBUG
 LOGGER = configure_logging(level=INFO)
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 from osqpipe.models import Alnfile
 from osqpipe.pipeline.utilities import BamPostProcessor, call_subprocess, \
     set_file_permissions, checksum_file

@@ -10,6 +10,10 @@ from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 # The bulk of the code which used to be in this script is now moved
 # into our library namespace.
 from osqpipe.pipeline.alignment import AlignmentHandler

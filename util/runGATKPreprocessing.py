@@ -29,6 +29,10 @@ from logging import INFO
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging(level=INFO)
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 if __name__ == '__main__':
 
   from argparse import ArgumentParser

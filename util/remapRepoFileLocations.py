@@ -8,6 +8,10 @@
 import os
 from shutil import move
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 from osqpipe.models import Alnfile, Lanefile
 
 # Keeping these as stub methods so that remap*FileLocations.py scripts

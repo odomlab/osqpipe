@@ -11,6 +11,10 @@ from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging(level=DEBUG)
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 from osqpipe.pipeline.utilities import parse_repository_filename, checksum_file
 from osqpipe.models import Filetype, Lane, Lanefile, Facility
 

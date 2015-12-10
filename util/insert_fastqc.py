@@ -6,6 +6,10 @@ subdirectories.'''
 
 import os
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 from osqpipe.models import Lane, Lanefile
 
 from osqpipe.pipeline.laneqc import LaneFastQCReport

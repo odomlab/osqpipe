@@ -9,12 +9,16 @@ import os
 import re
 from hashlib import md5
 
-from osqpipe.pipeline.bwa_runner import ClusterJobManager, genome_fasta_path
-from osqpipe.models import MergedAlnfile
 from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging(level=INFO)
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
+from osqpipe.pipeline.bwa_runner import ClusterJobManager, genome_fasta_path
+from osqpipe.models import MergedAlnfile
 from osqpipe.pipeline.config import Config
 
 def cluster_fname(localfile):

@@ -7,13 +7,17 @@ extend the tag to include tumour number as well as mouse ID.
 '''
 
 import os
-from osqpipe.models import Alnfile, Library
-from osqpipe.pipeline.utilities import checksum_file, call_subprocess, sanitize_samplename
-from osqpipe.pipeline.config import Config
-
 from logging import INFO
 from osqpipe.pipeline.setup_logs import configure_logging
 LOGGER = configure_logging(level=INFO)
+
+# New in Django 1.7 and above.
+import django
+django.setup()
+
+from osqpipe.models import Alnfile, Library
+from osqpipe.pipeline.utilities import checksum_file, call_subprocess, sanitize_samplename
+from osqpipe.pipeline.config import Config
 
 from django.db import transaction
 from shutil import move

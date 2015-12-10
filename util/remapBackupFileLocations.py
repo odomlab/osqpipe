@@ -13,6 +13,10 @@ from subprocess import CalledProcessError
 from osqpipe.pipeline.utilities import call_subprocess, bash_quote
 from osqpipe.pipeline.config import Config
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 from osqpipe.models import Alnfile, Lanefile
 from remapRepoFileLocations import old_build_alnfile_path, old_build_lanefile_path
 

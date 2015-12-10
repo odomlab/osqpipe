@@ -19,6 +19,10 @@ from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging(level=INFO)
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 from osqpipe.pipeline.utilities import call_subprocess, \
     set_file_permissions, rezip_file, parse_repository_filename
 from osqpipe.pipeline.config import Config
