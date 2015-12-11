@@ -7,14 +7,19 @@ and delete the original file from the core repository filesystem. The
 repository database is updated to record this change.
 '''
 
-from osqpipe.models import ArchiveLocation
-from osqpipe.pipeline.archive import ArchiveManager
 from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.setup_logs import configure_logging
 
 from logging import INFO, WARNING, DEBUG
 LOGGER = configure_logging(level=WARNING)
 CONFIG = Config()
+
+# New in Django 1.7 and above.
+import django
+django.setup()
+
+from osqpipe.models import ArchiveLocation
+from osqpipe.pipeline.archive import ArchiveManager
 
 ################################################################################
 if __name__ == '__main__':

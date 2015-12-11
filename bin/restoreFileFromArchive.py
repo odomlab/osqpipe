@@ -7,12 +7,17 @@ database is updated to reflect the change. No changes are made to the
 archive.
 '''
 
-from osqpipe.pipeline.archive import ArchiveManager
 from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 CONFIG = Config()
+
+# New in Django 1.7 and above.
+import django
+django.setup()
+
+from osqpipe.pipeline.archive import ArchiveManager
 
 ################################################################################
 if __name__ == '__main__':

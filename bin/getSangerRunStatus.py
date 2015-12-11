@@ -34,12 +34,16 @@ from urlparse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from datetime import datetime
 from lxml import etree as ET
-from django.db import transaction
 
 from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
+from django.db import transaction
 from osqpipe.models import Lane, Facility, Library, Status
 from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.smtp import email_admins
@@ -167,7 +171,7 @@ class SangerLims(object):
 
   def _meta_redirect(self, content):
     '''Test whether a given soup object contains HTML redirect tag.'''
-    soup   = BeautifulSoup(content)
+    soup   = BeautifulSoup(content, 'lxml')
     result = soup.find("meta", attrs={"http-equiv":re.compile("refresh", re.I)})
     if result:
       (wait, text) = result["content"].split(";")

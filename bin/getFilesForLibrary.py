@@ -13,6 +13,10 @@ from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 
+# New in Django 1.7 and above.
+import django
+django.setup()
+
 from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.upstream_lims import runs_containing_samples,\
     get_lims_run_details

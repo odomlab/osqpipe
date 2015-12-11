@@ -6,11 +6,15 @@
 each part of the pipeline in turn, handling any errors which may
 arise.'''
 
-from django.db import transaction
-
 from osqpipe.pipeline.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
+
+# New in Django 1.7 and above.
+import django
+django.setup()
+
+from django.db import transaction
 
 from osqpipe.pipeline.upstream_lims import Lims
 from osqpipe.pipeline.lims_watcher import LimsWatcher
