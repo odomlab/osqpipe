@@ -312,7 +312,9 @@ class JobSubmitter(JobRunner):
     for line in pout:
       matchobj = jobid_pattern.search(line)
       if matchobj:
-        return int(matchobj.group(1))
+        jobid = int(matchobj.group(1))
+        LOGGER.info("LSF ID of submitted job: %d", jobid)
+        return jobid
 
     raise ValueError("Unable to parse bsub output for job ID.")
 
@@ -508,7 +510,9 @@ class ClusterJobSubmitter(RemoteJobRunner):
       for line in pout:
         matchobj = jobid_pattern.search(line)
         if matchobj:
-          return int(matchobj.group(1))
+          jobid = int(matchobj.group(1))
+          LOGGER.info("LSF ID of submitted job: %d", jobid)
+          return jobid
 
       raise ValueError("Unable to parse bsub output for job ID.")
     else:
