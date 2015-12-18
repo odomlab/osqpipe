@@ -36,7 +36,7 @@ def genome_fasta_path(genome, genomedir, indexdir=None):
   (e.g. bwa-0.6.1), the path points to a fasta file in that
   subdirectory.
   '''
-  sciname = genome.scientific_name
+  sciname = genome.species.scientific_name
   sciname = sciname.replace(" ", "_")
   sciname = sciname.lower()
   if indexdir is not None:

@@ -96,9 +96,9 @@ class Machine(ControlledVocab):
     ordering = ['code']
 
 class Species(models.Model):
-  scientific_name = models.CharField(max_length=255, db_column='sciname')
+  scientific_name = models.CharField(max_length=255, db_column='sciname', unique=True)
   common_name     = models.CharField(max_length=255, db_column='commonname', null=True, blank=True)
-  accession       = models.CharField(max_length=32)
+  accession       = models.CharField(max_length=32, unique=True)
 
   def __unicode__(self):
     return self.scientific_name
@@ -110,16 +110,13 @@ class Species(models.Model):
 
 class Genome(ControlledVocab):
   code         = models.CharField(max_length=32, unique=True)
-  common_name  = models.CharField(max_length=255, db_column='commonname')
-  scientific_name = models.CharField(max_length=255, db_column='sciname')
   blastdb      = models.CharField(max_length=255, null=True, blank=True)
   fasta        = models.CharField(max_length=255, null=True, blank=True)
   fasta_md5sum = models.CharField(max_length=32, null=True, blank=True)
   notes        = models.TextField(null=True, blank=True)
   version      = models.CharField(max_length=255, null=True, blank=True)
   url          = models.CharField(max_length=256, null=True, blank=True)
-  taxonomy_id  = models.IntegerField()
-  species      = models.ForeignKey(Species, on_delete=models.PROTECT, null=True, blank=True)
+  species      = models.ForeignKey(Species, on_delete=models.PROTECT)
 
   _controlled_field = 'code'
   
@@ -131,7 +128,7 @@ class Genome(ControlledVocab):
     various indices (bwa, tophat, etc.) which reside in their own
     subdirectories.
     '''
-    sciname = str(self.scientific_name)
+    sciname = str(self.species.scientific_name)
     sciname = sciname.replace(" ", "_")
     sciname = sciname.lower()
     fasta   = os.path.join(CONFIG.clustergenomedir, sciname,
@@ -144,7 +141,7 @@ class Genome(ControlledVocab):
 
   class Meta:
     db_table = u'genome'
-    ordering = ['common_name']
+    ordering = ['code']
 
 class Tissue(ControlledVocab):
   name         = models.CharField(max_length=255, unique=True)

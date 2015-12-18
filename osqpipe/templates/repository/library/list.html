@@ -79,7 +79,7 @@ function toggleAll(name, newClass) {
         <td>{{ lib.chipsample|truncatechars:10 }}</td>
         <td>{{ lib.libtype|truncatechars:10 }}</td>
         <td>{{ lib.sample.tissue|truncatechars:13 }}</td>
-        <td><a class="tooltip static" href="#">{{ lib.genome|truncatechars:10 }}<span class="tooltip-classic">Requested&nbsp;Genome:&nbsp;{{ lib.genome.scientific_name.split|join:"&nbsp;" }}&nbsp;({{ lib.genome.common_name.split|join:"&nbsp;" }})</span></a></td>
+        <td><a class="tooltip static" href="#">{{ lib.genome|truncatechars:10 }}<span class="tooltip-classic">Requested&nbsp;Genome:&nbsp;{{ lib.genome.species.scientific_name.split|join:"&nbsp;" }}&nbsp;({{ lib.genome.species.common_name.split|join:"&nbsp;" }})</span></a></td>
         <td>{% if lib.code == lib.sample.source.name %}&nbsp;
             {% else %}{{ lib.sample.source.name|truncatechars:14 }}{% endif %}</td>
         <td>{{ lib.sample.source.strain }}</td>
@@ -125,7 +125,7 @@ function toggleAll(name, newClass) {
             <td>&nbsp;</td>
             <td>&nbsp;</td>
             <td>&nbsp;</td>
-            <td><a class="tooltip static" href="#">{{ aln.genome|truncatechars:10 }}<span class="tooltip-classic">Aligned&nbsp;Genome:&nbsp;{{ aln.genome.scientific_name.split|join:"&nbsp;" }}&nbsp;({{ aln.genome.common_name.split|join:"&nbsp;" }})</span></td>
+            <td><a class="tooltip static" href="#">{{ aln.genome|truncatechars:10 }}<span class="tooltip-classic">Aligned&nbsp;Genome:&nbsp;{{ aln.genome.species.scientific_name.split|join:"&nbsp;" }}&nbsp;({{ aln.genome.species.common_name.split|join:"&nbsp;" }})</span></td>
             <td>{% for prov in aln.provenance.all|sortby:"rank_index" %}{{ prov.program }} {% endfor %}</td>
             <td><a class="tooltip static" href="#">{{ aln.mapped_percent|floatformat:"0" }}%<span class="tooltip-classic">All&nbsp;aligned&nbsp;reads</span></a>
                (<a class="tooltip static" href="#">{{ aln.munique_percent|floatformat:"0" }}%<span class="tooltip-classic">Uniquely&nbsp;aligned&nbsp;reads</span></a>)</td>

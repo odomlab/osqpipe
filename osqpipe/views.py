@@ -128,8 +128,8 @@ class GenomeListView(FilterMixin, FormListView):
 
   allowed_filters = {
     'code'        : 'code__icontains',
-    'commonname'  : 'common_name__icontains',
-    'sciname'     : 'scientific_name__icontains',
+    'commonname'  : 'species__common_name__icontains',
+    'sciname'     : 'species__scientific_name__icontains',
     'version'     : 'version__icontains',
     }
 

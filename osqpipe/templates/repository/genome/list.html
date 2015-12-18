@@ -18,9 +18,9 @@
       </tr>
     {% for gen in genomes %}
       <tr>
-        <td>{{ gen.common_name }}</td>
+        <td>{{ gen.species.common_name }}</td>
         <td>{{ gen.code }}</td>
-        <td>{{ gen.scientific_name }}</td>
+        <td>{{ gen.species.scientific_name }}</td>
         <td>{{ gen.version }}</td>
       </tr>
     {% endfor %}

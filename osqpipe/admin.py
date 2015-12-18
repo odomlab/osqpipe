@@ -71,12 +71,21 @@ class FiletypeAdmin(admin.ModelAdmin):
 #############################################
 @admin.register(Genome)
 class GenomeAdmin(admin.ModelAdmin):
-  list_display  = ('__unicode__', 'common_name', 'scientific_name', 'version')
+  list_display  = ('__unicode__', 'version')
   
-  search_fields = ('code', 'common_name', 'scientific_name')
+  search_fields = ('code', 'species__common_name', 'species__scientific_name')
 
-  fields = ('code', 'scientific_name', 'common_name', 'fasta',
+  fields = ('code', 'species', 'fasta',
             'fasta_md5sum', 'url', 'notes', 'version', 'blastdb')
+
+#############################################
+@admin.register(Species)
+class SpeciesAdmin(admin.ModelAdmin):
+  list_display  = ('scientific_name', 'common_name', 'accession')
+  
+  search_fields = ('common_name', 'scientific_name')
+
+  fields = ('scientific_name', 'common_name', 'accession')
 
 #############################################
 @admin.register(Lane)
@@ -132,23 +141,32 @@ class LanefileAdmin(admin.ModelAdmin):
   lane_link.allow_tags = True
 
 #############################################
+@admin.register(Characteristic)
+class CharacteristicAdmin(admin.ModelAdmin):
+  list_display  = ('category', 'value')
+  
+  search_fields = ('category','value')
+
+  fields = ('category','value')
+
+#############################################
 @admin.register(Sample)
 class SampleAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'source', 'tissue')
 
-  search_fields  = ('name', 'source__name', 'tissue__name', 'tumour_grading__name')
+  search_fields  = ('name', 'source__name', 'tissue__name')
 
   readonly_fields = ('source',)
-  fields = ('name', 'source', 'tissue', 'tumour_grading')
+  fields = ('name', 'source', 'tissue')
 
 #############################################
 @admin.register(Source)
 class SourceAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'strain', 'sex')
 
-  search_fields  = ('name', 'strain__name', 'sex__name')
+  search_fields  = ('name', 'strain__name', 'sex__name', 'species__scientific_name')
 
-  fields = ('name', 'strain', 'sex', 'date_of_birth',
+  fields = ('name', 'species', 'strain', 'sex', 'date_of_birth',
             'date_of_death', 'mother', 'father', 'comment')
 
 #############################################
