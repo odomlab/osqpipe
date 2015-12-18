@@ -378,6 +378,7 @@ class Characteristic(models.Model):
   class Meta:
     db_table = u'characteristic'
     ordering = ['category','value']
+    unique_together = ['category','value']
 
 class SizeUnit(ControlledVocab):
   '''
