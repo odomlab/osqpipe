@@ -95,6 +95,19 @@ class Machine(ControlledVocab):
     verbose_name_plural = 'machines'
     ordering = ['code']
 
+class Species(models.Model):
+  scientific_name = models.CharField(max_length=255, db_column='sciname')
+  common_name     = models.CharField(max_length=255, db_column='commonname', null=True, blank=True)
+  accession       = models.CharField(max_length=32)
+
+  def __unicode__(self):
+    return self.scientific_name
+
+  class Meta:
+    db_table = u'species'
+    verbose_name_plural = 'species'
+    ordering = ['scientific_name']
+
 class Genome(ControlledVocab):
   code         = models.CharField(max_length=32, unique=True)
   common_name  = models.CharField(max_length=255, db_column='commonname')
@@ -106,6 +119,7 @@ class Genome(ControlledVocab):
   version      = models.CharField(max_length=255, null=True, blank=True)
   url          = models.CharField(max_length=256, null=True, blank=True)
   taxonomy_id  = models.IntegerField()
+  species      = models.ForeignKey(Species, on_delete=models.PROTECT, null=True, blank=True)
 
   _controlled_field = 'code'
   
@@ -259,6 +273,7 @@ class Source(models.Model):
   date_of_death = models.DateField(null=True, blank=True)
   mother       = models.ForeignKey('Source', on_delete=models.PROTECT, null=True, blank=True, related_name='child_as_mother')
   father       = models.ForeignKey('Source', on_delete=models.PROTECT, null=True, blank=True, related_name='child_as_father')
+  species      = models.ForeignKey(Species, on_delete=models.PROTECT, null=True, blank=True)
   comment      = models.TextField(null=True, blank=True)
 
   def __unicode__(self):
@@ -305,7 +320,8 @@ class TreatmentAgent(ControlledVocab):
 class SourceTreatment(models.Model):
   '''
   Each Source (i.e., originating organism) may be treated multiple
-  times in multiple ways.
+  times in multiple ways. Note that dose is deliberately coded as
+  CharField to allow for maximum flexibility.
   '''
   source       = models.ForeignKey(Source, on_delete=models.PROTECT)
   date         = models.DateField()
@@ -345,6 +361,44 @@ class TumourGrading(ControlledVocab):
     db_table = u'tumour_grading'
     ordering = ['name']
 
+# Technically this should perhaps be a ControlledVocab subclass, but
+# at the moment CV only uses the _controlled_name field to search,
+# without reference to category. This is therefore something a bit
+# different. Re-examine this if we ever need fuzzy search matching.
+class Characteristic(models.Model):
+  '''
+  A class designed to store category-value terms. These should be
+  characteristics with discrete, defined values (i.e. categorical
+  variables, *not* continuous variables which might be better modelled
+  as a Measurement class.
+  '''
+  category     = models.CharField(max_length=32)
+  value        = models.CharField(max_length=32)
+
+  def __unicode__(self):
+    return "%s: %s" % (self.category, self.value)
+
+  class Meta:
+    db_table = u'characteristic'
+    ordering = ['category','value']
+
+class SizeUnit(ControlledVocab):
+  '''
+  A unit of size. This is deliberately vague as it may be a length,
+  volume, or conceivably even a mass unit.
+  '''
+  name         = models.CharField(max_length=32, unique=True)
+  description  = models.CharField(max_length=128)
+
+  _controlled_field = 'name'
+  
+  def __unicode__(self):
+    return self.name
+
+  class Meta:
+    db_table = u'size_unit'
+    ordering = ['name']
+
 class Sample(models.Model):
   '''
   A tissue sample taken from a Source organism.
@@ -352,8 +406,10 @@ class Sample(models.Model):
   name         = models.CharField(max_length=64)
   tissue       = models.ForeignKey(Tissue, on_delete=models.PROTECT)
   source       = models.ForeignKey(Source, on_delete=models.PROTECT)
-  tumour_grading = models.ForeignKey(TumourGrading, on_delete=models.PROTECT,
-                                     null=True, blank=True)
+  characteristics = models.ManyToManyField(Characteristic, db_table='sample_characteristic', related_name='samples')
+  size         = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+  size_unit    = models.ForeignKey(SizeUnit, on_delete=models.PROTECT,
+                                   null=True, blank=True)
   comment      = models.TextField(null=True, blank=True)
 
   def __unicode__(self):
