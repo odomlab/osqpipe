@@ -13,7 +13,7 @@ from django import forms
 @admin.register(Adapter)
 class AdapterAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'sequence', 'protocol')
-  search_fields = ('code', 'sequence')
+  search_fields = ('code', 'sequence', 'protocol')
 
 #############################################
 #FIXME we need to handle provenance (program/parameters) here

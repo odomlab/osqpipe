@@ -124,7 +124,7 @@ class ControlledVocabManager(models.Manager):
     # Filter out any objects deleted since loading the cache. This
     # also has the effect of making members a proper queryset again.
     if len(members) > 0:
-      members = self.get_query_set().filter( pk__in=[ x.pk for x in members ] )
+      members = self.get_queryset().filter( pk__in=[ x.pk for x in members ] )
     else:
       members = self.none()
 

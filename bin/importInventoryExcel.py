@@ -188,6 +188,10 @@ class InventoryImporter(object):
             if 'linkerset' not in rowdict or rowdict['linkerset'] == '':
               linkerset = 'TruSeqSmRNAIndex' + barcode
 
+          elif ( int(barcode) > 500 and int(barcode) < 509 )\
+               or ( int(barcode) > 700 and int(barcode) < 713 ):
+            adapter = 'TS_D' + barcode   # dual indexing adapter set.
+
           else:
             adapter = 'TS_' + barcode    # not smRNAseq
 
