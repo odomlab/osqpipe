@@ -616,7 +616,7 @@ class AlignmentJobRunner(object):
         raise ValueError("Genome %s unacessible or missing." % genome)
 
     self.genome = genome
-    self.samplename = samplename
+    self.samplename = sanitize_samplename(samplename)
 
   @classmethod
   def build_genome_index_path(cls, *args, **kwargs):
@@ -669,7 +669,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
 
       # Sample names containing spaces are bad on the command line,
       # and potentially problematic in bam read groups.
-      sampleflag = '--sample %s' % sanitize_samplename(self.samplename)
+      sampleflag = '--sample %s' % self.samplename
     else:
       sampleflag = ''
 
@@ -779,7 +779,7 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
       cleanupflag = ''
 
     if self.samplename:
-      sampleflag = '--sample %s' % (self.samplename,)
+      sampleflag = '--sample %s' % self.samplename
     else:
       sampleflag = ''
 
