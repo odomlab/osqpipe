@@ -41,7 +41,7 @@
     <option name="httptmpdir">/var/www/html/chipseq/tmp</option>
     <option name="httptmpurl">/chipseq/tmp</option>
     <option name="incoming">/data01/incoming</option>
-    <option name="repositorydir">/data01/repository</option>
+    <option name="repositorydir">/data02/repository</option>
     <option name="hostpath">/home/fnc-odompipe/production/bin:/home/fnc-odompipe/software/CRI/bin:/home/fnc-odompipe/software/external/bin:/sw/gentoo/bin:/sw/gentoo/usr/bin:/sw/local/bin</option>
     <option name="genomesizedir">/data01/genomes/chromosome_sizes</option>
     <option name="tmpdir">/data01/tmp</option>
