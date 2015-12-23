@@ -456,6 +456,8 @@ def sanitize_samplename(samplename):
   characters from sample names (for use in bam file read groups, file
   names etc.).
   '''
+  if samplename is None:
+    return None
   sanity_re = re.compile(r'([ \/\(\);&|]+)')
   return(sanity_re.sub('_', samplename))
 

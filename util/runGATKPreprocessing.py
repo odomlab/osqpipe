@@ -67,9 +67,16 @@ if __name__ == '__main__':
                      help='The name of a merged bam file to use instead'
                      + ' of library codes or sample ID.')
 
+  PARSER.add_argument('--no-markduplicates', dest='runmd', action='store_false',
+                      help='Do not use the MarkDuplicates section of the pipeline.')
+
+  PARSER.add_argument('--no-gatkpipe', dest='rungatk', action='store_false',
+                      help='Do not use the GATK preprocessing section of the pipeline.')
+
   ARGS = PARSER.parse_args()
 
-  PROC = GATKPreprocessor()
+  PROC = GATKPreprocessor(with_markduplicates = ARGS.runmd,
+                          with_gatkpipe       = ARGS.rungatk)
 
   if ARGS.mergedbam is not None:
     PROC.gatk_preprocess_bam(ARGS.mergedbam)
