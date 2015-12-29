@@ -546,8 +546,10 @@ class GATKPreprocessor(ClusterJobManager):
     # TODO consider using the original config template as provided by
     # the pipeline package, rather than our custom-edited version here.
     conffile = os.path.join(CONFIG.gatk_cluster_root, 'config.xml')
-    new_conffile = os.path.join(CONFIG.gatk_cluster_input,
-                                "%d_config.xml" % os.getpid())
+
+    # The inputbam filename typically already has an os.getpid() prefix.
+    bambase  = sanitize_samplename(os.path.splitext(os.path.basename(inputbam))[0])
+    new_conffile = os.path.join(CONFIG.gatk_cluster_input, "%s_config.xml" % bambase)
 
     def_conf = ET.parse(conffile)
 
