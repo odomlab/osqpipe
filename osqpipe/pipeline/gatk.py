@@ -4,6 +4,7 @@ Code used to manage the GATK cleanup parts of our HCC pipeline.
 
 import os
 import re
+from time import time, sleep
 from subprocess import Popen, PIPE, STDOUT, CalledProcessError
 from shutil import copy
 from django.db import transaction
@@ -226,7 +227,9 @@ class GATKPreprocessor(ClusterJobManager):
   def cluster_filename(self, fname):
     '''
     Given a local filename, return a file path suitable for use on the
-    cluster.
+    cluster. This assumes that the API user is responsible for
+    ensuring that the same file is not used twice within the same
+    process.
     '''
     fname  = "%d_%s" % (os.getpid(), fname)
     clpath = os.path.join(CONFIG.gatk_cluster_input, fname)
@@ -438,12 +441,17 @@ class GATKPreprocessor(ClusterJobManager):
     workflow (i.e., this class has expectations of the GATK output).
     '''
     LOGGER.info("Building GATK pipeline config file")
-    tmpdir = os.path.join(CONFIG.clusterworkdir, "%d_gatk_tmp" % os.getpid())
+    tmpdir = os.path.join(CONFIG.clusterworkdir,
+                          "%d_%d_gatk_tmp" % (os.getpid(), int(time())))
     conffile = self.create_instance_config(inputbam=dupmark_fn, # no quoting needed.
                                            tmpdir=tmpdir,
                                            outdir=CONFIG.gatk_cluster_output,
                                            reference=genobj.fasta_path,
                                            finalprefix=finalprefix)
+
+    # Deliberately wait a couple of seconds so we definitively avoid
+    # race conditions in tmpdir and conffile naming.
+    sleep(2)
 
     # Then call gatk-pipeline/bin/run-pipeline --mode lsf
     # run_config.xml. Note that we need to set JAVA_HOME to the
@@ -546,10 +554,8 @@ class GATKPreprocessor(ClusterJobManager):
     # TODO consider using the original config template as provided by
     # the pipeline package, rather than our custom-edited version here.
     conffile = os.path.join(CONFIG.gatk_cluster_root, 'config.xml')
-
-    # The inputbam filename typically already has an os.getpid() prefix.
-    bambase  = sanitize_samplename(os.path.splitext(os.path.basename(inputbam))[0])
-    new_conffile = os.path.join(CONFIG.gatk_cluster_input, "%s_config.xml" % bambase)
+    new_conffile = os.path.join(CONFIG.gatk_cluster_input,
+                                "%d_%d_config.xml" % (os.getpid(), int(time())))
 
     def_conf = ET.parse(conffile)
 
