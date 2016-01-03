@@ -44,13 +44,16 @@ class LibrarySerializer(serializers.ModelSerializer):
   libtype  = serializers.StringRelatedField()
   factor   = serializers.StringRelatedField()
   sample   = SampleSerializer(read_only=True)
+  adapter  = serializers.StringRelatedField()
+  adapter2 = serializers.StringRelatedField()
   lane_set = serializers.HyperlinkedRelatedField(many=True,
                                                  view_name='api:lane-detail',
                                                  read_only=True)
   
   class Meta:
     model     = Library
-    fields    = ('code', 'libtype', 'factor', 'sample', 'lane_set')
+    fields    = ('code', 'libtype', 'factor', 'adapter', 'adapter2',
+                 'sample', 'lane_set')
 
 class LanefileSerializer(serializers.ModelSerializer):
   '''
@@ -67,11 +70,14 @@ class LaneSerializer(serializers.ModelSerializer):
   '''
   A bridging serializer between Library and Lanefile.
   '''
+  library  = serializers.StringRelatedField()
   machine  = serializers.StringRelatedField()
   facility = serializers.StringRelatedField()
   lanefile_set = LanefileSerializer(read_only=True, many=True)
   
   class Meta:
     model = Lane
-    fields = ('machine', 'facility', 'flowcell', 'flowlane', 'lanefile_set')
+    fields = ('library', 'machine', 'facility', 'flowcell', 'flowlane',
+              'rundate', 'genomicssampleid', 'paired', 'readlength',
+              'total_passedpf', 'lanefile_set', 'status')
 
