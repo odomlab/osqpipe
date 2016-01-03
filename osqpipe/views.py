@@ -28,9 +28,9 @@ from mimetypes import guess_type
 from .viewclasses import MyListView, MyDetailView, MyFormView, FilterMixin,\
   FormListView, RestrictedFileDownloadView
 
-from .serializers import ProjectSerializer, LibrarySerializer
+from .serializers import ProjectSerializer, LibrarySerializer, LaneSerializer
 from .permissions import IsProjectMember
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, authentication
 from rest_framework.response import Response
 
 CONFIG = Config()
@@ -476,8 +476,10 @@ def logout(request, *args, **kwargs):
   
 ################################################################################
 # REST API view code
+class SessionAuthViewSet(viewsets.ReadOnlyModelViewSet):
+  authentication_classes = ( authentication.SessionAuthentication, )
 
-class ProjectViewSet(viewsets.ReadOnlyModelViewSet):
+class ProjectViewSet(SessionAuthViewSet):
   '''
   A simple ViewSet for listing or retrieving projects.
   '''
@@ -488,7 +490,7 @@ class ProjectViewSet(viewsets.ReadOnlyModelViewSet):
   def get_queryset(self):
     return Project.objects.filter(people=self.request.user)
 
-class LibraryViewSet(viewsets.ReadOnlyModelViewSet):
+class LibraryViewSet(SessionAuthViewSet):
   '''
   A simple ViewSet for listing or retrieving libraries.
   '''
@@ -498,3 +500,14 @@ class LibraryViewSet(viewsets.ReadOnlyModelViewSet):
 
   def get_queryset(self):
     return Library.objects.filter(projects__people=self.request.user).distinct()
+
+class LaneViewSet(SessionAuthViewSet):
+  '''
+  A simple ViewSet for listing or retrieving lanes.
+  '''
+  serializer_class = LaneSerializer
+  permission_classes = ( permissions.IsAuthenticated,
+                         IsProjectMember )
+
+  def get_queryset(self):
+    return Lane.objects.filter(library__projects__people=self.request.user).distinct()

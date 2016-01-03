@@ -10,6 +10,17 @@ from rest_framework.routers import DefaultRouter
 router = DefaultRouter()
 router.register(r'projects',  views.ProjectViewSet, base_name='project')
 router.register(r'libraries', views.LibraryViewSet, base_name='library')
+router.register(r'lanes',     views.LaneViewSet,    base_name='lane')
+
+# REST API file download links. This can be extended as necessary to
+# Alnfile, QCfile etc.
+restdownloadurls = [
+  url(r'^download/lanefile/(?P<pk>\d+)$',
+      views.FileDownloadView.as_view(),
+      name='lanefile-download',
+      kwargs={'cls': 'lanefile'}
+    ),
+]
 
 # Repository app URLs.
 urlpatterns = [
@@ -78,10 +89,8 @@ urlpatterns = [
       template_name='repository/denied.html'),
       name='denied'),
 
-  # The following define our REST API URLs.
-  url(r'^api/', include(router.urls, namespace='api')),
-  url(r'^api/download/(?P<cls>lanefile)/(?P<pk>\d+)$',
-      views.FileDownloadView.as_view(),
-      name='api:file-download'), # FIXME is this appropriate?
+  # The following define our REST API URLs. Beware that the API namespace
+  # given here is also reused in serializers.py.
+  url(r'^api/', include(router.urls + restdownloadurls, namespace='api')),
   url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
 ]

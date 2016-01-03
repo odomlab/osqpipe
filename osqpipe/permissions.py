@@ -2,7 +2,7 @@
 Custom project-level permissions.
 '''
 
-from .models import Project, Library
+from .models import Project, Library, Lane
 from rest_framework import permissions
 
 class IsProjectMember(permissions.BasePermission):
@@ -23,6 +23,10 @@ class IsProjectMember(permissions.BasePermission):
     elif type(obj) is Library:
       return request.user in [ person
                                for prj in obj.projects.all()
+                               for person in prj.people.all() ]
+    elif type(obj) is Lane:
+      return request.user in [ person
+                               for prj in obj.library.projects.all()
                                for person in prj.people.all() ]
     else:
       return False
