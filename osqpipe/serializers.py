@@ -73,6 +73,7 @@ class LaneSerializer(serializers.ModelSerializer):
   library  = serializers.StringRelatedField()
   machine  = serializers.StringRelatedField()
   facility = serializers.StringRelatedField()
+  status   = serializers.StringRelatedField()
   lanefile_set = LanefileSerializer(read_only=True, many=True)
   
   class Meta:
