@@ -53,3 +53,4 @@ class LibraryProjectPicker(forms.Form):
     qs = kwargs.pop('projects')
     super(LibraryProjectPicker, self).__init__(*args, **kwargs)
     self.fields['projects'].queryset = qs
+    self.fields['projects'].help_text = '' # see https://code.djangoproject.com/ticket/9321
