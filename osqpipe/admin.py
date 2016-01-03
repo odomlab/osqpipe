@@ -1,6 +1,6 @@
 '''Configuration for the auto-generated django admin web interface.'''
 
-from models import *
+from .models import *
 from django.contrib import admin
 from django.core.urlresolvers import reverse
 from django import forms

@@ -15,12 +15,12 @@ from subprocess import Popen, PIPE
 from shutil import copy2
 
 from django.db import transaction
-from osqpipe.models import ArchiveLocation, Lanefile, Alnfile, \
+from ..models import ArchiveLocation, Lanefile, Alnfile, \
     QCfile, Peakfile, MergedAlnfile, Datafile
-from osqpipe.pipeline.utilities import checksum_file, bash_quote
+from .utilities import checksum_file, bash_quote
 
-from osqpipe.pipeline.config import Config
-from osqpipe.pipeline.setup_logs import configure_logging
+from .config import Config
+from .setup_logs import configure_logging
 
 LOGGER = configure_logging('archive')
 CONFIG = Config()

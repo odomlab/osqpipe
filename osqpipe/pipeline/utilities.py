@@ -20,8 +20,8 @@ import hashlib
 from subprocess import Popen, CalledProcessError, PIPE
 from distutils import spawn
 import threading
-from config import Config
-from setup_logs import configure_logging
+from .config import Config
+from .setup_logs import configure_logging
 from functools import wraps
 
 ###########################################################################

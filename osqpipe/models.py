@@ -8,10 +8,10 @@ import re
 import string
 import os
 
-from managers import ControlledVocabManager, AntibodyManager, FiletypeManager,\
+from .managers import ControlledVocabManager, AntibodyManager, FiletypeManager,\
     LibraryManager, LaneManager
 
-from pipeline.config import Config
+from .pipeline.config import Config
 CONFIG = Config()
 
 ####################################################################################

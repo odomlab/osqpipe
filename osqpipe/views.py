@@ -9,9 +9,9 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views.generic.edit import FormMixin
 from collections import OrderedDict
 
-from models import Library, Project, Genome, Lane, Alnfile, Lanefile, QCfile,\
+from .models import Library, Project, Genome, Lane, Alnfile, Lanefile, QCfile,\
     Peakfile, MergedAlignment, MergedAlnfile, HistologyImagefile
-from forms import SimpleSearchForm, LibrarySearchForm, LibraryEditForm,\
+from .forms import SimpleSearchForm, LibrarySearchForm, LibraryEditForm,\
     LibraryProjectPicker
 
 from django.utils.encoding import smart_str
@@ -21,12 +21,17 @@ from django.core.urlresolvers import reverse
 from django.contrib import messages
 
 from urlparse import urlparse # FIXME workaround for qualplot output
-from qualplot import plot_pfqual_values, plot_all_qual_values
-from pipeline.config import Config
+from .qualplot import plot_pfqual_values, plot_all_qual_values
+from .pipeline.config import Config
 from mimetypes import guess_type
 
-from viewclasses import MyListView, MyDetailView, MyFormView, FilterMixin,\
-    FormListView, RestrictedFileDownloadView
+from .viewclasses import MyListView, MyDetailView, MyFormView, FilterMixin,\
+  FormListView, RestrictedFileDownloadView
+
+from .serializers import ProjectSerializer, LibrarySerializer
+from .permissions import IsProjectMember
+from rest_framework import viewsets, permissions
+from rest_framework.response import Response
 
 CONFIG = Config()
 
@@ -469,3 +474,27 @@ def logout(request, *args, **kwargs):
   return response
   
   
+################################################################################
+# REST API view code
+
+class ProjectViewSet(viewsets.ReadOnlyModelViewSet):
+  '''
+  A simple ViewSet for listing or retrieving projects.
+  '''
+  serializer_class = ProjectSerializer
+  permission_classes = ( permissions.IsAuthenticated,
+                         IsProjectMember )
+
+  def get_queryset(self):
+    return Project.objects.filter(people=self.request.user)
+
+class LibraryViewSet(viewsets.ReadOnlyModelViewSet):
+  '''
+  A simple ViewSet for listing or retrieving libraries.
+  '''
+  serializer_class = LibrarySerializer
+  permission_classes = ( permissions.IsAuthenticated,
+                         IsProjectMember )
+
+  def get_queryset(self):
+    return Library.objects.filter(projects__people=self.request.user).distinct()

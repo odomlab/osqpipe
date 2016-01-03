@@ -7,21 +7,22 @@ import re
 from time import time, sleep
 from subprocess import Popen, PIPE, STDOUT, CalledProcessError
 from shutil import copy
-from django.db import transaction
-from osqpipe.models import Alnfile, Library, Alignment, MergedAlnfile
-from osqpipe.pipeline.samtools import count_bam_reads
-from osqpipe.pipeline.utilities import call_subprocess, checksum_file, \
-    sanitize_samplename
 from pipes import quote
-from osqpipe.pipeline.config import Config
-from osqpipe.pipeline.bwa_runner import ClusterJobManager
+from django.db import transaction
+
+from ..models import Alnfile, Library, Alignment, MergedAlnfile
+from .samtools import count_bam_reads
+from .utilities import call_subprocess, checksum_file, \
+    sanitize_samplename
+from .config import Config
+from .bwa_runner import ClusterJobManager
 
 import xml.etree.ElementTree as ET
 from tempfile import NamedTemporaryFile
 from pysam import AlignmentFile
 from shutil import move
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from .setup_logs import configure_logging
 LOGGER = configure_logging('gatk')
 CONFIG = Config()
 

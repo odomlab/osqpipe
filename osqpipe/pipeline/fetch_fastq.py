@@ -9,13 +9,13 @@ import os
 import os.path
 import re
 
-from utilities import build_incoming_fastq_name, unzip_file, \
+from .utilities import build_incoming_fastq_name, unzip_file, \
     set_file_permissions, checksum_file
-from upstream_lims import Lims
+from .upstream_lims import Lims
 from ..models import Library, Lane
-from config import Config
+from .config import Config
 
-from setup_logs import configure_logging
+from .setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging('fetch_fastq')
 

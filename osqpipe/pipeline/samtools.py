@@ -6,9 +6,9 @@ e.g. to convert between bam and bed file formats.'''
 import os
 import sys
 
-from utilities import read_file_to_key_value, call_subprocess
-from config import Config
-from setup_logs import configure_logging
+from .utilities import read_file_to_key_value, call_subprocess
+from .config import Config
+from .setup_logs import configure_logging
 
 CONFIG = Config()
 LOGGER = configure_logging('samtools')

@@ -15,7 +15,7 @@ from ..models import Factor, Genome, Antibody, Strain, Sex, Tissue, \
 
 from django.db import transaction
 
-from setup_logs import configure_logging
+from .setup_logs import configure_logging
 LOGGER = configure_logging()
 
 CONFIG = Config()

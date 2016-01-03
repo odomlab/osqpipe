@@ -26,9 +26,9 @@ import sys
 import os
 import os.path
 
-from upstream_lims import Lims
+from .upstream_lims import Lims
 
-from setup_logs import configure_logging
+from .setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging('fetch_mga')
 

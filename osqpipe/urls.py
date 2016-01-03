@@ -1,20 +1,17 @@
 from django.conf.urls import include, url
-from django.views.generic import DetailView, ListView, UpdateView, TemplateView
+from django.views.generic import TemplateView
 from django.contrib.auth.views import login as authlogin
 from django.contrib.auth.views import logout as authlogout
-from models import Project
-from views import ProjectListView, LibraryListView, \
-    GenomeListView, DefaultGenomeListView, \
-    LibraryDetailView, LaneDetailView, QualplotDetailView, \
-    FileDownloadView, TempfileDownloadView, LibrarySearchView, \
-    LibraryEditView
+from . import views
 from django.core.urlresolvers import reverse_lazy
 
-# Examples:
-# url(r'^$', 'cs_pipeline.views.home', name='home'),
-# url(r'^cs_pipeline/', include('cs_pipeline.foo.urls')),
+# REST API router config.
+from rest_framework.routers import DefaultRouter
+router = DefaultRouter()
+router.register(r'projects',  views.ProjectViewSet, base_name='project')
+router.register(r'libraries', views.LibraryViewSet, base_name='library')
 
-# Repository app
+# Repository app URLs.
 urlpatterns = [
 
   url(r'^$',
@@ -24,51 +21,51 @@ urlpatterns = [
       ),
 
   url(r'^project/$',
-      ProjectListView.as_view(),
+      views.ProjectListView.as_view(),
       name='project-list',
       ),
 
   url(r'^library/(?P<project>\w+)/$',
-      LibraryListView.as_view(),
+      views.LibraryListView.as_view(),
       name='library-list',
       ),
   url(r'^library/(?P<project>\w+)/search$',
-      LibrarySearchView.as_view(),
+      views.LibrarySearchView.as_view(),
       name='library-search',
       ),
   url(r'^library/(?P<slug>\w+)$',
-      LibraryDetailView.as_view(),
+      views.LibraryDetailView.as_view(),
       name='library-detail',
       ),
   url(r'^library/(?P<slug>\w+)/edit$',
-      LibraryEditView.as_view(),
+      views.LibraryEditView.as_view(),
       name='library-edit',
       ),
   url(r'^lane/(?P<pk>\d+)$',
-      LaneDetailView.as_view(),
+      views.LaneDetailView.as_view(),
       name='lane-detail',
       ),
   url(r'^lane/qualplot/(?P<pk>\d+)$',
-      QualplotDetailView.as_view(),
+      views.QualplotDetailView.as_view(),
       name='lane-qualplot',
       ),
   url(r'^download/(?P<cls>alnfile|lanefile|qcfile|peakfile|mergedalnfile|histologyimagefile)/(?P<pk>\d+)$',
-      FileDownloadView.as_view(),
+      views.FileDownloadView.as_view(),
       name='file-download',
       ),
 
   url(r'^tempfile/(?P<file>[A-Za-z0-9_\.-]+)$',
-      TempfileDownloadView.as_view(),
+      views.TempfileDownloadView.as_view(),
       name='tempfile-link',
       ),
 
   url(r'^genome/$',
-      GenomeListView.as_view(),
+      views.GenomeListView.as_view(),
       name='genome-list',
       ),
 
   url(r'^default_genome/$',
-      DefaultGenomeListView.as_view(),
+      views.DefaultGenomeListView.as_view(),
       name='default-genome-list',
       ),
 
@@ -80,4 +77,11 @@ urlpatterns = [
       TemplateView.as_view(
       template_name='repository/denied.html'),
       name='denied'),
+
+  # The following define our REST API URLs.
+  url(r'^api/', include(router.urls, namespace='api')),
+  url(r'^api/download/(?P<cls>lanefile)/(?P<pk>\d+)$',
+      views.FileDownloadView.as_view(),
+      name='api:file-download'), # FIXME is this appropriate?
+  url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
 ]

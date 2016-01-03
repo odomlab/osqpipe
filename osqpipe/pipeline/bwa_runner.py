@@ -20,12 +20,15 @@ from socket import getfqdn, socket, AF_UNIX, SOCK_STREAM
 from tempfile import gettempdir, NamedTemporaryFile
 from getpass import getuser
 
-from utilities import call_subprocess, bash_quote, sanitize_samplename, \
+from .utilities import call_subprocess, bash_quote, sanitize_samplename, \
     is_zipped, set_file_permissions, BamPostProcessor, parse_repository_filename
-from config import Config
+from .config import Config
 
-from setup_logs import configure_logging
+from .setup_logs import configure_logging
 LOGGER = configure_logging('bwa_runner')
+
+from .progsum import ProgramSummary
+from ..models import Program
 
 ##############################################################################
 
@@ -717,9 +720,6 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
 
     conf = Config()
 
-    from progsum import ProgramSummary
-    from ..models import Program
-
     # Get information about default aligner, check that the program is
     # in path and try to predict its version.
     alignerinfo = ProgramSummary(conf.aligner,
@@ -805,9 +805,6 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
   def build_genome_index_path(cls, genome, *args, **kwargs):
 
     conf = Config()
-
-    from progsum import ProgramSummary
-    from ..models import Program
 
     # Get information about default aligner, check that the program is
     # in path and try to predict its version.
@@ -969,9 +966,6 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
 
   @classmethod
   def build_genome_index_path(cls, genome, *args, **kwargs):
-
-    from progsum import ProgramSummary
-    from ..models import Program
 
     conf = Config()
 

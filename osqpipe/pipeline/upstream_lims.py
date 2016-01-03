@@ -13,11 +13,11 @@ import xml.etree.ElementTree as ET
 
 import requests
 
-from config import Config
-from utilities import munge_cruk_emails
+from .config import Config
+from .utilities import munge_cruk_emails
 from ..models import LibraryNameMap, User
 
-from setup_logs import configure_logging
+from .setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging('lims')
 

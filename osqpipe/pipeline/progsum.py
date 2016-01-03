@@ -10,7 +10,7 @@ import os
 import subprocess
 import re
 from distutils import spawn
-from setup_logs import configure_logging
+from .setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging('progsum')
 

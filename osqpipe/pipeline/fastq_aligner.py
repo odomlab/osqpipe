@@ -8,10 +8,10 @@ a genome registered in the repository.'''
 import os
 
 from ..models import Library, Genome, Filetype
-from config import Config
-from bwa_runner import BwaClusterJobSubmitter, BwaDesktopJobSubmitter, TophatClusterJobSubmitter
+from .config import Config
+from .bwa_runner import BwaClusterJobSubmitter, BwaDesktopJobSubmitter, TophatClusterJobSubmitter
 
-from setup_logs import configure_logging
+from .setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging()
 

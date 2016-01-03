@@ -2,7 +2,7 @@
 
 from email.mime.text import MIMEText
 import smtplib
-from config import Config
+from .config import Config
 
 CONFIG = Config()
 

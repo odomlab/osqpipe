@@ -10,7 +10,7 @@ import weakref
 
 import xml.etree.ElementTree as ET
 
-from setup_logs import configure_logging
+from .setup_logs import configure_logging
 LOGGER = configure_logging('config')
 
 ################################################################

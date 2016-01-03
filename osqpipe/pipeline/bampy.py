@@ -13,7 +13,7 @@ import re
 import pysam
 from contextlib import contextmanager
 from logging import INFO
-from setup_logs import configure_logging
+from .setup_logs import configure_logging
 LOGGER = configure_logging('bampy', level=INFO)
 
 class Bamfile(pysam.AlignmentFile):

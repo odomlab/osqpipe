@@ -1,5 +1,5 @@
 from django import forms
-from models import Project, Sex, Libtype
+from .models import Project, Sex, Libtype
 
 class SimpleSearchForm(forms.Form):
   query = forms.CharField()

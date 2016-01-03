@@ -13,15 +13,15 @@ import gzip
 
 from django.db import transaction
 
-from utilities import is_zipped, parse_repository_filename, \
+from .utilities import is_zipped, parse_repository_filename, \
     checksum_file, rezip_file, set_file_permissions
 from ..models import Filetype, Lane, Alignment, Alnfile, Facility, \
     Genome, Program, DataProvenance
-from samtools import BamToBedConverter
-from config import Config
+from .samtools import BamToBedConverter
+from .config import Config
 
-from progsum import ProgramSummary
-from setup_logs import configure_logging
+from .progsum import ProgramSummary
+from .setup_logs import configure_logging
 LOGGER = configure_logging('alignment')
 
 ###########################################################
