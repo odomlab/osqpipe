@@ -27,9 +27,6 @@ from .config import Config
 from .setup_logs import configure_logging
 LOGGER = configure_logging('bwa_runner')
 
-from .progsum import ProgramSummary
-from ..models import Program
-
 ##############################################################################
 
 def genome_fasta_path(genome, genomedir, indexdir=None):
@@ -718,6 +715,10 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
   @classmethod
   def build_genome_index_path(cls, genome, *args, **kwargs):
 
+    # Import here rather than main file as otherwise cluster operations fail.
+    from .progsum import ProgramSummary
+    from ..models import Program
+
     conf = Config()
 
     # Get information about default aligner, check that the program is
@@ -803,6 +804,10 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
 
   @classmethod
   def build_genome_index_path(cls, genome, *args, **kwargs):
+
+    # Import here rather than main file as otherwise cluster operations fail.
+    from .progsum import ProgramSummary
+    from ..models import Program
 
     conf = Config()
 
@@ -966,6 +971,10 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
 
   @classmethod
   def build_genome_index_path(cls, genome, *args, **kwargs):
+
+    # Import here rather than main file as otherwise cluster operations fail.
+    from .progsum import ProgramSummary
+    from ..models import Program
 
     conf = Config()
 

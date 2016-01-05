@@ -39,18 +39,18 @@ setup(
   test_suite='nose.collector',
   scripts=SCRIPTS,
   install_requires=[
-    'Django',
-    'django-sitetree',
-    'django-dbarray',
-    'django-auth-ldap',
-    'djangorestframework',
-    'fuzzy',
-    'pysam',
-    'gnuplot-py', # N.B. package not on PyPI, so can't be auto-installed.
-    'requests',
-    'beautifulsoup4',
-    'lxml', 
-    'xlrd',       # Excel spreadsheet support.
-    'markdown',   # REST browseable API support
+#    'Django',
+#    'django-sitetree',
+#    'django-dbarray',
+#    'django-auth-ldap',
+#    'djangorestframework',
+#    'fuzzy',
+#    'pysam',
+#    'gnuplot-py', # N.B. package not on PyPI, so can't be auto-installed.
+#    'requests',
+#    'beautifulsoup4',
+#    'lxml', 
+#    'xlrd',       # Excel spreadsheet support.
+#    'markdown',   # REST browseable API support
   ],
 )
