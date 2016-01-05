@@ -44,7 +44,7 @@ import django
 django.setup()
 
 from django.db import transaction
-from osqpipe.models import Lane, Facility, Library, Status
+from osqpipe.models import Lane, Facility, Library, Status, Machine
 from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.smtp import email_admins
 
@@ -294,7 +294,7 @@ class SangerLims(object):
             if auth:
               lane.status  = Status.objects.get(code=statstr,
                                                 authority=lane.facility)
-              lane.machine = instrument
+              lane.machine = Machine.objects.get(code__iexact=instrument)
               lane.rundate = statdate
               lane.paired  = is_paired
 

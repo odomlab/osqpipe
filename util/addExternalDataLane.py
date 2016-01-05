@@ -20,7 +20,8 @@ import django
 django.setup()
 
 from osqpipe.models import Library, Lane, Alignment, Lanefile,\
-    Alnfile, Facility, Genome, Status, Filetype, Program, DataProvenance
+    Alnfile, Facility, Genome, Status, Filetype, Program,\
+    DataProvenance, Machine
 from django.db import transaction
 from osqpipe.pipeline.config import Config
 from osqpipe.pipeline.utilities import set_file_permissions, is_zipped,\
@@ -106,12 +107,13 @@ class ExternalDataHandler(object):
     not yet saved to the database.
     '''
     status = Status.objects.get(code='complete')
+    machine = Machine.objects.get(code__iexact=self.machine)
 
     # Don't save this to the db just yet.
     lane = Lane(library    = self.library,
                 facility   = self.facility,
                 lanenum    = self.lanenum,
-                machine    = self.machine,
+                machine    = machine,
                 flowcell   = self.flowcell,
                 rundate    = self.rundate,
                 summaryurl = self.url,
