@@ -12,7 +12,6 @@ from shutil import move
 from logging import INFO
 from osqutil.setup_logs import configure_logging
 LOGGER = configure_logging(level=INFO)
-CONFIG = Config()
 
 # New in Django 1.7 and above.
 import django
@@ -24,6 +23,8 @@ from osqpipe.models import MergedAlignment, MergedAlnfile, Filetype
 from osqutil.utilities import checksum_file, set_file_permissions
 from osqutil.config import Config
 from osqpipe.pipeline.gatk import retrieve_readgroup_alignment, check_bam_readcount
+
+CONFIG = Config()
 
 @transaction.atomic
 def load_merged_bam(bam, genome=None):

@@ -8,7 +8,7 @@ the library repository table.'''
 import sys
 import re
 import copy
-from config import Config
+from osqutil.config import Config
 
 from ..models import Factor, Genome, Antibody, Strain, Sex, Tissue, \
     Library, Libtype, Project, Adapter, Linkerset, Sample, Source
