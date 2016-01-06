@@ -126,9 +126,12 @@ class FlowCellProcess(object):
     # Delete the sample sheet.
     os.unlink(sheet)
 
-  def run(self, flowcell, flowlane=None, fcq=None):
+  def run(self, flowcell, flowlane=None, fcq=None, destdir=None):
     '''The main entry point for the class.'''
     multiplexed = {}
+
+    if destdir is None:
+      destdir = self.conf.incoming
 
     # get list of new lanes from flow cell
     if fcq is None:
@@ -160,12 +163,12 @@ class FlowCellProcess(object):
     # before we start; otherwise we end up demuxing into a home
     # directory or similar.
     pwd = os.getcwd()
-    os.chdir(self.conf.incoming)
+    os.chdir(destdir)
 
     downloading = Status.objects.get(code='downloading data')
 
     # for each lane...
-    path = self.conf.incoming
+    path = destdir
     for (flowcell, flowlane) in flowlanes:
 
       # Mark our lane(s) as active (note that each library has its own
