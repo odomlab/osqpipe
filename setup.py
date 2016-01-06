@@ -54,4 +54,5 @@ setup(
     'xlrd',       # Excel spreadsheet support.
     'markdown',   # REST browseable API support
   ],
+  zip_safe=False,  # Prevents zipping of the installed egg, important for accessing django templates.
 )
