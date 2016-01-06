@@ -16,7 +16,7 @@ import os
 import os.path
 import re
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO, WARNING
 LOGGER = configure_logging(level=INFO)
 

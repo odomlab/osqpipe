@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 #
-# $Id$
-#
 # Written by Margus
 # Date: 2012.10.23
 #
@@ -28,7 +26,7 @@ import os.path
 
 from .upstream_lims import Lims
 
-from .setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging('fetch_mga')
 

@@ -29,9 +29,9 @@ from hashlib import md5
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
-from osqpipe.pipeline.utilities import call_subprocess, bash_quote, \
+from osqutil.utilities import call_subprocess, bash_quote, \
   CalledProcessError
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from osqpipe.pipeline.bwa_runner import ClusterJobManager
 
 from tempfile import gettempdir

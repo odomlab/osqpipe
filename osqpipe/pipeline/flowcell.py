@@ -10,16 +10,16 @@ import os
 import os.path
 import re
 
-from .utilities import parse_incoming_fastq_name, checksum_file, \
+from osqutil.utilities import parse_incoming_fastq_name, checksum_file, \
     build_incoming_fastq_name, call_subprocess, set_file_permissions, \
     munge_cruk_emails
 from .upstream_lims import Lims
-from .config import Config
+from osqutil.config import Config
 from ..models import Library, Lane, Status, LibraryNameMap, User
 
 from .fetch_fastq import FQFileFetcher
 
-from .setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging('flowcell')
 

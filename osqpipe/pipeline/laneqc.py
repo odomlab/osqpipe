@@ -12,9 +12,9 @@ from pkg_resources import Requirement, resource_filename
 from django.db import transaction
 from ..models import Program, LaneQC, QCfile, Filetype, Lanefile, DataProvenance
 from .progsum import ProgramSummary
-from .utilities import checksum_file, call_subprocess, rezip_file, set_file_permissions
-from .config import Config
-from .setup_logs import configure_logging
+from osqutil.utilities import checksum_file, call_subprocess, rezip_file, set_file_permissions
+from osqutil.config import Config
+from osqutil.setup_logs import configure_logging
 
 CONFIG = Config()
 LOGGER = configure_logging('laneqc')

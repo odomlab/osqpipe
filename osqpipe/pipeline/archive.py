@@ -17,10 +17,10 @@ from shutil import copy2
 from django.db import transaction
 from ..models import ArchiveLocation, Lanefile, Alnfile, \
     QCfile, Peakfile, MergedAlnfile, Datafile
-from .utilities import checksum_file, bash_quote
+from osqutil.utilities import checksum_file, bash_quote
 
-from .config import Config
-from .setup_logs import configure_logging
+from osqutil.config import Config
+from osqutil.setup_logs import configure_logging
 
 LOGGER = configure_logging('archive')
 CONFIG = Config()

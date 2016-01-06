@@ -10,7 +10,7 @@ import re
 
 from shutil import move
 from logging import INFO
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 LOGGER = configure_logging(level=INFO)
 CONFIG = Config()
 
@@ -21,8 +21,8 @@ django.setup()
 from pysam import AlignmentFile
 from django.db import transaction
 from osqpipe.models import MergedAlignment, MergedAlnfile, Filetype
-from osqpipe.pipeline.utilities import checksum_file, set_file_permissions
-from osqpipe.pipeline.config import Config
+from osqutil.utilities import checksum_file, set_file_permissions
+from osqutil.config import Config
 from osqpipe.pipeline.gatk import retrieve_readgroup_alignment, check_bam_readcount
 
 @transaction.atomic

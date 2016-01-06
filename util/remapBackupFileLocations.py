@@ -10,8 +10,8 @@ from shutil import move
 from pipes import quote
 from subprocess import CalledProcessError
 
-from osqpipe.pipeline.utilities import call_subprocess, bash_quote
-from osqpipe.pipeline.config import Config
+from osqutil.utilities import call_subprocess, bash_quote
+from osqutil.config import Config
 
 # New in Django 1.7 and above.
 import django

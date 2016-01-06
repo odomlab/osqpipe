@@ -5,7 +5,7 @@ Script to automatically dump a core set of library and lane annotation
 out to CSV format for sharing with collaborators (via e.g. Dropbox).
 '''
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 

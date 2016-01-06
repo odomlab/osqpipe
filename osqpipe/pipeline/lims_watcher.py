@@ -6,15 +6,15 @@
 SolexaLIMS back-end MySQL database. Original version shamelessly
 stolen from Gord Brown's runNotifier script.'''
 
-from .utilities import munge_cruk_emails
+from osqutil.utilities import munge_cruk_emails
 from .upstream_lims import Lims, get_lims_run_history
-from .config import Config
+from osqutil.config import Config
 
 from ..models import Lane, Library, Status, Facility, User
 
 ################################################################################
 
-from .setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging('lims_watcher')
 

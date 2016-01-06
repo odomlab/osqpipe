@@ -8,7 +8,7 @@ program. Note that the output will almost invariably need editing; the
 main benefit of running this script is its automated handling of
 adapter sequences.'''
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 
@@ -16,7 +16,7 @@ LOGGER = configure_logging(level=INFO)
 import django
 django.setup()
 
-from osqpipe.pipeline.utilities import build_incoming_fastq_name
+from osqutil.utilities import build_incoming_fastq_name
 
 from osqpipe.models import Library
 

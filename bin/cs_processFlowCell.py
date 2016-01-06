@@ -5,7 +5,7 @@
 '''Script to query a given flowcell ID for lanes of interest, download
 the sequencing data (i.e. fastq file) and demultiplex if necessary.'''
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 

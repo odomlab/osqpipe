@@ -52,5 +52,6 @@ setup(
 #    'lxml', 
 #    'xlrd',       # Excel spreadsheet support.
 #    'markdown',   # REST browseable API support
+      'osqutil',
   ],
 )

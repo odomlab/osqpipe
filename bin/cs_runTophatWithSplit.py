@@ -19,7 +19,7 @@ from distutils import spawn
 from pipes import quote
 import time
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO, WARNING
 LOGGER = configure_logging(level=INFO)
     

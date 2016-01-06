@@ -4,7 +4,7 @@
 
 '''Script to fetch fastq files from the LIMS.'''
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 

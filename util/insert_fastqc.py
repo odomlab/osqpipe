@@ -13,8 +13,8 @@ django.setup()
 from osqpipe.models import Lane, Lanefile
 
 from osqpipe.pipeline.laneqc import LaneFastQCReport
-from osqpipe.pipeline.utilities import parse_repository_filename
-from osqpipe.pipeline.config import Config
+from osqutil.utilities import parse_repository_filename
+from osqutil.config import Config
 
 CONFIG = Config()
 

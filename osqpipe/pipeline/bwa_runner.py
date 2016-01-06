@@ -20,11 +20,11 @@ from socket import getfqdn, socket, AF_UNIX, SOCK_STREAM
 from tempfile import gettempdir, NamedTemporaryFile
 from getpass import getuser
 
-from .utilities import call_subprocess, bash_quote, sanitize_samplename, \
+from osqutil.utilities import call_subprocess, bash_quote, sanitize_samplename, \
     is_zipped, set_file_permissions, BamPostProcessor, parse_repository_filename
-from .config import Config
+from osqutil.config import Config
 
-from .setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 LOGGER = configure_logging('bwa_runner')
 
 ##############################################################################

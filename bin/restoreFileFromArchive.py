@@ -7,8 +7,8 @@ database is updated to reflect the change. No changes are made to the
 archive.
 '''
 
-from osqpipe.pipeline.config import Config
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.config import Config
+from osqutil.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 CONFIG = Config()
