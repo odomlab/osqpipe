@@ -21,7 +21,7 @@ from osqpipe.pipeline.lims_watcher import LimsWatcher
 from osqpipe.pipeline.flowcell import FlowCellQuery, FlowCellProcess
 from osqpipe.pipeline.file_processor import FileProcessingManager
 from osqutil.utilities import parse_incoming_fastq_name
-from osqutil.smtp import email_admins, send_email
+from osqpipe.pipeline.smtp import email_admins, send_email
 from osqpipe.models import Facility, Status, Lane
 
 from osqutil.config import Config

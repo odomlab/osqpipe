@@ -46,7 +46,7 @@ django.setup()
 from django.db import transaction
 from osqpipe.models import Lane, Facility, Library, Status, Machine
 from osqutil.config import Config
-from osqutil.smtp import email_admins
+from osqpipe.pipeline.smtp import email_admins
 
 # Script-specific globals; no real need to put these in the main config.
 CACHE_FILE = os.path.join(os.path.expanduser('~'), '.sanger_run_status_latest')
