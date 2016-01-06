@@ -28,8 +28,8 @@ from osqutil.utilities import set_file_permissions, is_zipped,\
     rezip_file, unzip_file, checksum_file
 from osqpipe.pipeline.laneqc import LaneFastQCReport
 from osqpipe.pipeline.alignment import count_reads
-from osqpipe.pipeline.samtools import BamToBedConverter
-from osqpipe.pipeline.progsum import ProgramSummary
+from osqutil.samtools import BamToBedConverter
+from osqutil.progsum import ProgramSummary
 
 ################################################################################
 

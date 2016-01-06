@@ -29,7 +29,7 @@ from osqutil.config import Config
 from osqpipe.models import Filetype, Genome, Library, \
     Status, Lane
 
-from osqpipe.pipeline.samtools import BamToBedConverter, count_bam_reads
+from osqutil.samtools import BamToBedConverter, count_bam_reads
 from osqpipe.pipeline.alignment import AlignmentHandler
 
 ###############################################################################

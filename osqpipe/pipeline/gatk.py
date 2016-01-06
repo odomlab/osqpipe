@@ -11,7 +11,7 @@ from pipes import quote
 from django.db import transaction
 
 from ..models import Alnfile, Library, Alignment, MergedAlnfile
-from .samtools import count_bam_reads
+from osqutil.samtools import count_bam_reads
 from osqutil.utilities import call_subprocess, checksum_file, \
     sanitize_samplename
 from osqutil.config import Config

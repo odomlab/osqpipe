@@ -17,10 +17,10 @@ from osqutil.utilities import is_zipped, parse_repository_filename, \
     checksum_file, rezip_file, set_file_permissions
 from ..models import Filetype, Lane, Alignment, Alnfile, Facility, \
     Genome, Program, DataProvenance
-from .samtools import BamToBedConverter
+from osqutil.samtools import BamToBedConverter
 from osqutil.config import Config
 
-from .progsum import ProgramSummary
+from osqutil.progsum import ProgramSummary
 from osqutil.setup_logs import configure_logging
 LOGGER = configure_logging('alignment')
 

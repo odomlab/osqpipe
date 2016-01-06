@@ -22,7 +22,7 @@ django.setup()
 from osqpipe.models import Alnfile
 from osqutil.utilities import BamPostProcessor, call_subprocess, \
     set_file_permissions, checksum_file
-from osqpipe.pipeline.samtools import count_bam_reads
+from osqutil.samtools import count_bam_reads
 
 from django.db import transaction
 

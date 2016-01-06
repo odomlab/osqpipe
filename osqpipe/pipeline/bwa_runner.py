@@ -22,6 +22,7 @@ from getpass import getuser
 
 from osqutil.utilities import call_subprocess, bash_quote, sanitize_samplename, \
     is_zipped, set_file_permissions, BamPostProcessor, parse_repository_filename
+from osqutil.progsum import ProgramSummary
 from osqutil.config import Config
 
 from osqutil.setup_logs import configure_logging
@@ -716,7 +717,6 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
   def build_genome_index_path(cls, genome, *args, **kwargs):
 
     # Import here rather than main file as otherwise cluster operations fail.
-    from .progsum import ProgramSummary
     from ..models import Program
 
     conf = Config()
@@ -806,7 +806,6 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
   def build_genome_index_path(cls, genome, *args, **kwargs):
 
     # Import here rather than main file as otherwise cluster operations fail.
-    from .progsum import ProgramSummary
     from ..models import Program
 
     conf = Config()
@@ -973,7 +972,6 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
   def build_genome_index_path(cls, genome, *args, **kwargs):
 
     # Import here rather than main file as otherwise cluster operations fail.
-    from .progsum import ProgramSummary
     from ..models import Program
 
     conf = Config()
