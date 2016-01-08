@@ -3,6 +3,10 @@ import re
 
 from urllib import urlencode
 
+from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
+
 from django.http import Http404, HttpResponse
 from django.utils.translation import ugettext as _
 from django.shortcuts import get_object_or_404, redirect
@@ -32,6 +36,13 @@ from .serializers import ProjectSerializer, LibrarySerializer, LaneSerializer
 from .permissions import IsProjectMember
 from rest_framework import viewsets, permissions, authentication
 from rest_framework.response import Response
+from rest_framework.status import HTTP_400_BAD_REQUEST
+from .authentication import ExpiringTokenAuthentication
+from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.serializers import AuthTokenSerializer
+from rest_framework.authtoken.views import ObtainAuthToken
+
+TOKEN_EXPIRE_HOURS = getattr(settings, 'REST_FRAMEWORK', {}).get('TOKEN_EXPIRE_HOURS', 24)
 
 CONFIG = Config()
 
@@ -476,8 +487,41 @@ def logout(request, *args, **kwargs):
   
 ################################################################################
 # REST API view code
+class ObtainExpiringAuthToken(ObtainAuthToken):
+  '''
+  View enabling username/password exchange for expiring token.
+  '''
+  def post(self, request):
+    '''
+    Respond to POSTed username/password with token.
+    '''
+    serializer = AuthTokenSerializer(data=request.data)
+
+    if serializer.is_valid():
+      token, _ = Token.objects.get_or_create(
+        user=serializer.validated_data['user']
+      )
+
+      if token.created < timezone.now() - timedelta(hours=TOKEN_EXPIRE_HOURS):
+
+        # If the token is expired, generate a new one.
+        token.delete()
+        token = Token.objects.create(
+          user=serializer.validated_data['user']
+        )
+
+      data = {'token': token.key}
+      return Response(data)
+
+    return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+obtain_expiring_auth_token = ObtainExpiringAuthToken.as_view()
+
+#
+# Actual API views start here.
+#
 class SessionAuthViewSet(viewsets.ReadOnlyModelViewSet):
-  authentication_classes = ( authentication.SessionAuthentication, )
+  authentication_classes = ( ExpiringTokenAuthentication, )
 
 class ProjectViewSet(SessionAuthViewSet):
   '''
@@ -511,3 +555,5 @@ class LaneViewSet(SessionAuthViewSet):
 
   def get_queryset(self):
     return Lane.objects.filter(library__projects__people=self.request.user).distinct()
+
+################################################################################

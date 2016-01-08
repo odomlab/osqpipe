@@ -93,4 +93,5 @@ urlpatterns = [
   # given here is also reused in serializers.py.
   url(r'^api/', include(router.urls + restdownloadurls, namespace='api')),
   url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+  url(r'^api-token-auth/', views.obtain_expiring_auth_token),
 ]
