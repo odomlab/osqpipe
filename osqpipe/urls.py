@@ -16,7 +16,7 @@ router.register(r'lanes',     views.LaneViewSet,    base_name='lane')
 # Alnfile, QCfile etc.
 restdownloadurls = [
   url(r'^download/lanefile/(?P<pk>\d+)$',
-      views.FileDownloadView.as_view(),
+      views.RESTFileDownloadView.as_view(),
       name='lanefile-download',
       kwargs={'cls': 'lanefile'}
     ),

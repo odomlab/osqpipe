@@ -35,6 +35,7 @@ from .viewclasses import MyListView, MyDetailView, MyFormView, FilterMixin,\
 from .serializers import ProjectSerializer, LibrarySerializer, LaneSerializer
 from .permissions import IsProjectMember
 from rest_framework import viewsets, permissions, authentication
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.status import HTTP_400_BAD_REQUEST
 from .authentication import ExpiringTokenAuthentication
@@ -383,8 +384,7 @@ class QualplotDetailView(LaneDetailView):
     context['qualplot_file_pf']  = url.path.split("/")[-1]
     return context
 
-# See also http://djangosnippets.org/snippets/2549/
-class FileDownloadView(RestrictedFileDownloadView):
+class FileDownloadMixin(object):      
 
   def get(self, request, *args, **kwargs):
     cls = self.kwargs['cls']
@@ -444,6 +444,10 @@ class FileDownloadView(RestrictedFileDownloadView):
     # You can also set any other required headers: Cache-Control, etc.
 
     return response
+
+# See also http://djangosnippets.org/snippets/2549/
+class FileDownloadView(FileDownloadMixin, RestrictedFileDownloadView):
+  pass
 
 # Requires a login, but we can't limit access per project for
 # temporary files.
@@ -556,5 +560,12 @@ class LaneViewSet(SessionAuthViewSet):
 
   def get_queryset(self):
     return Lane.objects.filter(library__projects__people=self.request.user).distinct()
+
+class RESTFileDownloadView(FileDownloadMixin, APIView):
+  '''
+  Class-based view allowing API file downloads with token authentication.
+  '''
+  authentication_classes = ( ExpiringTokenAuthentication,
+                             authentication.SessionAuthentication, )
 
 ################################################################################

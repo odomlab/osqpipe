@@ -137,17 +137,21 @@ class OdomDataRetriever(object):
     LOGGER.info("Retrieved metadata for lane %s (flowcell %s)",
                 lanedict['flowlane'], lanedict['flowcell'])
     for filedict in lanedict['lanefile_set']:
-      self.process_lanefile(filedict)
+      if filedict['filetype'] == 'fastq':
+        self.process_lanefile(filedict)
 
   def process_lanefile(self, filedict):
 
     dl_fname = filedict['filename_on_disk']
-    if self.with_download:
-      LOGGER.debug("Starting file download: %s", dl_fname)
-      self.session.rest_download_file(filedict['download'], dl_fname)
-      LOGGER.info("Downloaded file %s", dl_fname)
+    if os.path.exists(dl_fname):
+      LOGGER.info("Skipping download of pre-existing file %s", dl_fname)
     else:
-      LOGGER.debug("Skipping download as directed: %s", dl_fname)
+      if self.with_download:
+        LOGGER.debug("Starting file download: %s", dl_fname)
+        self.session.rest_download_file(filedict['download'], dl_fname)
+        LOGGER.info("Downloaded file %s", dl_fname)
+      else:
+        LOGGER.debug("Skipping download as directed: %s", dl_fname)
 
     if not os.path.exists(dl_fname):
       LOGGER.warning("Downloaded file appears to be missing: %s", dl_fname)
@@ -182,11 +186,11 @@ if __name__ == '__main__':
                       help='The optional name of the project to which downloads'
                       + ' will be restricted')
 
-  PARSER.add_argument('--without-downlaod', dest='no_download', action='store_false',
+  PARSER.add_argument('--without-download', dest='no_download', action='store_true',
                       help='Omit the file download step; this may be used to execute'
                       + ' checksums without repeating the file download.')
 
-  PARSER.add_argument('--without-checksum', dest='no_checksum', action='store_false',
+  PARSER.add_argument('--without-checksum', dest='no_checksum', action='store_true',
                       help='Omit the file MD5 checksum confirmation step. This is'
                       + ' provided as an option to skip what can be a disk I/O and'
                       + ' computationally intensive step.')
