@@ -521,7 +521,8 @@ obtain_expiring_auth_token = ObtainExpiringAuthToken.as_view()
 # Actual API views start here.
 #
 class SessionAuthViewSet(viewsets.ReadOnlyModelViewSet):
-  authentication_classes = ( ExpiringTokenAuthentication, )
+  authentication_classes = ( ExpiringTokenAuthentication,
+                             authentication.SessionAuthentication, )
 
 class ProjectViewSet(SessionAuthViewSet):
   '''

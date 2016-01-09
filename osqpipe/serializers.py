@@ -33,9 +33,11 @@ class ProjectSerializer(serializers.ModelSerializer):
   libraries = serializers.HyperlinkedRelatedField(many=True,
                                                   view_name='api:library-detail',
                                                   read_only=True)
+  url       = serializers.HyperlinkedIdentityField(view_name='api:project-detail')
+
   class Meta:
     model     = Project
-    fields    = ('code', 'description', 'libraries')
+    fields    = ('code', 'url', 'description', 'libraries')
 
 class LibrarySerializer(serializers.ModelSerializer):
   '''
@@ -64,7 +66,7 @@ class LanefileSerializer(serializers.ModelSerializer):
   
   class Meta:
     model  = Lanefile
-    fields = ('filename','checksum','filetype','download')
+    fields = ('filename_on_disk','checksum','filetype','download')
 
 class LaneSerializer(serializers.ModelSerializer):
   '''
