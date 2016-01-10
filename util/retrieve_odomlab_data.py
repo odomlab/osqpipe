@@ -22,6 +22,8 @@ LOGGER.handlers[0].setFormatter(\
   logging.Formatter("[%(asctime)s]dolab_%(levelname)s: %(message)s"))
 LOGGER.setLevel(logging.DEBUG)
 
+VERIFY_SSL_CERT=False
+
 ################################################################################
 class ApiSession(requests.Session):
   '''
@@ -42,14 +44,15 @@ class ApiSession(requests.Session):
     LOGGER.debug("Refreshing authorization token.")
     api_token_url = "%s/api-token-auth/" % self._rest_base_url
     tokenresp = requests.post(api_token_url,
+                              verify=VERIFY_SSL_CERT,
                               data={ 'username': self._rest_username,
                                      'password': self._rest_password, })
     assert tokenresp.status_code == 200
     api_token = json.loads(tokenresp.content)['token']
     self.headers.update({'Authorization': "Token %s" % api_token})
 
-  def get(self, url, *args, **kwargs):
-    resp = super(ApiSession, self).get(url, *args, **kwargs)
+  def get(self, url, verify=VERIFY_SSL_CERT, *args, **kwargs):
+    resp = super(ApiSession, self).get(url, verify=verify, *args, **kwargs)
 
     ## Detect token expiry here and refresh if necessary.
     if resp.status_code == 401:
