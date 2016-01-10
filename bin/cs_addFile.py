@@ -7,7 +7,7 @@
 import os.path
 from datetime import date
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging(level=DEBUG)
 
@@ -15,7 +15,7 @@ LOGGER = configure_logging(level=DEBUG)
 import django
 django.setup()
 
-from osqpipe.pipeline.utilities import parse_repository_filename, checksum_file
+from osqutil.utilities import parse_repository_filename, checksum_file
 from osqpipe.models import Filetype, Lane, Lanefile, Facility
 
 ###########################################################

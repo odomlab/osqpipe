@@ -28,7 +28,7 @@ import re
 import argparse
 from datetime import date
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 
@@ -37,7 +37,7 @@ import django
 django.setup()
 
 from osqpipe.models import Lane, Lanefile, Alnfile
-from osqpipe.pipeline.config import Config
+from osqutil.config import Config
 from osqpipe.pipeline.laneqc import LaneFastQCReport
 
 def compute_fast_qc(fns, target, fastqc, java, threads=2):

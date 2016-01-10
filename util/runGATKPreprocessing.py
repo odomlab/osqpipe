@@ -26,7 +26,7 @@ retained in the working directory.
 from osqpipe.pipeline.gatk import GATKPreprocessor
 
 from logging import INFO
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 LOGGER = configure_logging(level=INFO)
 
 # New in Django 1.7 and above.

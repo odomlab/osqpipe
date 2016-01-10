@@ -11,12 +11,12 @@ from django.db.models import Max
 import re
 import os
 
-from .pipeline.utilities import get_filename_libcode
+from osqutil.utilities import get_filename_libcode
 
-from .pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 LOGGER = configure_logging('models')
 
-from .pipeline.config import Config
+from osqutil.config import Config
 CONFIG = Config()
 
 class ControlledVocabManager(models.Manager):

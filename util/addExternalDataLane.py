@@ -11,7 +11,7 @@ alignments for that lane.
 import os, re
 from shutil import move
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging(level=INFO)
 
@@ -23,13 +23,13 @@ from osqpipe.models import Library, Lane, Alignment, Lanefile,\
     Alnfile, Facility, Genome, Status, Filetype, Program,\
     DataProvenance, Machine
 from django.db import transaction
-from osqpipe.pipeline.config import Config
-from osqpipe.pipeline.utilities import set_file_permissions, is_zipped,\
+from osqutil.config import Config
+from osqutil.utilities import set_file_permissions, is_zipped,\
     rezip_file, unzip_file, checksum_file
 from osqpipe.pipeline.laneqc import LaneFastQCReport
 from osqpipe.pipeline.alignment import count_reads
-from osqpipe.pipeline.samtools import BamToBedConverter
-from osqpipe.pipeline.progsum import ProgramSummary
+from osqutil.samtools import BamToBedConverter
+from osqutil.progsum import ProgramSummary
 
 ################################################################################
 

@@ -10,8 +10,8 @@ the same; stored MD5 sums are updated)
 import os
 from shutil import move
 
-from osqpipe.pipeline.setup_logs import configure_logging
-from osqpipe.pipeline.config import Config
+from osqutil.setup_logs import configure_logging
+from osqutil.config import Config
 from logging import INFO, DEBUG
 LOGGER = configure_logging(level=INFO)
 
@@ -20,9 +20,9 @@ import django
 django.setup()
 
 from osqpipe.models import Alnfile
-from osqpipe.pipeline.utilities import BamPostProcessor, call_subprocess, \
+from osqutil.utilities import BamPostProcessor, call_subprocess, \
     set_file_permissions, checksum_file
-from osqpipe.pipeline.samtools import count_bam_reads
+from osqutil.samtools import count_bam_reads
 
 from django.db import transaction
 

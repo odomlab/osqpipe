@@ -5,7 +5,7 @@
 '''Script to run the alignment of a given fastq file or files against
 a genome registered in the repository.'''
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 

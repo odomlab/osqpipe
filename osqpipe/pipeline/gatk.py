@@ -11,10 +11,10 @@ from pipes import quote
 from django.db import transaction
 
 from ..models import Alnfile, Library, Alignment, MergedAlnfile
-from .samtools import count_bam_reads
-from .utilities import call_subprocess, checksum_file, \
+from osqutil.samtools import count_bam_reads
+from osqutil.utilities import call_subprocess, checksum_file, \
     sanitize_samplename
-from .config import Config
+from osqutil.config import Config
 from .bwa_runner import ClusterJobManager
 
 import xml.etree.ElementTree as ET
@@ -22,7 +22,7 @@ from tempfile import NamedTemporaryFile
 from pysam import AlignmentFile
 from shutil import move
 
-from .setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 LOGGER = configure_logging('gatk')
 CONFIG = Config()
 

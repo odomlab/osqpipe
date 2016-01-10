@@ -8,14 +8,14 @@ the library repository table.'''
 import sys
 import re
 import copy
-from config import Config
+from osqutil.config import Config
 
 from ..models import Factor, Genome, Antibody, Strain, Sex, Tissue, \
     Library, Libtype, Project, Adapter, Linkerset, Sample, Source
 
 from django.db import transaction
 
-from .setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 LOGGER = configure_logging()
 
 CONFIG = Config()

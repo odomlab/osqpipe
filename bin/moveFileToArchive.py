@@ -7,8 +7,8 @@ and delete the original file from the core repository filesystem. The
 repository database is updated to record this change.
 '''
 
-from osqpipe.pipeline.config import Config
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.config import Config
+from osqutil.setup_logs import configure_logging
 
 from logging import INFO, WARNING, DEBUG
 LOGGER = configure_logging(level=WARNING)

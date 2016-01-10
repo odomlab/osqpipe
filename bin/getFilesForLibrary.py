@@ -9,7 +9,7 @@ changed.'''
 import re
 from urlparse import urlparse
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 
@@ -17,7 +17,7 @@ LOGGER = configure_logging(level=INFO)
 import django
 django.setup()
 
-from osqpipe.pipeline.config import Config
+from osqutil.config import Config
 from osqpipe.pipeline.upstream_lims import runs_containing_samples,\
     get_lims_run_details
 

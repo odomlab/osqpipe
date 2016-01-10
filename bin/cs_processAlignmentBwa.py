@@ -15,7 +15,7 @@ from subprocess import CalledProcessError
 from shutil import move
 from tempfile import NamedTemporaryFile
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging(level=INFO)
 
@@ -23,13 +23,13 @@ LOGGER = configure_logging(level=INFO)
 import django
 django.setup()
 
-from osqpipe.pipeline.utilities import call_subprocess, \
+from osqutil.utilities import call_subprocess, \
     set_file_permissions, rezip_file, parse_repository_filename
-from osqpipe.pipeline.config import Config
+from osqutil.config import Config
 from osqpipe.models import Filetype, Genome, Library, \
     Status, Lane
 
-from osqpipe.pipeline.samtools import BamToBedConverter, count_bam_reads
+from osqutil.samtools import BamToBedConverter, count_bam_reads
 from osqpipe.pipeline.alignment import AlignmentHandler
 
 ###############################################################################

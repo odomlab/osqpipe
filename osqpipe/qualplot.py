@@ -10,7 +10,7 @@ import time
 
 from Gnuplot import Gnuplot
 
-from .pipeline.config import Config
+from osqutil.config import Config
 CONFIG = Config()
 
 ############################################################

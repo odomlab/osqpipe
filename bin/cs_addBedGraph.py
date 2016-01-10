@@ -13,7 +13,7 @@ from datetime import date
 from pipes import quote
 from shutil import move
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 
@@ -23,9 +23,9 @@ django.setup()
 
 from django.db import transaction
 
-from osqpipe.pipeline.utilities import call_subprocess, checksum_file, rezip_file, set_file_permissions
+from osqutil.utilities import call_subprocess, checksum_file, rezip_file, set_file_permissions
 from osqpipe.models import Filetype, Library, Lane, Alignment, Alnfile, Facility
-from osqpipe.pipeline.config import Config
+from osqutil.config import Config
 
 BED2BGR = "makeWiggle -B -1 %s %s"
 

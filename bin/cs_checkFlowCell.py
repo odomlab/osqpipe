@@ -14,7 +14,7 @@
 provides a handy summary of the lanes run and how they relate to the
 current contents of the repository.'''
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 

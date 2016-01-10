@@ -35,7 +35,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from lxml import etree as ET
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 
@@ -45,7 +45,7 @@ django.setup()
 
 from django.db import transaction
 from osqpipe.models import Lane, Facility, Library, Status, Machine
-from osqpipe.pipeline.config import Config
+from osqutil.config import Config
 from osqpipe.pipeline.smtp import email_admins
 
 # Script-specific globals; no real need to put these in the main config.

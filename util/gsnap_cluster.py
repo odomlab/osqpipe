@@ -12,8 +12,8 @@ import os
 import gzip
 from time import sleep
 from osqpipe.pipeline.bwa_runner import ClusterJobManager
-from osqpipe.pipeline.utilities import is_zipped
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.utilities import is_zipped
+from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging(level=INFO)
 

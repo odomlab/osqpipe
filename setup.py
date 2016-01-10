@@ -39,18 +39,20 @@ setup(
   test_suite='nose.collector',
   scripts=SCRIPTS,
   install_requires=[
-#    'Django',
-#    'django-sitetree',
-#    'django-dbarray',
-#    'django-auth-ldap',
-#    'djangorestframework',
-#    'fuzzy',
-#    'pysam',
-#    'gnuplot-py', # N.B. package not on PyPI, so can't be auto-installed.
-#    'requests',
-#    'beautifulsoup4',
-#    'lxml', 
-#    'xlrd',       # Excel spreadsheet support.
-#    'markdown',   # REST browseable API support
+    'osqutil>=0.1',    # Functions relying only on core python modules.
+    'Django==1.8.7',
+    'django-sitetree',
+    'django-dbarray',
+    'django-auth-ldap',
+    'djangorestframework',
+    'fuzzy',
+    'pysam',
+    'gnuplot-py', # N.B. package not on PyPI, so can't be auto-installed.
+    'requests',
+    'beautifulsoup4',
+    'lxml', 
+    'xlrd',       # Excel spreadsheet support.
+    'markdown',   # REST browseable API support
   ],
+  zip_safe=False,  # Prevents zipping of the installed egg, important for accessing django templates.
 )

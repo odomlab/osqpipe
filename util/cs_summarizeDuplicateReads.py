@@ -10,7 +10,7 @@ import os
 from fastq import FastqIO
 from histogram import Histogram
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging(level=DEBUG)
 

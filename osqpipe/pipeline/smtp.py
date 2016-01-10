@@ -2,7 +2,8 @@
 
 from email.mime.text import MIMEText
 import smtplib
-from .config import Config
+from osqutil.config import Config
+from ..models import User
 
 CONFIG = Config()
 
@@ -10,7 +11,6 @@ def email_admins(subject, body):
   '''
   Send an email to the admin users as registered in our repository database.
   '''
-  from ..models import User
   recips = set([ u.email for u in User.objects.filter(is_superuser=True) ])
   send_email(subject, body, recips)
 
@@ -20,7 +20,6 @@ def send_email(subject, body, recips, include_admins=False):
   registered admin users.
   '''
   if include_admins:
-    from ..models import User
     recips = set(recips)
     recips = recips.union([ u.email for u
                             in User.objects.filter(is_superuser=True) ])

@@ -11,7 +11,7 @@ import os
 import os.path
 import getopt
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging(level=INFO)
 
@@ -22,7 +22,7 @@ django.setup()
 from osqpipe.models import Project, Library, Lane, Alignment, Filetype, Facility
 from django.db import transaction
 
-from osqpipe.pipeline.config import Config
+from osqutil.config import Config
 
 CONFIG   = Config()
 FILE_TYPE = None

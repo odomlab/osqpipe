@@ -6,7 +6,7 @@
 them in the database and move the files to the correct part of the
 repostory filesystem.'''
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 

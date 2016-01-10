@@ -13,10 +13,10 @@ from datetime import date
 from shutil import move
 from tempfile import mkstemp
 
-from .utilities import parse_incoming_fastq_name, call_subprocess, \
+from osqutil.utilities import parse_incoming_fastq_name, call_subprocess, \
     checksum_file, parse_repository_filename, rezip_file, \
     set_file_permissions, get_filename_libcode
-from .config import Config
+from osqutil.config import Config
 from ..models import Filetype, Library, Lane, Lanefile, Facility, \
     Status, LibraryNameMap, Machine
 from .fastq_aligner import FastqBwaAligner, FastqTophatAligner
@@ -26,7 +26,7 @@ from .laneqc import LaneFastQCReport
 
 from django.db import transaction
 
-from .setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging('file_processor')
 

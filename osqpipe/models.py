@@ -18,7 +18,7 @@ import os
 from .managers import ControlledVocabManager, AntibodyManager, FiletypeManager,\
     LibraryManager, LaneManager
 
-from .pipeline.config import Config
+from osqutil.config import Config
 CONFIG = Config()
 
 ####################################################################################

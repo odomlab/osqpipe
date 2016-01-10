@@ -5,7 +5,7 @@
 '''Script to rerun the alignment of a given repository library's fastq
 file against a genome registered in the repository.'''
 
-from osqpipe.pipeline.setup_logs import configure_logging
+from osqutil.setup_logs import configure_logging
 from logging import INFO
 LOGGER = configure_logging(level=INFO)
 

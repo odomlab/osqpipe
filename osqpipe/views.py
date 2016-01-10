@@ -26,7 +26,7 @@ from django.contrib import messages
 
 from urlparse import urlparse # FIXME workaround for qualplot output
 from .qualplot import plot_pfqual_values, plot_all_qual_values
-from .pipeline.config import Config
+from osqutil.config import Config
 from mimetypes import guess_type
 
 from .viewclasses import MyListView, MyDetailView, MyFormView, FilterMixin,\
