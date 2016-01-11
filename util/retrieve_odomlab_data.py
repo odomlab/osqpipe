@@ -9,18 +9,26 @@ download data files to which the user has access.
 # osqpipe/osqutil modules.
 
 import os
+import sys
+
+# Do this before importing requests, to work around the abysmally old
+# software stack currently running on lcst01.
+import ssl
+ssl.HAS_SNI = False
+
 import requests
 import json
 import logging
 import gzip
 import hashlib
 from contextlib import contextmanager
+from requests.exceptions import HTTPError
 
 LOGGER = logging.getLogger()
 LOGGER.addHandler(logging.StreamHandler())
 LOGGER.handlers[0].setFormatter(\
   logging.Formatter("[%(asctime)s]dolab_%(levelname)s: %(message)s"))
-LOGGER.setLevel(logging.DEBUG)
+LOGGER.setLevel(logging.INFO)
 
 VERIFY_SSL_CERT=False
 
@@ -47,7 +55,8 @@ class ApiSession(requests.Session):
                               verify=VERIFY_SSL_CERT,
                               data={ 'username': self._rest_username,
                                      'password': self._rest_password, })
-    assert tokenresp.status_code == 200
+    if tokenresp.status_code != 200:
+      raise HTTPError("Unable to log in: %s" % tokenresp.reason)
     api_token = json.loads(tokenresp.content)['token']
     self.headers.update({'Authorization': "Token %s" % api_token})
 
@@ -63,14 +72,16 @@ class ApiSession(requests.Session):
 
   def api_metadata(self, url):
     resp = self.get(url)
-    assert resp.status_code == 200
+    if resp.status_code != 200:
+      raise HTTPError("Unable to retrieve metadata: %s" % resp.reason)
     return json.loads(resp.content)
 
   def rest_download_file(self, url, local_filename):
 
     # The stream=True parameter keeps memory usage low.
     resp = self.get(url, stream=True)
-    assert resp.status_code == 200
+    if resp.status_code != 200:
+      raise HTTPError("Unable to download file: %s" % resp.reason)
     with open(local_filename, 'wb') as outfh:
       for chunk in resp.iter_content(chunk_size=1024):
         if chunk: # filter out keep-alive new chunks
@@ -96,6 +107,7 @@ def flexi_open(filename, *args, **kwargs):
 
 def confirm_file_checksum(fname, checksum, blocksize=65536):
 
+  LOGGER.debug("Confirming checksum for file %s", fname)
   with flexi_open(fname, 'rb') as fileobj:
     hasher = hashlib.md5()
     buf = fileobj.read(blocksize)
@@ -106,6 +118,8 @@ def confirm_file_checksum(fname, checksum, blocksize=65536):
     if hasher.hexdigest() != checksum:
       LOGGER.warning("Local file checksum disagrees with repository: %s",
                      fname)
+    else:
+      LOGGER.info("Checksum good for file %s", fname)
 
 class OdomDataRetriever(object):
 
@@ -115,6 +129,7 @@ class OdomDataRetriever(object):
                base_url='http://localhost:8000/repository' ):
 
     import getpass
+    sys.stderr.write("Please enter your login credentials.\n")
     username = raw_input('Username: ')
     password = getpass.getpass('Password: ')
 
