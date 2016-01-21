@@ -337,11 +337,99 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
   submitted to e.g. a desktop machine with multiple cores and bwa run
   in parallel mode.'''
 
-  def __init__(self, num_threads=1, *args, **kwargs):
+  def __init__(self, num_threads=1, bwa_algorithm='aln', *args, **kwargs):
+    assert(bwa_algorithm in ('aln', 'mem'))
     self.job = DesktopJobSubmitter(*args, **kwargs)
     super(BwaDesktopJobSubmitter, self).__init__(*args, **kwargs)
-    self.num_threads = num_threads
+    self.num_threads   = num_threads
+    self.bwa_algorithm = bwa_algorithm
+    self.tempfiles     = []
 
+  def _run_pairedend_bwa_aln(self, destnames, outfnbase, noccflag=''):
+    
+    LOGGER.debug("Running bwa aln on paired-end sequencing input.")
+    num_threads = max(1, int(self.num_threads))
+    fnlist = " ".join([ quote(x) for x in destnames ])
+
+    # We have to run bwa aln on both inputs separately, then combine
+    # them with bwa sampe.
+    fq_0 = quote(destnames[0])
+    fq_1 = quote(destnames[1])
+
+    sai_0 = "%s.sai" % fq_0
+    sai_1 = "%s.sai" % fq_1
+    self.tempfiles.extend([ sai_0, sai_1 ])
+
+    # FIXME note that the PATH is not set correctly for pipe sinks
+    # in this command (e.g. samtools). Either we need to wrap this
+    # somehow (see SplitBwaRunner) or we need to drop PATH in after
+    # each '|'.
+    cmd  = ("bwa aln -t %d %s %s > %s"
+            % (num_threads,
+               self.genome,
+               fq_0,
+               sai_0))
+    cmd += (" && bwa aln -t %d %s %s > %s"
+            % (num_threads,
+               self.genome,
+               fq_1,
+               sai_1))
+    cmd += ((" && bwa sampe %s %s %s %s %s %s | samtools view -b -S -u -@ %d"
+                                        + " - | samtools sort -@ %d - %s")
+            % (noccflag,
+               self.genome,
+               sai_0,
+               sai_1,
+               fq_0,
+               fq_1,
+               num_threads,
+               num_threads,
+               outfnbase))
+    return cmd
+
+  def _run_singleend_bwa_aln(self, destnames, outfnbase, noccflag):
+
+    LOGGER.debug("Running bwa aln on single-end sequencing input.")
+    num_threads = max(1, int(self.num_threads))
+    fnlist = quote(destnames[0])
+    cmd  = (("bwa aln -t %d %s %s | bwa samse %s %s - %s"
+                              + " | samtools view -b -S -u -@ %d -"
+                              + " | samtools sort -@ %d - %s")
+            % (num_threads,
+               self.genome,
+               fnlist,
+               noccflag,
+               self.genome,
+               fnlist,
+               num_threads,
+               num_threads,
+               outfnbase))
+
+    return cmd
+  
+  def _run_bwa_mem(self, destnames, outfnbase, noccflag):
+
+    nfq = len(destnames)
+    if nfq == 1:
+      LOGGER.debug("Running bwa mem on single-end sequencing input.")
+    elif nfq == 2:
+      LOGGER.debug("Running bwa mem on paired-end sequencing input.")
+    else:
+      raise StandardError("Incorrect number of files passed to bwa mem: %d" % nfq)
+    
+    num_threads = max(1, int(self.num_threads))
+    fnlist = " ".join([quote(fqname) for fqname in destnames ])
+    cmd  = (("bwa mem -t %d %s %s | samtools view -b -S -u -@ %d -"
+                              + " | samtools sort -@ %d - %s")
+            % (num_threads,
+               self.genome,
+               fnlist,
+               num_threads,
+               num_threads,
+               outfnbase))
+
+    return cmd
+  
   def submit(self, filenames,
              is_paired=False, destnames=None, cleanup=True,
              nocc=None, *args, **kwargs):
@@ -358,12 +446,16 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
     outfnbase = make_bam_name_without_extension(destnames[0])
     outfnfull = outfnbase + '.bam'
 
-    tempfiles = destnames + [ outfnfull ]
+    self.tempfiles = destnames + [ outfnfull ]
 
     # Next, create flag for number of non-unique reads to keep in samse/sampe
     if nocc:
+
+      if self.bwa_algorithm is 'mem':
+        raise StandardError("The nocc argument is not supported by bwa mem. Try bwa aln instead.")
+
       if is_paired:
-        noccflag = '-o %s' % nocc
+        noccflag = '-n %s -N %s' % (nocc, nocc)
       else:
         noccflag = '-n %s' % nocc
     else:
@@ -371,61 +463,19 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
 
     cmd = ''
 
-    if is_paired:
-      LOGGER.debug("Running bwa on paired-end sequencing input.")
-      num_threads = max(1, int(self.num_threads))
-      fnlist = " ".join([ quote(x) for x in destnames ])
+    if self.bwa_algorithm is 'aln':
 
-      # We have to run bwa aln on both inputs separately, then combine
-      # them with bwa sampe.
-      fq_0 = quote(destnames[0])
-      fq_1 = quote(destnames[1])
+      if is_paired:
+        cmd += self._run_pairedend_bwa_aln(destnames, outfnbase, noccflag)
 
-      sai_0 = "%s.sai" % fq_0
-      sai_1 = "%s.sai" % fq_1
-      tempfiles.extend([ sai_0, sai_1 ])
+      else:
+        cmd += self._run_singleend_bwa_aln(destnames, outfnbase, noccflag)
 
-      # FIXME note that the PATH is not set correctly for pipe sinks
-      # in this command (e.g. samtools). Either we need to wrap this
-      # somehow (see SplitBwaRunner) or we need to drop PATH in after
-      # each '|'.
-      cmd += ("bwa aln -t %d %s %s > %s"
-              % (num_threads,
-                 self.genome,
-                 fq_0,
-                 sai_0))
-      cmd += (" && bwa aln -t %d %s %s > %s"
-              % (num_threads,
-                 self.genome,
-                 fq_1,
-                 sai_1))
-      cmd += ((" && bwa sampe %s %s %s %s %s %s | samtools view -b -S -u -@ %d"
-                                          + " - | samtools sort -@ %d - %s")
-              % (noccflag,
-                 self.genome,
-                 sai_0,
-                 sai_1,
-                 fq_0,
-                 fq_1,
-                 num_threads,
-                 num_threads,
-                 outfnbase))
+    elif self.bwa_algorithm is 'mem':
+      cmd += self._run_bwa_mem(destnames, outfnbase, noccflag)
+
     else:
-      LOGGER.debug("Running bwa on single-end sequencing input.")
-      num_threads = max(1, int(self.num_threads))
-      fnlist = quote(destnames[0])
-      cmd += (("bwa aln -t %d %s %s | bwa samse %s %s - %s"
-                                + " | samtools view -b -S -u -@ %d -"
-                                + " | samtools sort -@ %d - %s")
-             % (num_threads,
-                self.genome,
-                fnlist,
-                noccflag,
-                self.genome,
-                fnlist,
-                num_threads,
-                num_threads,
-                outfnbase))
+      raise ValueError("BWA algorithm not recognised: %s" % self.bwa_algorithm)
 
     # This is invariant PE vs. SE. First, run our standard picard cleanup:
     postproc = BamPostProcessor(input_fn=outfnfull, output_fn=outfnfull,
@@ -453,7 +503,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
                outfnfull))
 
     if cleanup:
-      cmd += (" && rm %s" % " ".join(tempfiles))
+      cmd += (" && rm %s" % " ".join(self.tempfiles))
 
     LOGGER.info("Submitting bwa job to alignment host.")
     self.job.submit_command(cmd)
