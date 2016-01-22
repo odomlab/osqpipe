@@ -9,6 +9,7 @@ import os
 
 from ..models import Library, Genome, Filetype
 from osqutil.config import Config
+from osqutil.utilities import determine_readlength
 from .bwa_runner import BwaClusterJobSubmitter, BwaDesktopJobSubmitter, TophatClusterJobSubmitter
 
 from osqutil.setup_logs import configure_logging
@@ -129,17 +130,31 @@ class FastqAligner(object):
                       nocc=nocc, cleanup=(not nocleanup))
 
 class FastqBwaAligner(FastqAligner):
-
-  '''Class used to handle alignments using the BWA external
+  '''
+  Class used to handle alignments using the BWA external
   binary. This is currently coded to use BWA running on a cluster via
-  the BwaClusterJobSubmitter class.'''
+  the BwaClusterJobSubmitter class.
+  '''
+  def __init__(self, bwa_algorithm=None, *args, **kwargs):
+    assert(bwa_algorithm in (None, 'bwa', 'mem'))
+    super(FastqBwaAligner, self).__init__(*args, **kwargs)
+    self.bwa_algorithm = bwa_algorithm
+
+  def _choose_bwa_algorithm(self, filepaths):
+    '''
+    Method determines read length and sets the bwa algorithm to 'mem'
+    if 70bp or greater, else 'aln'.
+    '''
+    rlen = determine_readlength(filepaths[0])
+    LOGGER.debug("FASTQ read length: %d", rlen)
+    return 'mem' if rlen >= 70 else 'aln'
 
   def _call_aligner(self, filepaths, genome, destnames=None,
                     nocc=None, cleanup=True, *args, **kwargs):
-
-    '''Method used to dispatch cs_runBwaWithSplit.py processes on the
-    cluster.'''
-
+    '''
+    Method used to dispatch cs_runBwaWithSplit.py processes on the
+    cluster.
+    '''
     if len(filepaths) == 1:
       LOGGER.info("Launching single-end sequencing alignment.")
       paired = False
@@ -151,6 +166,10 @@ class FastqBwaAligner(FastqAligner):
 
     if destnames is None:
       destnames = [os.path.basename(x) for x in filepaths]
+
+    if self.bwa_algorithm is None:
+      self._choose_bwa_algorithm(filepaths)
+    LOGGER.info("BWA algorithm chosen: %s", self.bwa_algorithm)
 
     # We use the alternative alignment host mechanism if it's been
     # configured; otherwise we default to using the standard
@@ -176,23 +195,23 @@ class FastqBwaAligner(FastqAligner):
                     finaldir=self.finaldir,
                     num_threads=num_threads)
     bsub.submit(filenames=filepaths, auto_requeue=False,
-                destnames=destnames,
+                destnames=destnames, bwa_algorithm=self.bwa_algorithm,
                 is_paired=paired, cleanup=cleanup, nocc=nocc)
 
     LOGGER.info("Jobs submitted.")
 
 class FastqTophatAligner(FastqAligner):
-
-  '''Class used to handle alignments using the tophat2 external
+  '''
+  Class used to handle alignments using the tophat2 external
   binary. This is currently coded to use tophat2 running on a cluster via
-  the TophatClusterJobSubmitter class.'''
-
+  the TophatClusterJobSubmitter class.
+  '''
   def _call_aligner(self, filepaths, genome, destnames=None,
                     nocc=None, cleanup=True, *args, **kwargs):
-
-    '''Method used to dispatch cs_runTophatWithSplit.py processes on the
-    cluster.'''
-
+    '''
+    Method used to dispatch cs_runTophatWithSplit.py processes on the
+    cluster.
+    '''
     if nocc is not None:
       LOGGER.warning("Unsupported nocc argument passed to FastqTophatAligner.")
 

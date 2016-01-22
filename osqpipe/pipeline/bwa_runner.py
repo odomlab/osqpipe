@@ -132,12 +132,13 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
 
   def submit(self, filenames,
              is_paired=False, destnames=None, cleanup=True,
-             nocc=None, *args, **kwargs):
+             nocc=None, bwa_algorithm='aln', *args, **kwargs):
 
     '''Actually submit the job. The optional destnames argument can be
     used to name files on the cluster differently to the source. This
     is occasionally useful.'''
 
+    assert(bwa_algorithm in ('aln', 'mem'))
     paired_sanity_check(filenames, is_paired)
 
     # First, copy the files across and uncompress on the server.
@@ -145,24 +146,17 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     destnames = self.job.transfer_data(filenames, destnames)
 
     # Next, create flag for cleanup
-    if cleanup:
-      cleanupflag = '--cleanup'
-    else:
-      cleanupflag = ''
+    cleanupflag = '--cleanup' if cleanup else ''
 
     # Next, create flag for number of non-unique reads to keep in samse/sampe
-    if nocc:
-      noccflag = '--n_occ %s' % (nocc,)
-    else:
-      noccflag = ''
+    noccflag = ('--n_occ %s' % (nocc,)) if nocc else ''
 
-    if self.samplename:
+    # Sample names containing spaces are bad on the command line,
+    # and potentially problematic in bam read groups.
+    sampleflag = '--sample %s' % self.samplename if self.samplename else ''
 
-      # Sample names containing spaces are bad on the command line,
-      # and potentially problematic in bam read groups.
-      sampleflag = '--sample %s' % self.samplename
-    else:
-      sampleflag = ''
+    # Whether to run bwa mem or aln.
+    algoflag = '--algorithm %s' % bwa_algorithm
 
     # FIXME assumes path on localhost is same as path on cluster.
     progpath = spawn.find_executable('cs_runBwaWithSplit.py', path=self.conf.clusterpath)
@@ -175,7 +169,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
       ## In the submitted command:
       ##   --rcp       is where cs_runBwaWithSplit_Merge.py eventually copies
       ##                 the reassembled bam file (via scp).
-      cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s %s"
+      cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s %s %s"
              % (progpath,
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
@@ -183,13 +177,14 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
                 self.conf.datahost,
                 self.finaldir,
                 sampleflag,
+                algoflag,
                 self.genome,
                 fnlist))
 
     else:
       LOGGER.debug("Running bwa on single-end sequencing input.")
       fnlist = quote(destnames[0])
-      cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s %s"
+      cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s %s %s"
              % (progpath,
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
@@ -197,6 +192,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
                 self.conf.datahost,
                 self.finaldir,
                 sampleflag,
+                algoflag,
                 self.genome,
                 fnlist))
 
@@ -337,12 +333,10 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
   submitted to e.g. a desktop machine with multiple cores and bwa run
   in parallel mode.'''
 
-  def __init__(self, num_threads=1, bwa_algorithm='aln', *args, **kwargs):
-    assert(bwa_algorithm in ('aln', 'mem'))
+  def __init__(self, num_threads=1, *args, **kwargs):
     self.job = DesktopJobSubmitter(*args, **kwargs)
     super(BwaDesktopJobSubmitter, self).__init__(*args, **kwargs)
     self.num_threads   = num_threads
-    self.bwa_algorithm = bwa_algorithm
     self.tempfiles     = []
 
   def _run_pairedend_bwa_aln(self, destnames, outfnbase, noccflag=''):
@@ -432,11 +426,12 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
   
   def submit(self, filenames,
              is_paired=False, destnames=None, cleanup=True,
-             nocc=None, *args, **kwargs):
+             nocc=None, bwa_algorithm='aln', *args, **kwargs):
 
     '''Submit a job as a background chained process on the designated
     remote server.'''
 
+    assert(bwa_algorithm in ('aln', 'mem'))
     paired_sanity_check(filenames, is_paired)
 
     # First, copy the files across and uncompress on the server.
@@ -451,7 +446,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
     # Next, create flag for number of non-unique reads to keep in samse/sampe
     if nocc:
 
-      if self.bwa_algorithm is 'mem':
+      if bwa_algorithm is 'mem':
         raise StandardError("The nocc argument is not supported by bwa mem. Try bwa aln instead.")
 
       if is_paired:
@@ -463,7 +458,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
 
     cmd = ''
 
-    if self.bwa_algorithm is 'aln':
+    if bwa_algorithm is 'aln':
 
       if is_paired:
         cmd += self._run_pairedend_bwa_aln(destnames, outfnbase, noccflag)
@@ -471,11 +466,11 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
       else:
         cmd += self._run_singleend_bwa_aln(destnames, outfnbase, noccflag)
 
-    elif self.bwa_algorithm is 'mem':
+    elif bwa_algorithm is 'mem':
       cmd += self._run_bwa_mem(destnames, outfnbase, noccflag)
 
     else:
-      raise ValueError("BWA algorithm not recognised: %s" % self.bwa_algorithm)
+      raise ValueError("BWA algorithm not recognised: %s" % bwa_algorithm)
 
     # This is invariant PE vs. SE. First, run our standard picard cleanup:
     postproc = BamPostProcessor(input_fn=outfnfull, output_fn=outfnfull,

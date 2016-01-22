@@ -42,6 +42,10 @@ if __name__ == '__main__':
                       + ' In case input is a bam file and --facility=\'SAN\','
                       + ' the script expects presence of .bam.meta file containing metadata from Sanger IRODs.\n')
 
+  PARSER.add_argument('--algorithm', type=str, dest='algorithm', choices=('aln', 'mem'),
+                      help='The bwa algorithm to use (aln or mem). The default behaviour'
+                      + ' is to pick the algorithm based on the read length in the fastq files.')
+
   PARSER.add_argument('-t', '--test', dest='testMode', action='store_true',
                       help='Turn on test mode.')
 
@@ -70,5 +74,6 @@ if __name__ == '__main__':
   FPM = FileProcessingManager(options=OPTIONS,
                               facility=ARGS.facility,
                               force_paired_end=ARGS.paired,
+                              bwa_algorithm=ARGS.algorithm,
                               test_mode=ARGS.testMode)
   FPM.run(ARGS.files)

@@ -39,17 +39,26 @@ if __name__ == '__main__':
                       help='Keeps all temporary files.')
 
   PARSER.add_argument('--n_occ', dest='nocc', type=str,
-                      help='Specifies number of non-unique read occurrences to keep in bam file. The bwa default is 3.')
+                      help='Specifies number of non-unique read occurrences to keep'
+                      + ' in bam file. The bwa default is 3.')
 
-  PARSER.add_argument('-a', '--aligner', dest='aligner', type=str, choices=('bwa', 'tophat'), default='bwa',
-                      help='Specifies number of non-unique read occurrences to keep in bam file. The bwa default is 3.')
+  PARSER.add_argument('-a', '--aligner', dest='aligner', type=str,
+                      choices=('bwa', 'tophat'), default='bwa',
+                      help='The aligner program to use.')
+
+  PARSER.add_argument('--algorithm', type=str, dest='algorithm', choices=('aln', 'mem'),
+                      help='The bwa algorithm to use (aln or mem). The default behaviour'
+                      + ' is to pick the algorithm based on the read length in the fastq files.')
 
   ARGS = PARSER.parse_args()
 
   if ARGS.aligner == 'bwa':
-    BWA = FastqBwaAligner(test_mode=ARGS.testMode, samplename=ARGS.sample)
+    BWA = FastqBwaAligner(test_mode=ARGS.testMode,
+                          samplename=ARGS.sample,
+                          bwa_algorithm=ARGS.algorithm)
   elif ARGS.aligner == 'tophat':
-    BWA = FastqTophatAligner(test_mode=ARGS.testMode, samplename=ARGS.sample)
+    BWA = FastqTophatAligner(test_mode=ARGS.testMode,
+                             samplename=ARGS.sample)
   else:
     raise ValueError("Unrecognised aligner requested: %s" % ARGS.aligner)
   

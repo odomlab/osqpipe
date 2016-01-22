@@ -31,7 +31,8 @@ if __name__ == '__main__':
                       + ' nor lanenum are specified, all lanes of the library are aligned.')
 
   PARSER.add_argument('-n', '--lanenum', dest='lanenum', type=str, required=False,
-                      help='The lane number of the library. If not specified, all lanes of the library are aligned.')
+                      help='The lane number of the library. If not specified, all'
+                      + ' lanes of the library are aligned.')
 
   PARSER.add_argument('-g', '--genome', dest='genome', type=str, required=True,
                       help='The genome used in the alignment.')
@@ -43,7 +44,12 @@ if __name__ == '__main__':
                       help='Keeps all temporary files.')
 
   PARSER.add_argument('--n_occ', dest='nocc', type=str,
-                      help='Specifies number of non-unique read occurrences to keep in bam file. The bwa default is 3.')
+                      help='Specifies number of non-unique read occurrences to keep'
+                      + ' in bam file. The bwa default is 3.')
+
+  PARSER.add_argument('--algorithm', type=str, dest='algorithm', choices=('aln', 'mem'),
+                      help='The bwa algorithm to use (aln or mem). The default behaviour'
+                      + ' is to pick the algorithm based on the read length in the fastq files.')
 
   ARGS = PARSER.parse_args()
 
@@ -51,9 +57,12 @@ if __name__ == '__main__':
   # tailor this to other aligners in future.
   library = Library.objects.get(code=ARGS.library)
   if library.libtype.code == 'rnaseq':
-    BWA = FastqTophatAligner(test_mode=ARGS.testMode, samplename=library.sample.name)
+    BWA = FastqTophatAligner(test_mode=ARGS.testMode,
+                             samplename=library.sample.name)
   else:
-    BWA = FastqBwaAligner(test_mode=ARGS.testMode, samplename=library.sample.name)
+    BWA = FastqBwaAligner(test_mode=ARGS.testMode,
+                          samplename=library.sample.name,
+                          bwa_algorithm=ARGS.algorithm)
   
   BWA.align(library = ARGS.library,
             facility = ARGS.facility,

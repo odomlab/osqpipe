@@ -103,7 +103,8 @@ class GenericFileProcessor(object):
 
   def __init__(self, fname, fname2, paired, facility,
                options=None, notes=None, test_mode=False,
-               libcode=None, flowcell=None, flowlane=None):
+               libcode=None, flowcell=None, flowlane=None,
+               bwa_algorithm=None):
     self.test_mode = test_mode
     self.incoming = fname
     self.paired = paired
@@ -116,6 +117,7 @@ class GenericFileProcessor(object):
     self.outfiles = []
     self.notes = notes
     self.library = None
+    self.bwa_algorithm = bwa_algorithm
 
     if options is None:
       options = {}
@@ -462,7 +464,8 @@ class GenericFileProcessor(object):
     else:
       aligner = FastqBwaAligner(test_mode=self.test_mode,
                                 samplename=self.library.sample.name,
-                                finaldir=repo_incoming)
+                                finaldir=repo_incoming,
+                                bwa_algorithm=self.bwa_algorithm)
     
     aligner.align_standalone(filepaths=tfiles,
                              genome=self.library.genome,
@@ -934,16 +937,18 @@ class FileProcessingManager(object):
   GenericFileProcessor subclasses.
   '''
   __slots__ = ('options', 'facility', 'force_paired_end',
-               'libtype2class', 'test_mode')
+               'libtype2class', 'test_mode', 'bwa_algorithm')
 
   def __init__(self, options=None, facility='CRI', force_paired_end=None,
-               test_mode=False):
+               bwa_algorithm=None, test_mode=False):
+    
     self.test_mode = test_mode
     if not options:
       options = {}
     self.options  = options
     self.facility = facility
     self.force_paired_end = force_paired_end
+    self.bwa_algorithm    = bwa_algorithm
     if self.test_mode:
       LOGGER.setLevel(DEBUG)
     else:
@@ -1079,6 +1084,7 @@ class FileProcessingManager(object):
                                                fname=fname, fname2=fname2,
                                                paired=paired,
                                                facility=self.facility,
+                                               bwa_algorithm=self.bwa_algorithm,
                                                notes=notes,
                                                test_mode=self.test_mode)
     else:
