@@ -136,7 +136,7 @@ class FastqBwaAligner(FastqAligner):
   the BwaClusterJobSubmitter class.
   '''
   def __init__(self, bwa_algorithm=None, *args, **kwargs):
-    assert(bwa_algorithm in (None, 'bwa', 'mem'))
+    assert(bwa_algorithm in (None, 'aln', 'mem'))
     super(FastqBwaAligner, self).__init__(*args, **kwargs)
     self.bwa_algorithm = bwa_algorithm
 
@@ -168,7 +168,7 @@ class FastqBwaAligner(FastqAligner):
       destnames = [os.path.basename(x) for x in filepaths]
 
     if self.bwa_algorithm is None:
-      self._choose_bwa_algorithm(filepaths)
+      self.bwa_algorithm = self._choose_bwa_algorithm(filepaths)
     LOGGER.info("BWA algorithm chosen: %s", self.bwa_algorithm)
 
     # We use the alternative alignment host mechanism if it's been

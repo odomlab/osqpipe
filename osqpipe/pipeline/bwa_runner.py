@@ -446,7 +446,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
     # Next, create flag for number of non-unique reads to keep in samse/sampe
     if nocc:
 
-      if bwa_algorithm is 'mem':
+      if bwa_algorithm == 'mem':
         raise StandardError("The nocc argument is not supported by bwa mem. Try bwa aln instead.")
 
       if is_paired:
@@ -458,7 +458,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
 
     cmd = ''
 
-    if bwa_algorithm is 'aln':
+    if bwa_algorithm == 'aln':
 
       if is_paired:
         cmd += self._run_pairedend_bwa_aln(destnames, outfnbase, noccflag)
@@ -466,7 +466,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
       else:
         cmd += self._run_singleend_bwa_aln(destnames, outfnbase, noccflag)
 
-    elif bwa_algorithm is 'mem':
+    elif bwa_algorithm == 'mem':
       cmd += self._run_bwa_mem(destnames, outfnbase, noccflag)
 
     else:
