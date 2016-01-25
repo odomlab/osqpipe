@@ -39,7 +39,7 @@ setup(
   test_suite='nose.collector',
   scripts=SCRIPTS,
   install_requires=[
-    'osqutil>=0.1',    # Functions relying only on core python modules.
+    'osqutil>=0.1.1',    # Functions relying only on core python modules.
     'Django==1.8.7',
     'django-sitetree',
     'django-dbarray',

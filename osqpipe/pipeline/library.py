@@ -134,7 +134,15 @@ class LibraryHandler(object):
 
       # A quick check on the linked Source is advisable nonetheless.
       for field in source_fields:
-        if getattr(sample.source, field) != sourcekeys[field]:
+        if field in sourcekeys:
+          if getattr(sample.source, field) != sourcekeys[field]:
+            raise ValueError("Probable mislabeled sample ID, Source fields"
+                             + " disagree with database: %s" % sample.source.name)
+        elif getattr(sample.source, field) is not None:
+
+          # We have no annotation in sheet but annotation in
+          # DB. Possibly we could ignore this error and just assume
+          # that data has been omitted for brevity?
           raise ValueError("Probable mislabeled sample ID, Source fields"
                            + " disagree with database: %s" % sample.source.name)
       
