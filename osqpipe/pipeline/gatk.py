@@ -383,7 +383,7 @@ class GATKPreprocessor(ClusterJobManager):
 
     # Check the expected output file is present in cwd.
     if wait:
-      self.wait_on_cluster([ finaljob ], finalbam=finalbam, localbam=merged_fn)
+      self.wait_on_cluster(jobs=[ finaljob ], finalbam=finalbam, localbam=merged_fn)
 
   def gatk_preprocess_free_bamfile(self, bamfile, samplename=None,
                                    genome=None, wait=True):
@@ -391,7 +391,7 @@ class GATKPreprocessor(ClusterJobManager):
     Bare-bones processing of a bam file which is not associated with
     the repository. We assume as little as possible about this file.
     '''
-    finalpref = re.sub(' ', '_', ("%s%s" % self.outprefix, bamfile))
+    finalpref = re.sub(' ', '_', ("%s%s" % (self.outprefix, bamfile)))
 
     if samplename is None:
       samplename = os.path.splitext(bamfile)[0]
@@ -411,7 +411,7 @@ class GATKPreprocessor(ClusterJobManager):
 
     # Check the expected output file is present in cwd.
     if wait:
-      self.wait_on_cluster([ finaljob ], finalbam=finalbam, localbam=bamfile)
+      self.wait_on_cluster(jobs=[ finaljob ], finalbam=finalbam, localbam=bamfile)
 
   def submit_markduplicates_job(self, cluster_merged):
     '''
