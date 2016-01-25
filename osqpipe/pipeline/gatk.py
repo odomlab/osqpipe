@@ -10,7 +10,7 @@ from shutil import copy
 from pipes import quote
 from django.db import transaction
 
-from ..models import Alnfile, Library, Alignment, MergedAlnfile
+from ..models import Alnfile, Library, Alignment, MergedAlnfile, Genome
 from osqutil.samtools import count_bam_reads
 from osqutil.utilities import call_subprocess, checksum_file, \
     sanitize_samplename
@@ -225,6 +225,23 @@ class GATKPreprocessor(ClusterJobManager):
     else:
       self.outprefix = ''
       
+  def wait_on_cluster(self, finalbam, localbam, *args, **kwargs):
+    '''
+    Overridden wait_on_cluster which both waits on the cluster and
+    cleans up the input file if the outputs look reasonable.
+    '''
+    super(GATKPreprocessor, self).wait_on_cluster(*args, **kwargs)
+    finaldone = "%s.done" % finalbam
+    if not (os.path.exists(finalbam) and os.path.exists(finaldone)):
+      raise StandardError("Expected output file %s not found, or %s not created."
+                          % (finalbam, finaldone))
+
+    # Delete local files (only if we're waiting on cluster
+    # though). Note that if the cluster jobs fail, the local merged
+    # bam file should not be deleted.
+    LOGGER.info("Deleting local merged bam file")
+    os.unlink(localbam)
+
   def cluster_filename(self, fname):
     '''
     Given a local filename, return a file path suitable for use on the
@@ -366,17 +383,35 @@ class GATKPreprocessor(ClusterJobManager):
 
     # Check the expected output file is present in cwd.
     if wait:
-      self.wait_on_cluster([ finaljob ])
-      finaldone = "%s.done" % finalbam
-      if not (os.path.exists(finalbam) and os.path.exists(finaldone)):
-        raise StandardError("Expected output file %s not found, or %s not created."
-                            % (finalbam, finaldone))
+      self.wait_on_cluster([ finaljob ], finalbam=finalbam, localbam=merged_fn)
 
-      # Delete local files (only if we're waiting on cluster
-      # though). Note that if the cluster jobs fail, the local merged
-      # bam file should not be deleted.
-      LOGGER.info("Deleting local merged bam file")
-      os.unlink(merged_fn)
+  def gatk_preprocess_free_bamfile(self, bamfile, samplename=None,
+                                   genome=None, wait=True):
+    '''
+    Bare-bones processing of a bam file which is not associated with
+    the repository. We assume as little as possible about this file.
+    '''
+    finalpref = re.sub(' ', '_', ("%s%s" % self.outprefix, bamfile))
+
+    if samplename is None:
+      samplename = os.path.splitext(bamfile)[0]
+
+    genobj = None if genome is None else Genome.objects.get(code=genome)
+
+    cluster_merged = self.cluster_filename(bamfile)
+    LOGGER.info("Transfering files to cluster...")
+    self.submitter.remote_copy_files(filenames=[ bamfile ],
+                                     destnames=[ cluster_merged ])
+
+    (finalbam, finaljob) = \
+        self.submit_cluster_jobs(cluster_merged,
+                                 samplename=samplename,
+                                 genobj=genobj,
+                                 finalprefix=finalpref)
+
+    # Check the expected output file is present in cwd.
+    if wait:
+      self.wait_on_cluster([ finaljob ], finalbam=finalbam, localbam=bamfile)
 
   def submit_markduplicates_job(self, cluster_merged):
     '''
@@ -511,6 +546,9 @@ class GATKPreprocessor(ClusterJobManager):
       gatkinput   = cluster_merged
 
     if self.gatkpipe:
+
+      if genobj is None:
+        raise ValueError("Genome object not specified in GATK pipeline call.")
 
       # Run the GATK pipeline.
       lastjob = self.submit_gatk_pipeline_job(gatkinput,

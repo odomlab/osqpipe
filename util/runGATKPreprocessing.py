@@ -65,7 +65,13 @@ if __name__ == '__main__':
 
   GROUP.add_argument('-m', '--merged-bam', dest='mergedbam', type=str,
                      help='The name of a merged bam file to use instead'
-                     + ' of library codes or sample ID.')
+                     + ' of library codes or sample ID. The bam file *must* contain'
+                     + ' read groups which reference libraries in the repository.')
+
+  GROUP.add_argument('-f', '--free-bam', dest='freebam', type=str,
+                     help='The name of a bam file to process. In this case the'
+                     + ' bam file need not be registered in the repository; however'
+                     + ' only limited functionality is supported.')
 
   PARSER.add_argument('--no-markduplicates', dest='runmd', action='store_false',
                       help='Do not use the MarkDuplicates section of the pipeline.')
@@ -80,7 +86,13 @@ if __name__ == '__main__':
 
   if ARGS.mergedbam is not None:
     PROC.gatk_preprocess_bam(ARGS.mergedbam)
+
+  elif ARGS.freebam is not None:
+    PROC.gatk_preprocess_free_bamfile(ARGS.freebam, genome=ARGS.genome,
+                                      samplename=ARGS.sample, wait=ARGS.waitoncluster)
+
   elif ARGS.sample is not None:
     PROC.gatk_preprocess_sample(ARGS.sample, genome=ARGS.genome, libtype=ARGS.libtype)
+
   else:
     PROC.gatk_preprocess_libraries(ARGS.libraries, genome=ARGS.genome)
