@@ -276,7 +276,7 @@ class GATKPreprocessor(ClusterJobManager):
     if not os.path.exists(output_fn):
       raise StandardError("Merged output file does not exist: %s", output_fn)
 
-  def gatk_preprocess_sample(self, sample, genome=None, libtype=None):
+  def gatk_preprocess_sample(self, sample, genome=None, libtype=None, wait=True):
     '''
     Convenience method to look up all the libraries for a sample and
     submit them to gatk_preprocess_libraries.
@@ -289,9 +289,9 @@ class GATKPreprocessor(ClusterJobManager):
                           % (sample, libtype))
 
     libcodes = [ lib.code for lib in libs ]
-    self.gatk_preprocess_libraries(libcodes, genome)
+    self.gatk_preprocess_libraries(libcodes, genome, wait=wait)
 
-  def gatk_preprocess_libraries(self, libcodes, genome=None):
+  def gatk_preprocess_libraries(self, libcodes, genome=None, wait=True):
     '''
     Runs our standard GATK preprocessing pipeline on a set of
     libraries. Sanity checks are made that the libraries all come from
@@ -348,7 +348,7 @@ class GATKPreprocessor(ClusterJobManager):
     self.samtools_merge_bams([ bam.repository_file_path for bam in bams ],
                              merged_fn)
 
-    self.gatk_preprocess_bam(merged_fn, bams[0].alignment)
+    self.gatk_preprocess_bam(merged_fn, bams[0].alignment, wait=wait)
 
   def gatk_preprocess_bam(self, merged_fn, aln=None, wait=True):
     '''
