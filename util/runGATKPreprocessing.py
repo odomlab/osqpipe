@@ -73,14 +73,20 @@ if __name__ == '__main__':
   PARSER.add_argument('--no-gatkpipe', dest='rungatk', action='store_false',
                       help='Do not use the GATK preprocessing section of the pipeline.')
 
+  PARSER.add_argument('--no-waiting', dest='waitoncluster', action='store_false',
+                      help='Do not wait for the cluster to complete job before exiting.')
+
   ARGS = PARSER.parse_args()
 
   PROC = GATKPreprocessor(with_markduplicates = ARGS.runmd,
                           with_gatkpipe       = ARGS.rungatk)
 
   if ARGS.mergedbam is not None:
-    PROC.gatk_preprocess_bam(ARGS.mergedbam)
+    PROC.gatk_preprocess_bam(ARGS.mergedbam,
+                             wait=ARGS.waitoncluster)
   elif ARGS.sample is not None:
-    PROC.gatk_preprocess_sample(ARGS.sample, genome=ARGS.genome, libtype=ARGS.libtype)
+    PROC.gatk_preprocess_sample(ARGS.sample, genome=ARGS.genome,
+                                libtype=ARGS.libtype, wait=ARGS.waitoncluster)
   else:
-    PROC.gatk_preprocess_libraries(ARGS.libraries, genome=ARGS.genome)
+    PROC.gatk_preprocess_libraries(ARGS.libraries, genome=ARGS.genome,
+                                   wait=ARGS.waitoncluster)
