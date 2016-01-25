@@ -29,7 +29,7 @@ from osqutil.config import Config
 from osqpipe.models import Filetype, Genome, Library, \
     Status, Lane
 
-from osqutil.samtools import BamToBedConverter, count_bam_reads
+from osqutil.samtools import BamToBedConverter, count_bam_reads, identify_bwa_algorithm
 from osqpipe.pipeline.alignment import AlignmentHandler
 
 ###############################################################################
@@ -217,7 +217,11 @@ class AlignProcessingManager(object):
     # Set aligner, later passed as argument to AlignmentHandler.
     if aligner is None:
       aligner = self.conf.aligner
-    params  = ''
+
+    if aligner == 'bwa':
+      params = identify_bwa_algorithm(in_fn)
+    else:
+      params = ''
   
     # In the case of PolIII/TFIIIC libraries, assume that the bam file
     # was created by keeping many non-unique reads. Note: we assume
@@ -228,13 +232,15 @@ class AlignProcessingManager(object):
           and lib.factor is not None \
           and lib.factor.name in self.conf.reallocation_factors:
 
+      assert aligner == 'bwa' and params == 'aln' # Not supported by bwa mem.
+      
       self._reallocate_reads(in_fn)
 
       # Set the aligner value for later.
-      aligner = [ self.conf.aligner, self.conf.read_reallocator, self.conf.read_sorter ]
+      aligner = [ aligner, self.conf.read_reallocator, self.conf.read_sorter ]
 
-      # This would have been previously set in BwaClusterJobSubmitter FIXME DRY.
-      params  = [ '--n_occ %s' % self.conf.nonuniquereads, '', '' ]
+      # This would have been previously set in BwaClusterJobSubmitter.
+      params  = [ params + (' --n_occ %s' % self.conf.nonuniquereads), '', '' ]
 
     elif lib.libtype.code == 'rnaseq': # See TophatAlignmentManager
       aligner = [ 'bowtie2', 'tophat2', 'samtools' ]
