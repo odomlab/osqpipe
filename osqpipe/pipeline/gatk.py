@@ -391,8 +391,6 @@ class GATKPreprocessor(ClusterJobManager):
     Bare-bones processing of a bam file which is not associated with
     the repository. We assume as little as possible about this file.
     '''
-    finalpref = re.sub(' ', '_', ("%s%s" % (self.outprefix, bamfile)))
-
     if samplename is None:
       samplename = os.path.splitext(bamfile)[0]
 
@@ -407,7 +405,7 @@ class GATKPreprocessor(ClusterJobManager):
         self.submit_cluster_jobs(cluster_merged,
                                  samplename=samplename,
                                  genobj=genobj,
-                                 finalprefix=finalpref)
+                                 finalprefix=self.outprefix)
 
     # Check the expected output file is present in cwd.
     if wait:
