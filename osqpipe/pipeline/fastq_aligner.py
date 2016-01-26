@@ -145,6 +145,8 @@ class FastqBwaAligner(FastqAligner):
     Method determines read length and sets the bwa algorithm to 'mem'
     if 70bp or greater, else 'aln'.
     '''
+    # If we want to modify the default algorithm selection, this is a
+    # good place to do so.
     rlen = determine_readlength(filepaths[0])
     LOGGER.debug("FASTQ read length: %d", rlen)
     return 'mem' if rlen >= 70 else 'aln'
