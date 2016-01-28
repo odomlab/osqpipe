@@ -218,33 +218,36 @@ class AlignProcessingManager(object):
     if aligner is None:
       aligner = self.conf.aligner
 
-    if aligner == 'bwa':
-      params = identify_bwa_algorithm(in_fn)
-    else:
-      params = ''
-  
     # In the case of PolIII/TFIIIC libraries, assume that the bam file
     # was created by keeping many non-unique reads. Note: we assume
     # here that re-running the reallocateReads script over the output
     # file would have little to no effect, and so we do not wrap this
     # within our database transaction.
-    if reallocate or lib.libtype.code == "chipseq" \
-          and lib.factor is not None \
-          and lib.factor.name in self.conf.reallocation_factors:
+    if lib.libtype.code == 'rnaseq': # See TophatAlignmentManager
 
-      assert aligner == 'bwa' and params == 'aln' # Not supported by bwa mem.
-      
-      self._reallocate_reads(in_fn)
-
-      # Set the aligner value for later.
-      aligner = [ aligner, self.conf.read_reallocator, self.conf.read_sorter ]
-
-      # This would have been previously set in BwaClusterJobSubmitter.
-      params  = [ params + (' --n_occ %s' % self.conf.nonuniquereads), '', '' ]
-
-    elif lib.libtype.code == 'rnaseq': # See TophatAlignmentManager
       aligner = [ 'bowtie2', 'tophat2', 'samtools' ]
       params  = [ '', '--no-coverage-search --libtype fr-firststrand', 'view -F 0x100' ]
+
+    else:
+
+      if aligner == 'bwa':
+        params = identify_bwa_algorithm(in_fn)
+      else:
+        params = ''
+
+      if reallocate or lib.libtype.code == "chipseq" \
+                   and lib.factor is not None \
+                   and lib.factor.name in self.conf.reallocation_factors:
+
+        assert aligner == 'bwa' and params == 'aln' # Not supported by bwa mem.
+      
+        self._reallocate_reads(in_fn)
+
+        # Set the aligner value for later.
+        aligner = [ self.conf.aligner, self.conf.read_reallocator, self.conf.read_sorter ]
+
+        # This would have been previously set in BwaClusterJobSubmitter.
+        params  = [ params + (' --n_occ %s' % self.conf.nonuniquereads), '', '' ]
 
     (chrom_sizes, chr_istmp) = self.get_genome_size_file(genome)
 
