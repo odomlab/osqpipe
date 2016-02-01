@@ -327,9 +327,15 @@ class SangerLims(object):
     # Find the batch href and add a ".xml" extension. Without the
     # extension is password-protected; with the extension is freely
     # available. Go figure.
-    batches = soup.find('th', text=re.compile('^Batch id', re.I)).next_sibling()
-    if batches is None or len(batches) == 0: # Occasionally this fails for no good reason.
-      LOGGER.warning('Unable to parse batch URL from main NPG run listing. Skipping table row.')
+    #
+    # We occasionally see failure here that appears to be due to
+    # flakiness on the Sanger web server. We leave it for now and hope
+    # that the next run is less flaky.
+    batches = soup.find('th', text=re.compile('^Batch id', re.I))
+    if batches is not None:
+      batches = batches.next_sibling()
+    if batches is None or len(batches) == 0:
+      LOGGER.debug('Unable to parse batch URL from main NPG run listing. Skipping table row.')
       return (libdict, is_paired)
     batch = batches[0]
     batch_url = batch['href'] + '.xml'
