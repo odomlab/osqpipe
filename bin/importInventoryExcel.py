@@ -221,7 +221,11 @@ class InventoryImporter(object):
           adapter = 'NXT_N' + barcode
 
         elif prottag in ('thruplex',):
-          adapter = 'iPCRtagT' + barcode
+          if int(barcode) < 20:
+            adapter = 'iPCRtagT' + barcode
+          elif ( int(barcode) > 500 and int(barcode) < 509 )\
+               or ( int(barcode) > 700 and int(barcode) < 713 ):
+            adapter = 'TP_D' + barcode   # dual indexing adapter set, as for TruSeq.
 
         elif prottag in ('haloplex', 'agilenthaloplex'):
           adapter = 'HAL' + barcode
