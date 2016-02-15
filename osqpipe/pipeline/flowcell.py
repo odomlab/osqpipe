@@ -289,6 +289,8 @@ class FlowCellQuery(object):
 
       try: # Check the LIMS adapter against what we've recorded.
         lims_adapter = lane.lims_adapter(lib.code.lower())
+        if lims_adapter is None:
+          lims_adapter = ''
         repo_adapter = ''
         if lib.adapter is not None:
           repo_adapter = lib.adapter.sequence

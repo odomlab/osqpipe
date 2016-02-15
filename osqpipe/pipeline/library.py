@@ -70,7 +70,7 @@ class LibraryHandler(object):
         okay = response == "y" or response == "yes"
     return okay
 
-  def _add_if_confirmed(self, thing, thingcls):
+  def _add_if_confirmed(self, thing, thingcls, user_key='controlled_name'):
     '''Add a controlled term to the database, if it's confirmed by the
     user.'''
     thingset = thingcls.objects.all()
@@ -80,7 +80,7 @@ class LibraryHandler(object):
       thing.save()
     else:
       sys.exit("%s CV term not recognised as valid (%s)." %
-               (thingcls.__name__, thing))
+               (thingcls.__name__, getattr(thing, user_key)))
 
   def _retrieve_cv(self, value, cls, user_key='controlled_name', **kwargs):
     '''Retrieve a database CV or create a new one if confirmed by the
@@ -98,7 +98,7 @@ class LibraryHandler(object):
 
     if len(db_values) == 0:
       db_value = cls(**{ user_key: value })
-      self._add_if_confirmed(db_value, cls)
+      self._add_if_confirmed(db_value, cls, user_key)
       return(db_value)
     elif len(db_values) == 1:
       return db_values[0]
