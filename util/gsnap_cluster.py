@@ -10,7 +10,6 @@ paired sequencing fastq files.
 import re
 import os
 import gzip
-from time import sleep
 from osqpipe.pipeline.bwa_runner import ClusterJobManager
 from osqutil.utilities import is_zipped
 from osqutil.setup_logs import configure_logging
@@ -20,30 +19,37 @@ LOGGER = configure_logging(level=INFO)
 ################################################################################
 
 class GsnapManager(ClusterJobManager):
-
+  '''
+  Class used to manage the submission of gsnap jobs to the cluster.
+  '''
   def __init__(self, outdir='gsnap', *args, **kwargs):
 
     super(GsnapManager, self).__init__(*args, **kwargs)
 
     self.outdir = outdir
 
-  def count_fastq_reads(self, fqfile, is_zipped=False):
-
-    if is_zipped:
+  @staticmethod
+  def count_fastq_reads(fqfile, file_zipped=False):
+    '''
+    Count the number of reads in a fastq file.
+    '''
+    if file_zipped:
       fqfh = gzip.open(fqfile, 'rb')
     else:
       fqfh = open(fqfile, 'r')
 
     count = 0
-    for line in fqfh:
+    for _line in fqfh:
       count +=1
 
     fqfh.close()
     return int(count / 4)
 
   def submit_gsnap(self, files, genome, indexdir, number, queue, wait=False):
-
-    assert(len(files) in (1,2))
+    '''
+    Submit gsnap alignment jobs, samtools merge and cleanup jobs to the cluster.
+    '''
+    assert len(files) in (1,2)
 
     keeptype = 'concordant' if len(files) == 2 else 'unpaired'
 
@@ -51,25 +57,25 @@ class GsnapManager(ClusterJobManager):
 
     # Only test the zippedness of our inputs once.
     use_gunzip = True if is_zipped(files[0]) else False
-  
+
     if number is None:
       LOGGER.info("Counting reads in fastq input files...")
       number = int((self.count_fastq_reads(files[0], use_gunzip) / 1e6) * 20)
-      LOGGER.debug("Will start %d jobs on cluster.", number)
-  
-    libmatch = re.match('^(do\d+)_', os.path.basename(files[0]))
+      LOGGER.info("Will start %d jobs on cluster.", number)
+
+    libmatch = re.match(r'^(do\d+)_', os.path.basename(files[0]))
     if libmatch:
       libcode = libmatch.group(1)
     else:
       raise ValueError("Unable to parse library code from file name %s"
                        % files[0])
-    
+
     # Copy files to cluster workdir.
     clfiles = [ '%s_%s' % (self.namespace, os.path.basename(x)) for x in files ]
-    for n in range(len(files)):
-      if not self.cluster_file_exists(clfiles[n]):
+    for filenum in range(len(files)):
+      if not self.cluster_file_exists(clfiles[filenum]):
         LOGGER.info("Copying fastq file to cluster working directory...")
-        self.submitter.remote_copy_files([files[n]], [clfiles[n]])
+        self.submitter.remote_copy_files([files[filenum]], [clfiles[filenum]])
 
     # Launch the gsnap job array.
     prefix = (r'%s/%s_%s.\\\$((\\\$LSB_JOBINDEX - 1))'
@@ -77,7 +83,7 @@ class GsnapManager(ClusterJobManager):
 
     # Create the working directory, if it's not already there.
     cmd  = r'mkdir -p %s' % self.outdir
-  
+
     # Build the gsnap command. Note that the '-B' option can be
     # switched to 5 if there's too much disk IO; this has the
     # downside of increasing memory requirements though.
@@ -88,27 +94,30 @@ class GsnapManager(ClusterJobManager):
             + r' --antistranded-penalty=1 --quality-protocol=sanger'
             + r' --nofails -A sam'
             + (r' --split-output=%s --nthreads=8' % prefix))
-    
+
     if use_gunzip:
       cmd += ' --gunzip'
-  
+
     cmd += " " + " ".join(clfiles)
-  
+
     # The samtools view (sam->bam) step is actually where we assume
     # paired-end sequencing.
     for tag in ('uniq', 'mult'):
       samfile = r'%s.%s_%s' % (prefix, keeptype, tag)
-      cmd += r' && samtools view -b -S -o %s.bam %s' % (samfile, samfile)
-  
+
+      # Sort here rather than later as it's more efficient.
+      cmd += (r' && samtools view -b -S -o - %s | samtools sort - %s'
+              % (samfile, samfile))
+
     # Clean up the sam files.
     cmd += r' && rm %s.nomapping' % prefix
     cmd += ((r' && rm %s.' % prefix)
             + r'{unpaired,paired,halfmapping,concordant}_'
             + r'{transloc,mult,circular,uniq,uniq_scr,uniq_long,uniq_inv,uniq_circular}')
 
-    cmd = (r'if [ ! -f %s.%s_uniq.bam ]; then %s; else echo Skipping %s; fi'
+    cmd = (r'if [ ! -f %s.%s_mult.bam ]; then %s; else echo Skipping %s; fi'
            % (prefix, keeptype, cmd, prefix))
-  
+
     LOGGER.info("Submitting job array of %d jobs.", number)
     jobname = 'gsnap[1-%d]%%%d' % (number, self.throttle)
     LOGGER.debug("Job name: %s", jobname)
@@ -117,20 +126,21 @@ class GsnapManager(ClusterJobManager):
                                                queue=queue,
                                                auto_requeue=False,
                                                jobname=jobname))
-  
-    self._merge_bams(bjobs, libcode, queue, njobs=number, keeptype=keeptype)
-  
+
+    mergejob = self._merge_bams(bjobs, libcode, queue,
+                                njobs=number, keeptype=keeptype)
+
     fastq_cleanup = r'rm %s' % " ".join(clfiles)
 
     if wait is True:
-      self.wait_on_cluster(bjobs, fastq_cleanup)
+      self.wait_on_cluster([mergejob], fastq_cleanup)
       return
 
     else:
       LOGGER.info("Submitting fastq cleanup job...")
       jobid = self.submitter.submit_command(fastq_cleanup,
                                             queue=queue,
-                                            depend_jobs=bjobs)
+                                            depend_jobs=[mergejob])
       return jobid
 
   def _merge_bams(self, bjobs, libcode, queue,
@@ -138,11 +148,11 @@ class GsnapManager(ClusterJobManager):
     '''
     Merge the output bams from a set of cluster jobs.
     '''
-
     # If we're restarting a partial run, len(bjobs) might be smaller
     # than we'd like.
     if njobs is None:
-      LOGGER.warn("Bamfile merge step taking number of jobs from LSF jobid list.")
+      LOGGER.warn("Bamfile merge step will take number of jobs from"
+                  + " the LSF jobid list.")
       njobs  = len(bjobs)
 
     prefix = '%s/%s_%s' % (self.outdir, self.namespace, libcode)
@@ -150,7 +160,8 @@ class GsnapManager(ClusterJobManager):
 
     # Check that the number of bam files found equals njobs*2.
     bampatt = '%s.{0..%d}.%s' % (prefix, njobs - 1, suffix)
-    precmd  = (r'if [ \\\`ls %s | wc -l\\\` == %d ]; then ' % (bampatt, njobs * 2))
+    precmd  = (r'if [ \\\`ls %s | wc -l\\\` == %d ]; then '
+               % (bampatt, njobs * 2))
     postcmd = r'; else echo Unsufficient bam files created. Stopping.; fi'
 
     # If we have to merge more than ~1,000 files, the OS will complain
@@ -158,46 +169,48 @@ class GsnapManager(ClusterJobManager):
     # stages. I'm assuming here that we won't ever need to merge
     # 1,000,000 files; otherwise, this method will need some kind of recursion.
     div = 1
-    while ( njobs / div > limit ):
+    while njobs / div > limit:
       div += 1
-      
+
     mergejobs = []
     batchsize = njobs / div
-    for n in range(div):
-  
-      start = n * batchsize
-  
+    for batchnum in range(div):
+
+      start = batchnum * batchsize
+
       # Safety check to make sure our integer math doesn't drop stray
       # runs in the last batch.
-      end   = njobs-1 if n == div-1 else ((n+1) * batchsize) - 1
-  
+      end   = njobs-1 if batchnum == div-1 else ((batchnum+1) * batchsize) - 1
+
       filepatt = '%s.{%d..%d}.%s' % (prefix, start, end, suffix)
-  
+
       # Intermediary bam files in the form "$prefix.0.bam, $prefix.1.bam,..."
       if div == 1:
-        output = prefix
+        output = '%s.bam' % (prefix,)
       else:
-        output = '%s.%d' % (prefix, n)
-  
-      cmd = ('samtools merge - %s | samtools sort - %s'
-             % (filepatt, output))
+        output = '%s.%d.bam' % (prefix, batchnum)
+
+      # We assume here that the bam files are already sorted.
+      cmd = ('samtools merge %s %s' % (output, filepatt))
       cmd = precmd + cmd + postcmd
-      
-      LOGGER.info("Submitting bamfile merge job (%d/%d)...", n+1, div)
+
+      LOGGER.info("Submitting bamfile merge job (%d/%d)...", batchnum+1, div)
       LOGGER.debug(cmd)
       jobid = self.submitter.submit_command(cmd, mem=20000,
                                             queue=queue,
                                             auto_requeue=False,
                                             depend_jobs=bjobs)
       mergejobs.append(jobid)
-  
+
     # Submit a job to merge the intermediary bams into a final output bam file.
     if len(mergejobs) > 1:
       filepatt = '%s.{0..%d}.bam' % (prefix, len(mergejobs) - 1)
-      cmd = ('samtools merge - %s | samtools sort - %s && rm %s'
-             % (filepatt, prefix, filepatt))
+
+      # Again, we assume the bam files are sorted.
+      cmd = ('samtools merge %s.bam %s && rm %s'
+             % (prefix, filepatt, filepatt))
       cmd = precmd + cmd + postcmd
-  
+
       LOGGER.info("Submitting final bamfile merge job...")
       LOGGER.debug(cmd)
       jobid = self.submitter.submit_command(cmd, mem=20000,
@@ -215,7 +228,7 @@ class GsnapManager(ClusterJobManager):
                                           queue=queue,
                                           auto_requeue=False,
                                           depend_jobs = [jobid])
-    
+
     return jobid
 
 ################################################################################
@@ -229,8 +242,8 @@ if __name__ == '__main__':
                      + ' the outputs.')
 
   P.add_argument('files', metavar='<filenames>', type=str, nargs='+',
-                      help='The name of the fastq file(s) to process.\n'
-                      + 'These must be either one (SE) or two (PE) fastq files.')
+                      help='The name of the fastq file(s) to process.\n These'
+                      + ' must be either one (SE) or two (PE) fastq files.')
 
   P.add_argument('-d', '--genome', dest='genome', type=str, required=True,
                  help='The genome code (as understood by GMAP/GSNAP) to align'
@@ -262,8 +275,8 @@ if __name__ == '__main__':
                  help='The name of the cluster queue to submit to.')
 
   P.add_argument('-i', '--ssh-key', dest='ssh_key', type=str,
-                 help='The path to a (password-free) ssh key used by the'
-                 + ' cluster account to communicate job completion to our local host.')
+                 help='The path to a (passwordless) ssh key used by the cluster'
+                 + ' account to communicate job completion to our local host.')
 
   P.add_argument('--wait', dest='wait', action='store_true',
                  help='Whether to wait for the final cluster job to complete'
