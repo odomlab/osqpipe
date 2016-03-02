@@ -25,7 +25,7 @@
     <tr><th>Library code: </th><td>{{ library.code }}</td></tr>
     <tr><th>Requested Genome: </th>
       <td>{% with gen=library.genome %}
-        {{ gen }} ({{ gen.species.scientific_name }}; {{ gen.species.common_name }}; version: {{ gen.version }})
+        {{ gen }} (<i>{{ gen.species.scientific_name }}</i>; {{ gen.species.common_name }}; version: {{ gen.version }})
         {% endwith %}</td></tr>
     <tr><th>Strain: </th><td>{{ library.sample.source.strain }}</td></tr>
     <tr><th>Tissue: </th><td>{{ library.sample.tissue }}</td></tr>
@@ -95,7 +95,7 @@
     {% for maln in merged_alignments|sortby:"genome" %}
     <table class="horizontal">
       <tr><th>Aligned Genome: </th>      <td>{% with gen=maln.genome %}
-        {{ gen }} ({{ gen.species.scientific_name }}; {{ gen.species.common_name }}; version: {{ gen.version }})
+        {{ gen }} (<i>{{ gen.species.scientific_name }}</i>; {{ gen.species.common_name }}; version: {{ gen.version }})
         {% endwith %}</td></tr>
       <tr><th>Lanes Included in Merge: </th><td>
           {% for aln in maln.alignments.all|sortby:"lane.name" %}{{ aln.lane }} {% endfor %}</td></tr>
