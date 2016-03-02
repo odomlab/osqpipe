@@ -144,6 +144,8 @@ class ControlledVocabManager(models.Manager):
     capture digits; this seems to be particularly important for our
     use-case and without it we get far too many collisions.'''
 
+    string = unicode(string) # because Excel can't constrain its variable types
+
     # Short strings really aren't helped by this approach. We just
     # strip out the most common indel characters.
     if len(string) <= minlen:
