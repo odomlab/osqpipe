@@ -270,7 +270,7 @@ class Source(models.Model):
   '''
   The original source organism from which tissue was taken.
   '''
-  name         = models.CharField(max_length=64, unique=True)
+  name         = models.CharField(max_length=128, unique=True)
   strain       = models.ForeignKey(Strain, on_delete=models.PROTECT, null=True, blank=True)
   sex          = models.ForeignKey(Sex, on_delete=models.PROTECT, null=True, blank=True)
   date_of_birth = models.DateField(null=True, blank=True)
@@ -408,7 +408,7 @@ class Sample(models.Model):
   '''
   A tissue sample taken from a Source organism.
   '''
-  name         = models.CharField(max_length=64)
+  name         = models.CharField(max_length=128)
   tissue       = models.ForeignKey(Tissue, on_delete=models.PROTECT)
   source       = models.ForeignKey(Source, on_delete=models.PROTECT)
   characteristics = models.ManyToManyField(Characteristic, db_table='sample_characteristic', related_name='samples')
