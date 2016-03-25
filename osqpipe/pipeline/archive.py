@@ -356,7 +356,7 @@ class ArchiveManager(object):
 
         raise ArchiveError(\
           ("Error: Archive file checksum (%s) not same as in"
-          + " repository (%s) for file %s. Skipping!") % checksum, fobj.checksum, fobj)
+          + " repository (%s) for file %s. Skipping!") % (checksum, fobj.checksum, fobj))
 
     return None
 
