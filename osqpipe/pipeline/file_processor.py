@@ -14,7 +14,7 @@ from shutil import move
 from tempfile import mkstemp
 
 from osqutil.utilities import parse_incoming_fastq_name, call_subprocess, \
-    checksum_file, parse_repository_filename, rezip_file, \
+    checksum_file, parse_repository_filename, is_zipped, rezip_file, unzip_file, \
     set_file_permissions, get_filename_libcode
 from osqutil.config import Config
 from ..models import Filetype, Library, Lane, Lanefile, Facility, \
@@ -95,6 +95,21 @@ def get_fastq_readlength(fobj):
 
   return rlen
 
+def stem_filename(fname):
+  '''
+  Returns a list containing the base filename, the extension
+  (ignoring trailing .gz) and a logical flag indicating whether or
+  not the filename contains a trailing .gz.
+  '''
+  parts = os.path.splitext(fname)
+  ext = parts[1]
+  if ext == CONFIG.gzsuffix:
+    isgz  = True
+    parts = os.path.splitext(parts[0])
+  else:
+    isgz  = False
+  return parts + [isgz]
+
 ###############################################################################
 
 class GenericFileProcessor(object):
@@ -109,7 +124,7 @@ class GenericFileProcessor(object):
     self.incoming = fname
     self.paired = paired
     self.fname2 = fname2
-    (self.basename, self.extension) = os.path.splitext(fname)
+    (self.basename, self.extension) = stem_filename(fname)[0:1]
     self.files = [fname]
     if paired:
       self.files.append(fname2)
@@ -186,7 +201,7 @@ class GenericFileProcessor(object):
     # convert to fastq
     newoutfiles = []
     for fname in self.files:
-      fastq = os.path.splitext(fname)[0] + '.fq'
+      fastq = stem_filename(fname)[0] + '.fq'
       cmd = [ 'export2fastq' ]
       if flag is not None:
         cmd = cmd + [flag]
@@ -215,7 +230,8 @@ class GenericFileProcessor(object):
     '''
     tnames = []
     for fname in self.outfiles:
-      (base, ext) = os.path.splitext(fname)
+      (base, ext, isgz) = stem_filename(fname)
+      assert(not isgz) # Not currently supported by trimFastq.
       headtrim = int(self.options.get('trimhead', 0))
       tailtrim = int(self.options.get('trimtail', 0))
       trimname = "%s_h%d_t%d%s" % (base, headtrim, tailtrim, ext)
@@ -233,7 +249,9 @@ class GenericFileProcessor(object):
     Convert the Solexa QC scoring system to the Sanger phred score.
     '''
     for fname in self.files:
-      if os.path.splitext(fname)[1] == ".fq":
+      (base, ext, isgz) = stem_filename(fname)
+      if ext == ".fq":
+        assert(not isgz) # Not currently supported by solexa2phred
         LOGGER.info("Converting quality values to Sanger format ...")
         tmpname = fname + ".orig"
         LOGGER.debug("mv %s %s", fname, tmpname)
@@ -494,8 +512,10 @@ class GenericFileProcessor(object):
     the list of files for this lane.
     '''
     # assuming the first outfile has ".fq" suffix
-    fnsuffix = self.outfiles[0]
-    fnsuffix = os.path.splitext(fnsuffix)[0] + ".mga"
+    (fnsuffix, ext, _isgz) = stem_filename(self.outfiles[0])
+    assert(ext == '.fq')
+    fnsuffix += ".mga"
+
     try:
       mgafiles = fetch_mga(self.flowcell,
                            self.flowlane,
@@ -506,7 +526,7 @@ class GenericFileProcessor(object):
 
     for fname in mgafiles:
       ## remove html file. No use in keeping it.
-      if os.path.splitext(fname)[1] == ".html":
+      if stem_filename(fname)[1] == ".html":
         os.unlink(fname)
       else:
         LOGGER.debug("MGA file: %s", fname)
@@ -517,25 +537,39 @@ class GenericFileProcessor(object):
     Create lanefile objects in the database and move the files into
     the main repository filesystem.
     '''
-    for fname in self.outfiles:
+    for disk_fname in self.outfiles:
       if not self.test_mode:
-        chksum = checksum_file(fname)
+        chksum = checksum_file(disk_fname)
       else:
         chksum = "thisisatestchecksum"
-      filetype = Filetype.objects.get(suffix=os.path.splitext(fname)[1])
-      (_label, _fac, _lane, pipeline) = parse_repository_filename(fname)
-      fobj = Lanefile(filename=fname, checksum=chksum,
+
+      # GZipped files are always stored under their uncompressed filename.
+      fnameparts = stem_filename(disk_fname)
+      db_fname   = "".join(fnameparts[0:1])
+
+      filetype = Filetype.objects.get(suffix=fnameparts[1])
+      (_label, _fac, _lane, pipeline) = parse_repository_filename(db_fname)
+      fobj = Lanefile(filename=db_fname, checksum=chksum,
                       filetype=filetype,
                       pipeline=pipeline,
                       lane=self.lane)
+
+      # Fix the file's compression status to match our filetype setting.
       if filetype.gzip:
-        if not self.test_mode:
-          fname = rezip_file(fname)
-      dest = fobj.repository_file_path
+        if not is_zipped(disk_fname):
+          if not self.test_mode:
+            disk_fname = rezip_file(disk_fname)
+      else:
+        if is_zipped(disk_fname):
+          if not self.test_mode:
+            disk_fname = unzip_file(disk_fname)
+
+      dest    = fobj.repository_file_path
       destdir = os.path.dirname(dest)
       if not os.path.exists(destdir):
         os.makedirs(destdir)
-      LOGGER.info("mv -i %s %s", fname, dest)
+  
+      LOGGER.info("Moving %s into repository as %s", disk_fname, dest)
       if not self.test_mode:
 
         # It's important to save to the database before moving the
@@ -546,7 +580,7 @@ class GenericFileProcessor(object):
         # collisions between file classes, e.g. Lanefile vs. Alnfile
         # (Update: this is no longer the case now that both are
         # subtypes of Datafile).
-        move(fname, dest)
+        move(disk_fname, dest)
         set_file_permissions(CONFIG.group, dest)
 
         # Get the read length directly from the fastq file.
@@ -793,14 +827,7 @@ class MiRFastqFileProc(GenericFileProcessor):
     Get the base name of the passed in filename, also accounting for
     .gz extensions.
     '''
-    parts   = os.path.splitext(fname)
-
-    # On the rare occasion we pass an already gzipped files to these
-    # methods we'd like things to work as we expect.
-    if parts[1].lower() == '.gz':
-      parts = os.path.splitext(parts[0])
-      
-    return(os.path.basename(parts[0]))
+    return os.path.basename(stem_filename(fname)[0])
   
   def trim_linkers(self, fname):
     '''
@@ -903,7 +930,7 @@ class MiRExportFileProc(MiRFastqFileProc):
     '''
     Convert input files to fastq format.
     '''
-    fq_fn = os.path.splitext(fname)[0] + '.fq'
+    fq_fn = stem_filename(fname)[0] + '.fq'
     cmd = [ 'export2fastq' ]
     if flag is not None:
       cmd = cmd + [flag]
@@ -927,7 +954,7 @@ class MiRExportFileProc(MiRFastqFileProc):
       self.strip_bar_code(fastq_fn)
       screened_fn = self.trim_linkers(fastq_fn)
       cluster_fn = self.cluster_exact_matches(screened_fn,
-                                             os.path.splitext(fname)[0])
+                                              stem_filename(fname)[0])
       self.outfiles.append(cluster_fn)
       self.tempfiles.extend([screened_fn, fname])
     return Status.objects.get(code='complete', authority=None)
@@ -952,7 +979,7 @@ class MiRQseqFileProc(MiRExportFileProc):
       self.strip_bar_code(fastq_fn)
       screened_fn = self.trim_linkers(fastq_fn)
       cluster_fn = \
-          self.cluster_exact_matches(screened_fn, os.path.splitext(fname)[0])
+          self.cluster_exact_matches(screened_fn, stem_filename(fname)[0])
       self.outfiles.append(cluster_fn)
       self.tempfiles.extend([screened_fn, fname])
     return Status.objects.get(code='complete', authority=None)
@@ -1065,8 +1092,8 @@ class FileProcessingManager(object):
     LOGGER.debug(" ".join(cmd))
     if not self.test_mode:
       call_subprocess(cmd, path=CONFIG.hostpath)
-    fnametmp1 = "%s_1.fq" % os.path.splitext(bamname)[0]
-    fnametmp2 = "%s_2.fq" % os.path.splitext(bamname)[0]
+    fnametmp1 = "%s_1.fq" % stem_filename(bamname)[0]
+    fnametmp2 = "%s_2.fq" % stem_filename(bamname)[0]
     if not self.test_mode:
       if not os.path.isfile(fnametmp1) and not os.path.isfile(fnametmp2):
         LOGGER.warning(
@@ -1105,7 +1132,7 @@ class FileProcessingManager(object):
     Create an object of a subclass of GenericFileProcessor and run it
     on our file(s).
     '''
-    ext = os.path.splitext(fname)[1]
+    ext = stem_filename(fname)[1]
     libtype2class = self.libtype2class
     if (libtype.code in libtype2class
         and ext in libtype2class[libtype.code]):
@@ -1152,7 +1179,7 @@ class FileProcessingManager(object):
     tempfiles = []
 
     ## check if files are fastq or bam
-    ftype = os.path.splitext(fns[0])[1]
+    ftype = stem_filename(fns[0])[1]
 
     if ftype == '.bam':
 

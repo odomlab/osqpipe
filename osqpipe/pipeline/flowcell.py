@@ -12,7 +12,7 @@ import re
 
 from osqutil.utilities import parse_incoming_fastq_name, checksum_file, \
     build_incoming_fastq_name, call_subprocess, set_file_permissions, \
-    munge_cruk_emails
+    munge_cruk_emails, unzip_file, rezip_file, is_zipped
 from .upstream_lims import Lims
 from osqutil.config import Config
 from ..models import Library, Lane, Status, LibraryNameMap, User
@@ -197,12 +197,16 @@ class FlowCellProcess(object):
             muxed_libs = multiplexed[flowlane]
             if len(muxed_libs) > 1:
 
-              # Demultiplex file if required.
+              # Demultiplex file if required. Here we unfortunately
+              # have to unzip the data, and we will rezip it
+              # following the process regardless of its input state.
+              if is_zipped(fname):
+                fname = unzip_file(fname)
               LOGGER.info("Demultiplexing file %s for libraries: %s",
                           fname, ", ".join(muxed_libs))
               self.demultiplex(muxed_libs, fname)
               for lib in muxed_libs:
-                self.output_files += self._demux_files[lib]
+                self.output_files += [ rezip_file(dmf) for dmf in self._demux_files[lib] ]
             else:
               LOGGER.info("File does not require demultiplexing: %s", fname)
               self.output_files.append(fname)
