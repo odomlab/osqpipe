@@ -1,5 +1,9 @@
 '''Core model specification for our repository.'''
 
+import re
+import string
+import os
+
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
@@ -11,10 +15,6 @@ from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 
 import dbarray # https://github.com/ecometrica/django-dbarray
-import re
-import string
-import os
-
 from .managers import ControlledVocabManager, AntibodyManager, FiletypeManager,\
     LibraryManager, LaneManager
 

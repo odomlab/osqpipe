@@ -130,11 +130,12 @@ class LimsLane(object):
   Class representing a given flowcell lane as stored within the
   LIMS.
   '''
+  # Dummy values for pylint's benefit.
   lane = None
   sample_process_id = None
-  files = None
-  samples = None
-  adapters = None
+  files    = {}
+  samples  = {}
+  adapters = {}
 
   def __init__(self, fields, parent):
 
