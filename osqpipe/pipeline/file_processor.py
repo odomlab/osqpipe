@@ -185,7 +185,11 @@ class GenericFileProcessor(object):
     '''
     if self.library.barcode != None:
       hlen = len(self.library.barcode)
-      tmpnam = fname+".tmp"
+      (base, ext, isgz) = stem_filename(fname)
+      if isgz:
+        tmpnam = base + ext + ".tmp" + CONFIG.gzsuffix
+      else:
+        tmpnam = fname + ".tmp"
       cmd = ('trimFastq', '-h', str(hlen), fname, tmpnam)
       LOGGER.debug(" ".join(cmd))
       if not self.test_mode:
@@ -202,7 +206,7 @@ class GenericFileProcessor(object):
     newoutfiles = []
     for fname in self.files:
       fastq = stem_filename(fname)[0] + '.fq'
-      cmd = [ 'export2fastq' ]
+      cmd = [ 'export2fastq' ] # FIXME add gzip support
       if flag is not None:
         cmd = cmd + [flag]
       # decide whether to filter (we tend to prefer to do so in cases
@@ -231,10 +235,11 @@ class GenericFileProcessor(object):
     tnames = []
     for fname in self.outfiles:
       (base, ext, isgz) = stem_filename(fname)
-      assert(not isgz) # Not currently supported by trimFastq.
       headtrim = int(self.options.get('trimhead', 0))
       tailtrim = int(self.options.get('trimtail', 0))
       trimname = "%s_h%d_t%d%s" % (base, headtrim, tailtrim, ext)
+      if isgz:
+        trimname += CONFIG.gzsuffix
       cmd = ('trimFastq', '-h', str(headtrim),
                           '-t', str(tailtrim), fname, trimname)
       LOGGER.debug(" ".join(cmd))
@@ -251,7 +256,7 @@ class GenericFileProcessor(object):
     for fname in self.files:
       (base, ext, isgz) = stem_filename(fname)
       if ext == ".fq":
-        assert(not isgz) # Not currently supported by solexa2phred
+        assert(not isgz) # Not currently supported by solexa2phred FIXME
         LOGGER.info("Converting quality values to Sanger format ...")
         tmpname = fname + ".orig"
         LOGGER.debug("mv %s %s", fname, tmpname)
@@ -306,9 +311,10 @@ class GenericFileProcessor(object):
     '''Rename LIMS files according to our current naming scheme.'''
     newnames = []
     for fname in self.files:
+      (base, ext, isgz) = stem_filename(fname)
       try:
         (_libcode, _flowcell, _flowlane, flowpair)\
-            = parse_incoming_fastq_name(fname)
+            = parse_incoming_fastq_name(base + ext)
         if self.paired:
           newfn = "%s_%s%02dp%s%s" % (self.library.filename_tag,
                                       facility,
@@ -320,6 +326,9 @@ class GenericFileProcessor(object):
                                    facility,
                                    self.lane.lanenum,
                                    self.extension)
+
+        if isgz:
+          newfn += CONFIG.gzsuffix
 
         # Just replace spaces for now as e.g. UCSC upload fails in
         # these cases. Also forward slashes. And parentheses/semicolons.
@@ -339,14 +348,22 @@ class GenericFileProcessor(object):
     '''
     Retrieve some lane metadata directly from the fastq file.
     '''
+    # Newer versions of summarizeFile now optionally read from stdin
+    # to allow us to read a gzipped fastq.
     cmd = ['summarizeFile']
     if flag is not None:
       cmd = cmd + [ flag ]
-    cmd = cmd + [ self.files[0] ]
-    LOGGER.debug(" ".join(cmd))
+    cmd = ' '.join(cmd)
+    (base, ext, isgz) = stem_filename(self.files[0])
+    if isgz:
+      catprog = 'gzip -dc'
+    else:
+      catprog = 'cat'
+    cmd = "%s %s | %s" % (catprog, self.files[0], cmd)
+    LOGGER.debug(cmd)
     if self.test_mode:
       return
-    pout = call_subprocess(cmd, path=CONFIG.hostpath)
+    pout = call_subprocess(cmd, path=CONFIG.hostpath, shell=True)
     goodreads = []
     badreads = []
     for line in pout:
