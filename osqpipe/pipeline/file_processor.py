@@ -15,7 +15,7 @@ from tempfile import mkstemp
 
 from osqutil.utilities import parse_incoming_fastq_name, call_subprocess, \
     checksum_file, parse_repository_filename, is_zipped, rezip_file, unzip_file, \
-    set_file_permissions, get_filename_libcode
+    set_file_permissions, get_filename_libcode, bash_quote
 from osqutil.config import Config
 from ..models import Filetype, Library, Lane, Lanefile, Facility, \
     Status, LibraryNameMap, Machine
@@ -108,7 +108,7 @@ def stem_filename(fname):
     parts = os.path.splitext(parts[0])
   else:
     isgz  = False
-  return parts + [isgz]
+  return list(parts) + [isgz]
 
 ###############################################################################
 
@@ -124,7 +124,7 @@ class GenericFileProcessor(object):
     self.incoming = fname
     self.paired = paired
     self.fname2 = fname2
-    (self.basename, self.extension) = stem_filename(fname)[0:1]
+    (self.basename, self.extension) = stem_filename(fname)[0:2]
     self.files = [fname]
     if paired:
       self.files.append(fname2)
@@ -359,7 +359,7 @@ class GenericFileProcessor(object):
       catprog = 'gzip -dc'
     else:
       catprog = 'cat'
-    cmd = "%s %s | %s" % (catprog, self.files[0], cmd)
+    cmd = "%s %s | %s" % (catprog, bash_quote(self.files[0]), cmd)
     LOGGER.debug(cmd)
     if self.test_mode:
       return
@@ -562,7 +562,7 @@ class GenericFileProcessor(object):
 
       # GZipped files are always stored under their uncompressed filename.
       fnameparts = stem_filename(disk_fname)
-      db_fname   = "".join(fnameparts[0:1])
+      db_fname   = "".join(fnameparts[0:2])
 
       filetype = Filetype.objects.get(suffix=fnameparts[1])
       (_label, _fac, _lane, pipeline) = parse_repository_filename(db_fname)
@@ -907,7 +907,7 @@ class MiRFastqFileProc(GenericFileProcessor):
     # tell). FIXME we may want to remove %L and %T; see whether
     # Nenad's analysis pipeline uses either of them downstream.
     cmd = ('tally -o - -tri 35 -format ">smRNA_%I:count_%C length=%L;trinuc=%T%n%R%n" --fasta-in'
-           + ' -i %s | gzip -dc > %s' % (fname, clust_fn))
+           + ' -i %s | gzip -dc > %s' % (bash_quote(fname), clust_fn))
     LOGGER.info("Running tally on %s", fname)
     LOGGER.debug(" ".join(cmd))
     if not self.test_mode:
