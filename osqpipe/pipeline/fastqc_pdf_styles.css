@@ -23,7 +23,8 @@ div.main {
 }
 img.indented {
   margin-left: 0em ! important;
-  height: 350px ! important;
+  height: 390px ! important;
+  width:  680px ! important;
 }
 
 body {
