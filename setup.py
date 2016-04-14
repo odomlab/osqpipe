@@ -15,7 +15,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
   name='osqpipe',
-  version='0.2.0',
+  version='0.2.1',
   packages=find_packages(),
   include_package_data=True,
   license='GPLv3 License',
@@ -39,12 +39,13 @@ setup(
   test_suite='nose.collector',
   scripts=SCRIPTS,
   install_requires=[
-    'osqutil>=0.1.1',    # Functions relying only on core python modules.
+    'osqutil>=0.1.2',    # Functions relying only on core python modules.
     'Django==1.8.7',
     'django-sitetree',
     'django-dbarray',
     'django-auth-ldap',
     'djangorestframework',
+    'psycopg2',
     'fuzzy',
     'pysam',
     'gnuplot-py', # N.B. package not on PyPI, so can't be auto-installed.
