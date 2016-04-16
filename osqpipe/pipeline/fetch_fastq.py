@@ -148,10 +148,8 @@ class FQFileFetcher(object):
           raise StandardError("File md5sum (%s) disagrees with upstream LIMS (%s): %s"
                               % (md5, lfile.md5sum, target))
 
-    # Only uncompress once we've checked the md5sum.
-    if compressed and not self.test_mode:
-      target = unzip_file(target)
-
+    # Files are typically still compressed at this stage. This should
+    # be handled seamlessly by downstream code.
     self.targets.add(target)
     LOGGER.info("Downloaded file to %s", target)
 

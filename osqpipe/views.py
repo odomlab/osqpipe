@@ -68,6 +68,9 @@ class LibraryListView(FilterMixin, FormListView):
   form_class          = SimpleSearchForm
   allow_empty         = True
 
+  # Dummy value for pylint.
+  kwargs              = {}
+
   _project = None
 
   # Note the use of __icontains to provide something like wildcard
@@ -173,6 +176,9 @@ class LibrarySearchView(MyFormView):
   template_name = 'repository/library/search.html'
   form_class    = LibrarySearchForm
 
+  # Dummy value for pylint.
+  kwargs        = {}
+
   def form_valid(self, form):
 
     # This is quite ugly code. FIXME if possible?
@@ -205,6 +211,9 @@ class LibraryEditView(MyFormView):
   slug_field    = 'code'
   template_name = 'repository/library/edit.html'
   form_class    = LibraryEditForm
+
+  # Dummy value for pylint.
+  kwargs        = {}
 
   def post(self, request, *args, **kwargs):
 
@@ -259,6 +268,9 @@ class LibraryDetailView(FormMixin, MyDetailView):
   model               = Library
   slug_field          = 'code'
   form_class          = LibraryProjectPicker
+
+  # Dummy value for pylint.
+  kwargs              = {}
 
   def get(self, request, *args, **kwargs):
     self.object = get_object_or_404(self.model, code=self.kwargs['slug'])
@@ -358,6 +370,9 @@ class LaneDetailView(MyDetailView):
   template_name       = 'repository/lane/detail.html'
   model               = Lane
 
+  # Dummy value for pylint.
+  kwargs              = {}
+
   def get(self, request, *args, **kwargs):
     object = get_object_or_404(self.model, id=self.kwargs['pk'])
 
@@ -374,6 +389,9 @@ class LaneDetailView(MyDetailView):
 class QualplotDetailView(LaneDetailView):
   template_name       = 'repository/lane/qualplot.html'
 
+  # Dummy value for pylint.
+  kwargs              = {}
+
   def get_context_data(self, *args, **kwargs):
     '''Add extra context to control the view.'''
     context = super(QualplotDetailView, self).get_context_data(*args, **kwargs)
@@ -385,6 +403,9 @@ class QualplotDetailView(LaneDetailView):
     return context
 
 class FileDownloadMixin(object):      
+
+  # Dummy value for pylint.
+  kwargs = {}
 
   def get(self, request, *args, **kwargs):
     cls = self.kwargs['cls']
@@ -454,6 +475,9 @@ class FileDownloadView(FileDownloadMixin, RestrictedFileDownloadView):
 class TempfileDownloadView(RestrictedFileDownloadView):
   
   slug_field = 'file'
+
+  # Dummy value for pylint.
+  kwargs     = {}
 
   def get(self, request, *args, **kwargs):
 

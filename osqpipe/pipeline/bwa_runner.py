@@ -75,7 +75,7 @@ def paired_sanity_check(filenames, is_paired):
 class AlignmentJobRunner(object):
   '''
   An abstract class from which all alignment job runners inherit. All
-  subclasses must instantiate a JobRunner class in the 'job' slot
+  subclasses must instantiate a RemoteJobRunner class in the 'job' slot
   prior to calling the base __init__ method.
   '''
   __slots__ = ('finaldir', 'genome', 'job', 'conf', 'samplename')
@@ -158,8 +158,12 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     # Whether to run bwa mem or aln.
     algoflag = '--algorithm %s' % bwa_algorithm
 
-    # FIXME assumes path on localhost is same as path on cluster.
-    progpath = spawn.find_executable('cs_runBwaWithSplit.py', path=self.conf.clusterpath)
+    # This now searches directly on the cluster.
+    progpath = self.job.find_remote_executable('cs_runBwaWithSplit.py',
+                                               path=self.conf.clusterpath)
+
+    if progpath is None:
+      raise StandardError("cs_runBwaWithSplit.py not found on clusterpath. Possible misconfiguration?")
 
     # Next, submit the actual jobs on the actual cluster.
     if is_paired:

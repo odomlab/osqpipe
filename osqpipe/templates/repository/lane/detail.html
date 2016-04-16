@@ -60,7 +60,7 @@
     {% for aln in lane.alignment_set.all|sortby:"genome" %}
     <table class="horizontal">
       <tr><th>Aligned Genome: </th>      <td>{% with gen=aln.genome %}
-        {{ gen }} ({{ gen.species.scientific_name }}; {{ gen.species.common_name }}; version: {{ gen.version }})
+        {{ gen }} (<i>{{ gen.species.scientific_name }}</i>; {{ gen.species.common_name }}; version: {{ gen.version }})
         {% endwith %}</td></tr>
       <tr><th>Program: </th><td>
           {% for prov in aln.provenance.all|sortby:"rank_index" %}{{ prov.program }}{% if prov.parameters %} {{ prov.parameters }}{% endif %}; {% endfor %}</td></tr>

@@ -304,7 +304,7 @@ class SangerLims(object):
   def _study_is_ours(self, study_id, apiparts):
     study_url = "%s://%s/studies/%s.xml" % (apiparts.scheme, apiparts.netloc, str(study_id))
     req = self._get_content(study_url)
-    root = ET.fromstring(str(req.text))
+    root = ET.fromstring(req.text.encode('utf-8'))
     for owner in root.findall('./owners/owner'):
       login = owner.find('./login').text
       if login in self.conf.sanger_project_owners:
@@ -344,7 +344,7 @@ class SangerLims(object):
     # Pull down the batch XML and extract library names, checking that
     # they belong to one of our studies.
     req = self._get_content(batch_url)
-    root = ET.fromstring(str(req.text))
+    root = ET.fromstring(req.text.encode('utf-8'))
     for lane in root.findall('./lanes/lane'):
       flowlane = int(lane.get('position'))
       libs = []

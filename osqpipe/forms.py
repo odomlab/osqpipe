@@ -1,6 +1,12 @@
 from django import forms
 from .models import Project, Sex, Libtype
 
+def model_names_choices_list(model):
+  choices  = [('', '<select>')]
+  choices += [ (x.name, x.name.replace("_", " "))
+               for x in model.objects.all() ]
+  return choices
+
 class SimpleSearchForm(forms.Form):
   query = forms.CharField()
 
@@ -9,26 +15,20 @@ class LibrarySearchForm(forms.Form):
   # N.B. currently these are being kept in sync with the
   # views.LibraryListView.allowed_filters dict.
 
-  def choices_list(model):
-    choices  = [('', '<select>')]
-    choices += [ (x.name, x.name.replace("_", " "))
-                 for x in model.objects.all() ]
-    return choices
-
   code       = forms.CharField(required=False, label='Library code')
   experiment = forms.CharField(required=False)
 
   # Note that the current search implementation will become confused
   # if we have libtypes which are substrings of other libtypes.
   libtype    = forms.ChoiceField(required=False, label='Type, e.g. ChIP-Seq',
-                                 choices=choices_list(Libtype))
+                                 choices=model_names_choices_list(Libtype))
   
   strain     = forms.CharField(required=False)
   individual = forms.CharField(required=False)
   tissue     = forms.CharField(required=False)
 
   sex        = forms.ChoiceField(required=False,
-                                 choices=choices_list(Sex))
+                                 choices=model_names_choices_list(Sex))
 
   genome     = forms.CharField(required=False, label='Requested genome')
   factor     = forms.CharField(required=False)

@@ -26,8 +26,12 @@ import os.path
 
 from .upstream_lims import Lims
 
+from osqutil.utilities import call_subprocess, CalledProcessError
+from osqutil.config import Config
 from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
+
+CONFIG = Config()
 LOGGER = configure_logging('fetch_mga')
 
 TEST_MODE = False
@@ -55,24 +59,26 @@ def fetch_mga (flowcell, flowlane, destination, nameprefix):
     lims_fc.dump()
   lane = lims_fc.get_lane(flowlane)
 
-  # Retrieve MGA file. See upstream_lims module for supported file type
-  # strings (e.g. 'LANE_MGA').
+  # Retrieve Lane MGA file. See upstream_lims module for supported
+  # file type strings (e.g. 'LANE_MGA').
   files = lane.lims_files('LANE_MGA')
   if len(files) == 0:
     LOGGER.info("No files to retrieve for %s_%d", flowcell, lane.lane)
   for lfile in files:
-    filename = lfile.uri.split('/')[-1]
-    LOGGER.debug("MGA PDF File: %s", filename)
+    if lfile.uri.lower()[-4:] != 'html':
+      continue
+    LOGGER.debug("MGA HTML URI: %s", lfile.uri)
     if destination:
       local_pdf = os.path.join(destination, ("%s.pdf" % nameprefix))
     else:
       local_pdf = nameprefix + ".pdf"
 
-    # Use requests module to download file_uri to the local_pdf
-    # file. We may also want the XML file if the LIMS API supplies
-    # them in future.
-    local_pdf = lims.get_file_by_id(lfile.lims_id, local_pdf)
-    if local_pdf:
+    # Convert the HTML page direct to PDF for storage in the repository.
+    cmd = [ 'wkhtmltopdf-amd64', lfile.uri, local_pdf ]
+    try:
+      call_subprocess(cmd, path=CONFIG.hostpath)
       mgafiles.append(local_pdf)
+    except CalledProcessError, err:
+      LOGGER.warning("Unable to download and/or convert MGA report to PDF.")
 
   return mgafiles
