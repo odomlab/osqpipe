@@ -248,15 +248,18 @@ class ArchiveManager(object):
     copy_only: Prevents the archived file from being registered as archived.
                This is useful in cases where we want to move the files to the
                archive first, and register them as archived at a later date.
+    archive_lag: A time in days which files will stay in the main repository
+                 before being archived. Default behaviour is to archive as
+                 soon as possible, but this is not always desirable.
   '''
 
   __slots__ = ('filetype', 'archive', 'copy_only', 'copy_wait_archive',
-               'force_delete', 'force_md5_check', 'force_overwrite')
+               'force_delete', 'force_md5_check', 'force_overwrite', 'archive_lag')
 
   def __init__(self, filetype=None, archive=CONFIG.default_archive,
                copy_only=False, copy_wait_archive=True,
                force_delete=False, force_md5_check=False,
-               force_overwrite=False):
+               force_overwrite=False, archive_lag=None):
     self.filetype          = filetype
     self.archive           = ArchiveLocation.objects.get(name=archive)
     self.copy_only         = copy_only
@@ -264,6 +267,7 @@ class ArchiveManager(object):
     self.force_delete      = force_delete
     self.force_md5_check   = force_md5_check
     self.force_overwrite   = force_overwrite
+    self.archive_lag       = archive_lag
 
   def _set_archive_location(self, fobj, warn=True):
     '''
@@ -368,7 +372,7 @@ class ArchiveManager(object):
     '''
     time_threshold = datetime.datetime.now() - \
         datetime.timedelta(days=self.archive.host_delete_timelag)
-    t_date = datetime.date.today()
+
     if self.filetype == 'fq':
       fobjs = Lanefile.objects.filter(filetype__code=self.filetype,
                                       archive_date__lt=time_threshold)
@@ -488,6 +492,15 @@ class ArchiveManager(object):
           "Ignoring provided filenames in favour of files of type %s",
           self.filetype)
       fobjs = _get_files_for_filetype(self.filetype, not_archived=True)
+
+      # If we've imposed a lag before archiving (to prevent erroneous
+      # storage of the wrong files on a read-only filesystem) we
+      # filter files by repository insertion date here.
+      if self.archive_lag is not None:
+        time_threshold = datetime.datetime.now() - \
+            datetime.timedelta(days=self.archive_lag)
+        fobjs = fobjs.filter(date__gte=time_threshold)
+
       LOGGER.info("Found %d non-archived files for copying.", len(fobjs))
     else:
 

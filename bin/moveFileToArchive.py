@@ -75,6 +75,9 @@ if __name__ == '__main__':
   PARSER.add_argument('-f', '--force_overwrite', dest='force_overwrite', action='store_true',
                       help='Force overwrite for files already archived.')
 
+  PARSER.add_argument('--days-delay', dest='archive_lag', type=int, default=7,
+                      help='The number of days to wait before archiving a new file (default=7).')
+
   PARSER.add_argument('--debug', dest='debug', action='store_true',
                       help='Set logging level to DEBUG.')
 
@@ -89,7 +92,8 @@ if __name__ == '__main__':
                             copy_wait_archive = ARGS.copy_wait_archive,
                             force_delete      = ARGS.force_delete,
                             force_md5_check   = ARGS.force_md5_check,
-                            force_overwrite   = ARGS.force_overwrite)
+                            force_overwrite   = ARGS.force_overwrite,
+                            archive_lag       = ARGS.archive_lag)
 
   ARCHIVER.run_archival(ARGS.files)
 
