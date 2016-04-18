@@ -501,7 +501,7 @@ class ArchiveManager(object):
             datetime.timedelta(days=self.archive_lag)
         fobjs = fobjs.filter(date__gte=time_threshold)
 
-      LOGGER.info("Found %d non-archived files for copying.", len(fobjs))
+      LOGGER.info("Found %d non-archived files for copying.", fobjs.count())
     else:
 
       # This is a little unweildy but since the list may contain a mix
@@ -509,6 +509,7 @@ class ArchiveManager(object):
       # Datafile directly.
       fobjs = [ _find_file(fname) for fname in fnames ]
 
+    # From here on, fobjs could either be an array or QuerySet.
     if len(fobjs) > 0:
 
       # Copy files to the archive. If we plan to wait for the archive
