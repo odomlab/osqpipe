@@ -104,7 +104,7 @@ class AlignmentJobRunner(object):
       first_line = cmdstdoutfile.readline()
       first_line = first_line.rstrip('\n')
       if first_line != 'yes':
-        raise ValueError("Genome %s unacessible or missing." % genome)
+        raise ValueError("Genome %s inaccessible or missing." % genome)
 
     self.genome = genome
     self.samplename = sanitize_samplename(samplename)
