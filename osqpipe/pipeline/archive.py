@@ -499,7 +499,7 @@ class ArchiveManager(object):
       if self.archive_lag is not None:
         time_threshold = datetime.datetime.now() - \
             datetime.timedelta(days=self.archive_lag)
-        fobjs = fobjs.filter(date__gte=time_threshold)
+        fobjs = fobjs.filter(date__lte=time_threshold)
 
       LOGGER.info("Found %d non-archived files for copying.", fobjs.count())
     else:
