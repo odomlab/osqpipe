@@ -349,22 +349,6 @@ class SourceTreatment(models.Model):
     ordering = ['date', 'agent']
     unique_together = ['source', 'date', 'agent']
 
-class TumourGrading(ControlledVocab):
-  '''
-  A tumour grading applied to the sample.
-  '''
-  name         = models.CharField(max_length=64, unique=True)
-  description  = models.CharField(max_length=256)
-
-  _controlled_name = 'name'
-
-  def __unicode__(self):
-    return self.name
-
-  class Meta:
-    db_table = u'tumour_grading'
-    ordering = ['name']
-
 # Technically this should perhaps be a ControlledVocab subclass, but
 # at the moment CV only uses the _controlled_name field to search,
 # without reference to category. This is therefore something a bit

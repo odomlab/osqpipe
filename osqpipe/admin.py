@@ -154,10 +154,10 @@ class CharacteristicAdmin(admin.ModelAdmin):
 class SampleAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'source', 'tissue')
 
-  search_fields  = ('name', 'source__name', 'tissue__name')
+  search_fields  = ('name', 'source__name', 'tissue__name', 'comment')
 
   readonly_fields = ('source',)
-  fields = ('name', 'source', 'tissue')
+  fields = ('name', 'source', 'tissue', 'comment')
 
 #############################################
 @admin.register(Source)
@@ -372,8 +372,8 @@ class DoseUnitAdmin(admin.ModelAdmin):
   search_fields = ('name', 'description')
 
 #############################################
-@admin.register(TumourGrading)
-class TumourGradingAdmin(admin.ModelAdmin):
+@admin.register(SizeUnit)
+class SizeUnitAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'description')
   search_fields = ('name', 'description')
 
