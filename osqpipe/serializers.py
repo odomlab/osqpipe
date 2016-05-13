@@ -85,7 +85,7 @@ class LaneSerializer(serializers.ModelSerializer):
     model = Lane
     fields = ('library', 'machine', 'facility', 'flowcell', 'flowlane',
               'rundate', 'genomicssampleid', 'paired', 'readlength',
-              'total_passedpf', 'lanefile_set', 'status')
+              'total_passedpf', 'lanefile_set', 'alignment_set', 'status')
 
 class AlnfileSerializer(serializers.ModelSerializer):
   '''
@@ -107,5 +107,5 @@ class AlignmentSerializer(serializers.ModelSerializer):
   
   class Meta:
     model = Alignment
-    fields = ('genome', 'total_reads', 'mapped', 'munique', 'headtrim', 'tailtrim')
+    fields = ('genome', 'total_reads', 'mapped', 'munique', 'headtrim', 'tailtrim', 'alnfile_set')
 
