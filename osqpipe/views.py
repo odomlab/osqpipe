@@ -14,7 +14,7 @@ from django.views.generic.edit import FormMixin
 from collections import OrderedDict
 
 from .models import Library, Project, Genome, Lane, Alnfile, Lanefile, QCfile,\
-    Peakfile, MergedAlignment, MergedAlnfile, HistologyImagefile
+    Peakfile, MergedAlignment, MergedAlnfile, HistologyImagefile, Alignment
 from .forms import SimpleSearchForm, LibrarySearchForm, LibraryEditForm,\
     LibraryProjectPicker
 
@@ -32,7 +32,7 @@ from mimetypes import guess_type
 from .viewclasses import MyListView, MyDetailView, MyFormView, FilterMixin,\
   FormListView, RestrictedFileDownloadView
 
-from .serializers import ProjectSerializer, LibrarySerializer, LaneSerializer
+from .serializers import ProjectSerializer, LibrarySerializer, LaneSerializer, AlignmentSerializer
 from .permissions import IsProjectMember
 from rest_framework import viewsets, permissions, authentication
 from rest_framework.views import APIView
@@ -584,6 +584,18 @@ class LaneViewSet(SessionAuthViewSet):
 
   def get_queryset(self):
     return Lane.objects.filter(library__projects__people=self.request.user).distinct()
+
+class AlignmentViewSet(SessionAuthViewSet):
+  '''
+  A simple ViewSet for listing or retrieving alignments.
+  '''
+  serializer_class = AlignmentSerializer
+  permission_classes = ( permissions.IsAuthenticated,
+                         IsProjectMember )
+
+  def get_queryset(self):
+    return Alignment.objects\
+        .filter(lane__library__projects__people=self.request.user).distinct()
 
 class RESTFileDownloadView(FileDownloadMixin, APIView):
   '''

@@ -208,6 +208,9 @@ class OdomDataRetriever(object):
       if filedict['filetype'] == self.filetype:
         self.process_lanefile(filedict)
 
+    for alnurl in lanedict['alignment_set']:
+      self.process_alnurl(alnurl)
+
   def process_lanefile(self, filedict):
 
     dl_fname = filedict['filename_on_disk']
@@ -234,6 +237,15 @@ class OdomDataRetriever(object):
       # to change that in future.
       if self.with_checksum:
         confirm_file_checksum(dl_fname, filedict['checksum'])
+
+  def process_alnurl(self, url):
+
+    alndict = self.session.api_metadata(url)
+#    LOGGER.info("Retrieved metadata for aln %s (flowcell %s)",
+#                alndict['flowlane'], alndict['flowcell'])
+    for filedict in alndict['alnfile_set']:
+      if filedict['filetype'] == self.filetype:
+        self.process_lanefile(filedict)
 
   def synchronise_datafiles(self, project=None):
 

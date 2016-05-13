@@ -3,7 +3,7 @@ Serializer classes used by the REST API.
 '''
 
 from rest_framework import serializers
-from .models import Project, Library, Source, Sample, Lane, Lanefile
+from .models import Project, Library, Source, Sample, Lane, Lanefile, Alignment, Alnfile
 
 class SourceSerializer(serializers.ModelSerializer):
   '''
@@ -77,10 +77,35 @@ class LaneSerializer(serializers.ModelSerializer):
   facility = serializers.StringRelatedField()
   status   = serializers.StringRelatedField()
   lanefile_set = LanefileSerializer(read_only=True, many=True)
+  alignment_set = serializers.HyperlinkedRelatedField(many=True,
+                                                      view_name='api:alignment-detail',
+                                                      read_only=True)
   
   class Meta:
     model = Lane
     fields = ('library', 'machine', 'facility', 'flowcell', 'flowlane',
               'rundate', 'genomicssampleid', 'paired', 'readlength',
               'total_passedpf', 'lanefile_set', 'status')
+
+class AlnfileSerializer(serializers.ModelSerializer):
+  '''
+  This Alnfile serializer links back to the main UI file download view.
+  '''
+  filetype = serializers.StringRelatedField()
+  download = serializers.HyperlinkedIdentityField(view_name='api:alnfile-download')
+  
+  class Meta:
+    model  = Alnfile
+    fields = ('filename_on_disk','checksum','filetype','download')
+
+class AlignmentSerializer(serializers.ModelSerializer):
+  '''
+  A bridging serializer between Lane and Alnfile.
+  '''
+  genome   = serializers.StringRelatedField()
+  alnfile_set = AlnfileSerializer(read_only=True, many=True)
+  
+  class Meta:
+    model = Alignment
+    fields = ('genome', 'total_reads', 'mapped', 'munique', 'headtrim', 'tailtrim')
 
