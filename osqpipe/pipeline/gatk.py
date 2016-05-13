@@ -28,7 +28,7 @@ CONFIG = Config()
 
 ################################################################################
 # A handful of utility functions.
-def retrieve_readgroup_alignment(rgroup, genome=None):
+def retrieve_readgroup_alignment(rgroup, genome=None, bamfilter=False):
   '''
   Simply returns the osqpipe Alignment object for a given read group,
   a list of which is returned by this call:
@@ -41,8 +41,12 @@ def retrieve_readgroup_alignment(rgroup, genome=None):
   if genome is not None:
     alns = alns.filter(genome__code=genome)
 
+  # Only include alignments with bam files. Can be useful when there are older alignments which are only present to link to earlier MergedAlignments.
+  if bamfilter:
+    alns = alns.filter(alnfile__filetype__code='bam')
+
   if alns.count() > 1:
-    raise ValueError("Multiple Alignments match read group and genome parameters.")
+    raise ValueError("Multiple Alignments match read group and genome parameters. Maybe filter by bam file presence also?")
   elif alns.count() == 0:
     raise StandardError("No Alignments found to match read group and genome parameters.")
   else:
