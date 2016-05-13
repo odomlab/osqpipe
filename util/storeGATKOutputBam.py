@@ -27,7 +27,7 @@ from osqpipe.pipeline.gatk import retrieve_readgroup_alignment, check_bam_readco
 CONFIG = Config()
 
 @transaction.atomic
-def load_merged_bam(bam, genome=None):
+def load_merged_bam(bam, genome=None, bamfilter=False):
 
   LOGGER.info("Storing bam file %s in repository.", bam)
 
@@ -44,7 +44,8 @@ def load_merged_bam(bam, genome=None):
 
   # Slightly convoluted multiple query (as opposed to query__in) so
   # we can be sure we're identifying all the target Alignments.
-  alns = [ retrieve_readgroup_alignment(rg, genome) for rg in rgroups ]
+  alns = [ retrieve_readgroup_alignment(rg, genome, bamfilter)
+           for rg in rgroups ]
   alns = list(set(alns))
 
   LOGGER.info("Linking MergedAlignment to %d source Alignments.", len(alns))
@@ -85,10 +86,15 @@ if __name__ == '__main__':
                       + ' is ambiguity; otherwise the entire pool of alignments for'
                       + ' the lanes of interest will be available for linking.')
 
+  PARSER.add_argument('--filter-alns-without-bams', dest='bamfilt', action='store_true',
+                      help='When linking the merged files to alignments, filter out'
+                      + ' those alignments which do not include a bam file. This is'
+                      + ' an occasionally useful workaround for some edge cases.')
+
   ARGS = PARSER.parse_args()
 
   for bam in ARGS.bams:
-    load_merged_bam(bam, ARGS.genome)
+    load_merged_bam(bam, ARGS.genome, ARGS.bamfilt)
 
     # Remove bam.done file if present.
     donefile = "%s.done" % bam
