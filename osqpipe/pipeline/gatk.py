@@ -28,7 +28,7 @@ CONFIG = Config()
 
 ################################################################################
 # A handful of utility functions.
-def retrieve_readgroup_alignment(rgroup, genome=None):
+def retrieve_readgroup_alignment(rgroup, genome=None, bamfilter=False):
   '''
   Simply returns the osqpipe Alignment object for a given read group,
   a list of which is returned by this call:
@@ -41,8 +41,12 @@ def retrieve_readgroup_alignment(rgroup, genome=None):
   if genome is not None:
     alns = alns.filter(genome__code=genome)
 
+  # Only include alignments with bam files. Can be useful when there are older alignments which are only present to link to earlier MergedAlignments.
+  if bamfilter:
+    alns = alns.filter(alnfile__filetype__code='bam')
+
   if alns.count() > 1:
-    raise ValueError("Multiple Alignments match read group and genome parameters.")
+    raise ValueError("Multiple Alignments match read group and genome parameters. Maybe filter by bam file presence also?")
   elif alns.count() == 0:
     raise StandardError("No Alignments found to match read group and genome parameters.")
   else:
@@ -193,6 +197,13 @@ def _update_mergedalnfile_bam_readgroups(bam):
                      % ",".join(samples))
   _edit_bam_readgroup_data(bam,
                            sample = sanitize_samplename(list(samples)[0]))
+
+def _make_local_bamfile_name(fname, samplename, finalprefix):
+  '''
+  Quick utility function so that we only construct our final bamfile
+  name in one place in the code.
+  '''
+  return "%s%s%s" % (finalprefix, samplename, os.path.splitext(fname)[1])
 
 ################################################################################
 # The main GATK handler class.
@@ -511,6 +522,10 @@ class GATKPreprocessor(ClusterJobManager):
     Submit the cluster jobs necessary to bridge between the samtools
     merge and the GATK pipeline invocation; also invokes the GATK
     pipeline, submits various output data transfer and cleanup jobs.
+
+    Returns the name (but not the full path) of the local output bam file,
+    and the number of the final cluster job which transferred the
+    file back to the local host.
     '''
     # N.B. local var out_fns is assumed to always be in the order
     # (bam, bai).
@@ -566,13 +581,13 @@ class GATKPreprocessor(ClusterJobManager):
     LOGGER.info("Submitting output bam file transfer job")
     cmd = " && ".join([ \
       self.return_file_to_localhost(fname,
-                                    "%s%s%s" % (finalprefix, samplename, os.path.splitext(fname)[1]),
+                                    _make_local_bamfile_name(fname, samplename, finalprefix),
                                     donefile=True,
                                     execute=False) for fname in out_fns ])
     cmd += ' && rm %s' % " ".join([quote(x) for x in out_fns])
     sshjob = self.submitter.submit_command(cmd, depend_jobs=[ lastjob ])
 
-    return (out_fns[0], sshjob)
+    return (_make_local_bamfile_name(out_fns[0], samplename, finalprefix), sshjob)
 
   def create_instance_config(self, inputbam, tmpdir, outdir,
                              reference, finalprefix=''):

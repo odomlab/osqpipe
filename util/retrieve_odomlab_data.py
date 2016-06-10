@@ -141,10 +141,12 @@ def confirm_file_checksum(fname, checksum, blocksize=65536):
 
 class OdomDataRetriever(object):
 
-  __slots__ = ('session', 'with_download', 'with_checksum', '_base_url', '_projdirs')
+  __slots__ = ('session', 'with_download', 'with_checksum', '_base_url',
+               '_projdirs', 'filetype')
 
   def __init__(self, download=True, checksum=True,
-               base_url='http://localhost:8000/repository', project_dirs=None ):
+               base_url='http://localhost:8000/repository', project_dirs=None,
+               filetype='fastq'):
 
     import getpass
     sys.stderr.write("Please enter your login credentials.\n")
@@ -159,6 +161,10 @@ class OdomDataRetriever(object):
     self.with_download = download
     self.with_checksum = checksum
     self._base_url     = base_url
+
+    if filetype is None:
+      filetype = 'fastq'
+    self.filetype = filetype
 
     if project_dirs is None:
       project_dirs = []
@@ -199,8 +205,11 @@ class OdomDataRetriever(object):
     LOGGER.info("Retrieved metadata for lane %s (flowcell %s)",
                 lanedict['flowlane'], lanedict['flowcell'])
     for filedict in lanedict['lanefile_set']:
-      if filedict['filetype'] == 'fastq':
+      if filedict['filetype'] == self.filetype:
         self.process_lanefile(filedict)
+
+    for alnurl in lanedict['alignment_set']:
+      self.process_alnurl(alnurl)
 
   def process_lanefile(self, filedict):
 
@@ -228,6 +237,15 @@ class OdomDataRetriever(object):
       # to change that in future.
       if self.with_checksum:
         confirm_file_checksum(dl_fname, filedict['checksum'])
+
+  def process_alnurl(self, url):
+
+    alndict = self.session.api_metadata(url)
+#    LOGGER.info("Retrieved metadata for aln %s (flowcell %s)",
+#                alndict['flowlane'], alndict['flowcell'])
+    for filedict in alndict['alnfile_set']:
+      if filedict['filetype'] == self.filetype:
+        self.process_lanefile(filedict)
 
   def synchronise_datafiles(self, project=None):
 
@@ -273,10 +291,16 @@ if __name__ == '__main__':
                       help='Existing project directories containing files whose'
                       + ' download is to be skipped.')
 
+  PARSER.add_argument('--filetype', dest='filetype', type=str,
+                      default='fastq',
+                      help='The type of file to download. Examples are fastq (the'
+                      + ' default), bam, bed.')
+
   ARGS = PARSER.parse_args()
 
   RETRIEVER = OdomDataRetriever(download = not ARGS.no_download,
                                 checksum = not ARGS.no_checksum,
                                 base_url = ARGS.baseurl,
+                                filetype = ARGS.filetype,
                                 project_dirs = ARGS.projdirs)
   RETRIEVER.synchronise_datafiles(project  = ARGS.project)

@@ -11,6 +11,7 @@ router = DefaultRouter()
 router.register(r'projects',  views.ProjectViewSet, base_name='project')
 router.register(r'libraries', views.LibraryViewSet, base_name='library')
 router.register(r'lanes',     views.LaneViewSet,    base_name='lane')
+router.register(r'alignments', views.AlignmentViewSet, base_name='alignment')
 
 # REST API file download links. This can be extended as necessary to
 # Alnfile, QCfile etc.
@@ -19,6 +20,11 @@ restdownloadurls = [
       views.RESTFileDownloadView.as_view(),
       name='lanefile-download',
       kwargs={'cls': 'lanefile'}
+    ),
+  url(r'^download/alnfile/(?P<pk>\d+)$',
+      views.RESTFileDownloadView.as_view(),
+      name='alnfile-download',
+      kwargs={'cls': 'alnfile'}
     ),
 ]
 
