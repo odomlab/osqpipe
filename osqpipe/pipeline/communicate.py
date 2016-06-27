@@ -16,6 +16,8 @@ from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging(level=INFO)
 
+from subprocess import Popen, PIPE
+
 def get_my_ip():
     return socket.gethostbyname(socket.getfqdn())
 
@@ -43,7 +45,7 @@ class CommunicateStatus(object):
     def setLaneStatus(self, lane_id, status):
         if self.ssh:
             # cmd = 'communicateStatus.py --lane %d --status %s' % (lane_id, status)
-            cmd = '~/git-root/trunk/pipeline/package/osqpipe/pipeline/communicate.py --lane %d --status %s' % (lane_id, status)
+            cmd = 'communicateStatus.py --lane %d --status %s' % (lane_id, status)
             self.communicateOverSsh(cmd)
         else:            
             try:
@@ -56,18 +58,25 @@ class CommunicateStatus(object):
                 raise SystemExit("No lane with id %d!\n" % lane_id)
             lane.status = status_obj
             lane.save()
-            LOGGER.info("Lane %d status changed to \'%s\'\n" % (lane_id, lane.status.code))
-        
+            LOGGER.info("Lane %d status changed to \'%s\'" % (lane_id, lane.status.code))
+            
     def communicateOverSsh(self, cmd):
+        
+        ssh_cmd = "ssh -o StrictHostKeyChecking=no %s@%s %s" % (self.user, self.host, cmd)
 
-        ssh_cmd = 'ssh %s@%s %s' % (self.user, self.host, cmd)
-        call_subprocess(ssh_cmd, path=self.conf.hostpath, shell=True)
-
+        # NB! Not using call_subprocess here as we just want to pass on the result written to stdout and stderr.
+        # call_subprocess(ssh_cmd, shell=True, path=self.conf.hostpath)
+        subproc = Popen(ssh_cmd, stdout=PIPE, stderr=PIPE, shell=True)
+        (stdout, stderr) = subproc.communicate()
+        retcode = subproc.wait()
+        sys.stdout.write(stdout)
+        sys.stderr.write(stderr)
+        
     def setLaneStatusByFlowcell(self, library, flowcell, flowlane, facility, status):
         '''Changes status of the lane matching the library/flowcell/flowlane combination.'''
         if self.ssh:
             # cmd = 'communicateStatus.py --library %s --flowcell %s --flowlane %s --facility %s --status %s' % (library, flowcell, flowlane, facility, status)
-            cmd = '~/git-root/trunk/pipeline/package/osqpipe/pipeline/communicate.py --library %s --flowcell %s --flowlane %s --facility %s --status %s' % (library, flowcell, flowlane, facility, status)
+            cmd = 'communicateStatus.py --library %s --flowcell %s --flowlane %s --facility %s --status %s' % (library, flowcell, flowlane, facility, status)
             self.communicateOverSsh(cmd)
         else:
             # 1. Get lane_id matching library/flowcell/flowlane
@@ -127,7 +136,7 @@ class CommunicateStatus(object):
         '''Changes status of the lane matching the library/facility/lanenum info extracted from the file name.'''
         if self.ssh:
             # cmd = 'communicateStatus.py --filename %s --status %s' % (fname, status)
-            cmd = '~/git-root/trunk/pipeline/package/osqpipe/pipeline/communicate.py --filename %s --status %s' % (fname, status)
+            cmd = 'communicateStatus.py --filename %s --status %s' % (fname, status)
             self.communicateOverSsh(cmd)
         else:
             # 1. Get lane_id matching library/facility/lanenum

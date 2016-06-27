@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python
 #
 # $Id$
 
 if __name__ == '__main__':
     import argparse
+    from osqpipe.pipeline.communicate import CommunicateStatus
     
     PARSER = argparse.ArgumentParser(
         description='communicate Lane status to repository. Creates new lane in case lane with flowcell & flowlane & library & status is missing.')
