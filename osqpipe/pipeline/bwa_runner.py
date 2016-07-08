@@ -141,9 +141,10 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     assert(bwa_algorithm in ('aln', 'mem'))
     paired_sanity_check(filenames, is_paired)
 
+    # NB! Copying files to cluster is not any more necessary. This is taken care by --filehost flag below.
     # First, copy the files across and uncompress on the server.
-    LOGGER.info("Copying files to the cluster.")
-    destnames = self.job.transfer_data(filenames, destnames)
+    # LOGGER.info("Copying files to the cluster.")
+    # destnames = self.job.transfer_data(filenames, destnames)
 
     # Next, create flag for cleanup
     cleanupflag = '--cleanup' if cleanup else ''
@@ -158,6 +159,18 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     # Whether to run bwa mem or aln.
     algoflag = '--algorithm %s' % bwa_algorithm
 
+    # Check Whether the file is local or needs to be downloaded first.
+    cplag = '--rcp %s:%s' % (self.conf.datahost, self.finaldir)
+    hostflag = ''
+    filehost = socket.gethostname()
+    if filehost != self.conf.cluster:
+      hostflag  = '--filehost %s' % filehost
+    else:
+      # the files are already in host. Override cleanup to prevent source files to be deleted.
+      LOGGER.info("Input files are local. Overriding --cleanup to prevent files being deleted.")
+      cleanupflag = ''
+      cpflag = '--lcp %s' % self.finaldir
+    
     # This now searches directly on the cluster.
     progpath = self.job.find_remote_executable('cs_runBwaWithSplit.py',
                                                path=self.conf.clusterpath)
@@ -173,13 +186,13 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
       ## In the submitted command:
       ##   --rcp       is where cs_runBwaWithSplit_Merge.py eventually copies
       ##                 the reassembled bam file (via scp).
-      cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s %s %s"
+      cmd = ("python %s --loglevel %d %s %s %s %s %s %s %s %s"
              % (progpath,
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
+                hostflag,
                 noccflag,
-                self.conf.datahost,
-                self.finaldir,
+                cpflag,
                 sampleflag,
                 algoflag,
                 self.genome,
@@ -188,13 +201,13 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     else:
       LOGGER.debug("Running bwa on single-end sequencing input.")
       fnlist = quote(destnames[0])
-      cmd = ("python %s --loglevel %d %s %s --rcp %s:%s %s %s %s %s"
+      cmd = ("python %s --loglevel %d %s %s %s %s %s %s %s %s"
              % (progpath,
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
+                hostflag,
                 noccflag,
-                self.conf.datahost,
-                self.finaldir,
+                cpflag,
                 sampleflag,
                 algoflag,
                 self.genome,
