@@ -15,7 +15,7 @@ import stat
 import grp
 from pipes import quote
 from distutils import spawn
-from socket import getfqdn, socket, AF_UNIX, SOCK_STREAM
+from socket import getfqdn, socket, AF_UNIX, SOCK_STREAM, gethostname
 from getpass import getuser
 from tempfile import NamedTemporaryFile
 
@@ -141,7 +141,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     assert(bwa_algorithm in ('aln', 'mem'))
     paired_sanity_check(filenames, is_paired)
 
-    # NB! Copying files to cluster is not any more necessary. This is taken care by --filehost flag below.
+    # NB! Copying files to cluster is not any more necessary. This is taken care by --fileshost flag below.
     # First, copy the files across and uncompress on the server.
     # LOGGER.info("Copying files to the cluster.")
     # destnames = self.job.transfer_data(filenames, destnames)
@@ -160,11 +160,11 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     algoflag = '--algorithm %s' % bwa_algorithm
 
     # Check Whether the file is local or needs to be downloaded first.
-    cplag = '--rcp %s:%s' % (self.conf.datahost, self.finaldir)
+    cpflag = '--rcp %s:%s' % (self.conf.datahost, self.finaldir)
     hostflag = ''
-    filehost = socket.gethostname()
+    filehost = gethostname()
     if filehost != self.conf.cluster:
-      hostflag  = '--filehost %s' % filehost
+      hostflag  = '--fileshost %s' % filehost
     else:
       # the files are already in host. Override cleanup to prevent source files to be deleted.
       LOGGER.info("Input files are local. Overriding --cleanup to prevent files being deleted.")
@@ -181,7 +181,8 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     # Next, submit the actual jobs on the actual cluster.
     if is_paired:
       LOGGER.debug("Running bwa on paired-end sequencing input.")
-      fnlist = " ".join([ quote(x) for x in destnames ])
+      fnlist = " ".join([ quote(x) for x in filenames ])
+      # fnlist = " ".join([ quote(x) for x in destnames ])
       ## FIXME think about ways this could be improved.
       ## In the submitted command:
       ##   --rcp       is where cs_runBwaWithSplit_Merge.py eventually copies
@@ -200,7 +201,8 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
 
     else:
       LOGGER.debug("Running bwa on single-end sequencing input.")
-      fnlist = quote(destnames[0])
+      fnlist = quote(filenames[0])
+      # fnlist = quote(destnames[0])
       cmd = ("python %s --loglevel %d %s %s %s %s %s %s %s %s"
              % (progpath,
                 LOGGER.getEffectiveLevel(),
