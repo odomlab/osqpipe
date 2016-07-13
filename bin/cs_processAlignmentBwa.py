@@ -268,8 +268,11 @@ class AlignProcessingManager(object):
     # tired of maintaining it).
     if not lib.libtype.code in self.conf.nonquant_libtypes:
       wigs      = self.generate_wig_files(beds)
-      bedgraphs = self.generate_bedgraph_files(beds)
       bigwigs   = self.generate_bigwig_files(bedgraphs, chrom_sizes)
+
+    # Bedgraph files are still useful for assessing genome- or
+    # exome-wide coverage.
+    bedgraphs = self.generate_bedgraph_files(beds)
         
     # We're now done with the chrom_sizes file.
     if chr_istmp:
