@@ -196,8 +196,8 @@ class LibraryAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'genome_link', 'libtype', 'chipsample',
                         'sample_link', 'factor', 'antibody')
 
-  search_fields  = ('code', 'genome__code', 'libtype__name', 'sample__sex__name',
-                    'sample__strain__name', 'sample__name', 'chipsample',
+  search_fields  = ('code', 'genome__code', 'libtype__name', 'sample__source__sex',
+                    'sample__source__strain__name', 'sample__name', 'chipsample',
                     'factor__name', 'sample__tissue__name', 'antibody__name')
 
   fieldsets = [
@@ -382,6 +382,31 @@ class SizeUnitAdmin(admin.ModelAdmin):
 class TreatmentAgentAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'description', 'accession')
   search_fields = ('name', 'description', 'accession')
+
+#############################################
+@admin.register(MergedAlignment)
+class MergedAlignmentAdmin(admin.ModelAdmin):
+  list_display = ('__unicode__', 'genome')
+  search_fields = ('alignment__lane__library__code',
+                   'genome__code', 'alignment__lane__library__sample__name')
+  readonly_fields = ('genome',)
+  fields = ('genome',)
+
+#############################################
+@admin.register(MergedAlnfile)
+class MergedAlnfileAdmin(admin.ModelAdmin):
+  list_display       = ('__unicode__', 'alignment_link', 'filetype')
+
+  search_fields   = ('filename', 'filetype__name')
+  readonly_fields = ('alignment', 'date')
+  
+  fields = ('filename', 'checksum', 'filetype',
+            'alignment', 'date', 'description')
+
+  def alignment_link(self, obj):
+    url = reverse('admin:osqpipe_mergedalignment_change', args=(obj.alignment.pk,))
+    return '<a href="%s">%s</a>' % (url, obj.alignment)
+  alignment_link.allow_tags = True
 
 #############################################
 @admin.register(ExternalRecord)
