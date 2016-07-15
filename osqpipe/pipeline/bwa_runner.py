@@ -416,16 +416,17 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
       raise StandardError("Incorrect number of files passed to bwa mem: %d" % nfq)
     
     num_threads = max(1, int(self.num_threads))
+    sortstr = "samtools sort -@ %d - %s"
     fnlist = " ".join([quote(fqname) for fqname in destnames ])
     cmd  = (("bwa mem -t %d %s %s | samtools view -b -S -u -@ %d -"
-                              + " | samtools sort -@ %d - %s")
+             + " | %s")
             % (num_threads,
                self.genome,
                fnlist,
                num_threads,
                num_threads,
-               outfnbase))
-
+               outfnbase, sortstr))
+    
     return cmd
   
   def submit(self, filenames,
@@ -444,7 +445,13 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
 
     outfnbase = make_bam_name_without_extension(destnames[0])
     outfnfull = outfnbase + '.bam'
+    outfnfullout = outfnbase + '.bam'
 
+    compress = True
+    if self.conf.compressintermediates == "False":
+      compress = False
+      outfnfullout = outfnbase + '_uc.bam'
+      
     self.tempfiles = destnames + [ outfnfull ]
 
     # Next, create flag for number of non-unique reads to keep in samse/sampe
@@ -477,15 +484,20 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
       raise ValueError("BWA algorithm not recognised: %s" % bwa_algorithm)
 
     # This is invariant PE vs. SE. First, run our standard picard cleanup:
-    postproc = BamPostProcessor(input_fn=outfnfull, output_fn=outfnfull,
+    postproc = BamPostProcessor(input_fn=outfnfull, output_fn=outfnfullout,
                                 samplename=self.samplename,
-                                tmpdir=self.conf.althostworkdir)
+                                tmpdir=self.conf.althostworkdir, compress=compress)
     cmd += (" && %s && rm %s"
             % (" ".join(postproc.clean_sam()), outfnfull))
     cmd += (" && %s && rm %s"
             % (" ".join(postproc.add_or_replace_read_groups()), postproc.cleaned_fn))
     cmd += (" && %s && rm %s"
             % (" ".join(postproc.fix_mate_information()), postproc.rgadded_fn))
+    # if interemediate files were uncompressed bams, compress the final bam
+    if not compress:
+      num_threads = max(1, int(self.conf.num_threads))
+      cmd += (" && samtools view -b -S -@ %d -o %s %s && rm %s" %
+              (num_threads, outfnfull, outfnfullout, outfnfullout))
 
     # We generate verbose logging here to better monitor file transfers.
     cmd += (" && scp -v -i %s %s %s@%s:%s"
