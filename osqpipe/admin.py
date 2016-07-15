@@ -196,7 +196,7 @@ class LibraryAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'genome_link', 'libtype', 'chipsample',
                         'sample_link', 'factor', 'antibody')
 
-  search_fields  = ('code', 'genome__code', 'libtype__name', 'sample__source__sex',
+  search_fields  = ('code', 'genome__code', 'libtype__name', 'sample__source__sex__name',
                     'sample__source__strain__name', 'sample__name', 'chipsample',
                     'factor__name', 'sample__tissue__name', 'antibody__name')
 
