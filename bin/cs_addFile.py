@@ -16,7 +16,8 @@ from logging import INFO, DEBUG
 import django
 
 from osqutil.utilities import parse_repository_filename, checksum_file, run_in_communication_host
-from osqpipe.models import Filetype, Lane, Lanefile, Facility, QCfile, ArchiveLocation
+from osqpipe.models import Filetype, Lane, Lanefile, Facility, ArchiveLocation
+from osqpipe.pipeline.laneqc import LaneFastQCReport
 
 ###########################################################
 
@@ -64,7 +65,7 @@ class RepoFileHandler(object):
   functionality left in this script, post-refactor.'''
 
   @staticmethod
-  def run(fns, md5files=False, qcfile=False, archive=None):
+  def run(fns, md5files=False, archive=None):
     '''Main entry point for the class.'''
 
     arc = None
@@ -97,17 +98,22 @@ class RepoFileHandler(object):
         basefn = fnparts[0]
       LOGGER.debug("basefn: '%s'" % (basefn))    
 
-      if qcfile:
-        qcfile = QCfile(filename=basefn, checksum=chksum,
-                        filetype=filetype, lane=lane,
-                        pipeline=pipeline)        
-        qcfile.save()
-      else:
-        lanefile = Lanefile(filename=basefn, checksum=chksum,
-                            filetype=filetype, lane=lane,
-                            pipeline=pipeline, archive=arc, archive_date=arc_date)
-        lanefile.save()
+      lanefile = Lanefile(filename=basefn, checksum=chksum,
+                          filetype=filetype, lane=lane,
+                          pipeline=pipeline, archive=arc, archive_date=arc_date)
+      lanefile.save()
       LOGGER.info("Added %s to repository.", basefn)
+
+  @staticmethod
+  def add_qc_files(fnames, program_name):
+    # Assume first file is representative of lane for all
+    l = get_lane_for_file(fnames[0])
+
+    LOGGER.info("Inserting QC files for lane=%d", l.id)
+
+    with LaneFastQCReport(lane=l, program_name=program_name, workdir='./', move_files=False) as rep:
+      rep.output_files = fnames
+      rep.insert_into_repository()
 
   @staticmethod          
   def add_lane_summary(fname):
@@ -184,11 +190,11 @@ if __name__ == '__main__':
 
   PARSER.add_argument('files', metavar='<files>', type=str, nargs='*',
                       help='The list of files.')
-  PARSER.add_argument('-m', '--md5sum', dest='md5files', action='store_true', help='Assume pre-computed md5sums available as filename.md5.', default=False)
-  PARSER.add_argument('-s', '--file_summary', dest='summary_file', type=str, help='Add information from a file created summaryFile to lane.', default=None)
-  # PARSER.add_argument('--lanefile', dest='lanefile', action='store_true', help='File is of type lanefile', default=False)
-  PARSER.add_argument('--qcfile', dest='qcfile', action='store_true', help='Files are qcfiles.', default=False)
+  PARSER.add_argument('-m', '--md5sum', dest='md5files', action='store_true', help='Assume pre-computed md5sums available in filename.md5.', default=False)
+  PARSER.add_argument('-s', '--file_summary', dest='summary_file', type=str, help='File created by summaryFile from a fastq file.', default=None)
   PARSER.add_argument('--archive', dest='archive', type=str, help='Archive (e.g. bamark, ebiark, ark) where the file has been saved. Deafult=none.', default=None)
+  PARSER.add_argument('--qcfile', dest='qcfile', action='store_true', help='Files should be inserted as QC files. NB! Function has property of also moving the files to repository at the same time!', default=False)
+  PARSER.add_argument('--program_name', dest='program_name', type=str, help='Program name used for generating qc files. Default=\'fastqc\'.', default='fastqc')
 
   ARGS = PARSER.parse_args()
 
@@ -204,4 +210,7 @@ if __name__ == '__main__':
   if ARGS.summary_file is not None:
     HND.add_lane_summary(ARGS.summary_file)
   if len(ARGS.files):
-    HND.run(ARGS.files, md5files=ARGS.md5files, qcfile=ARGS.qcfile, archive=ARGS.archive)
+    if ARGS.qcfile:      
+      HND.add_qc_files(ARGS.files, ARGS.program_name)
+    else:
+      HND.run(ARGS.files, md5files=ARGS.md5files, archive=ARGS.archive)

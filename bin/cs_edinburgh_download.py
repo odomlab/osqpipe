@@ -28,7 +28,7 @@ from osqutil.utilities import call_subprocess, _checksum_fileobj # Note that for
 
 # For insertion of lane info:
 import django
-from osqpipe.models import Lane, Status, Library, Facility, Machine, Adapter, ArchiveLocation, Lanefile
+from osqpipe.models import Lane, Status, Library, Facility, Machine, Adapter, ArchiveLocation
 
 # set up config
 DBCONF = Config()
@@ -439,12 +439,6 @@ class ed_data_handler(object):
                     LOGGER.info("Skipping %s (%s)", edstem, status)
                 continue
 
-            fname = self.edfiles[i]
-            md5sum = self.md5sums[i]
-            status = self.statuses[i]
-            laneid = self.laneids[i]
-            
-            LOGGER.info("Downloading edfiles for %s, laneid=%d ...", edstem, laneid)
             ## Prepare download command for for submision to the cluster
             cmd = 'cs_edinburgh_download.py -a --file1 %s --file2 %s --file1_md5 %s --file2_md5 %s -p %s -l %d' % (self.edfiles[edstem].file1, self.edfiles[edstem].file2, self.edfiles[edstem].file1_md5, self.edfiles[edstem].file2_md5, self.project, self.edfiles[edstem].laneid)
             if print_download_commands_only:
@@ -455,7 +449,7 @@ class ed_data_handler(object):
                 jobid = submitter.submit_command(cmd=cmd, mem=1000, auto_requeue=False, depend_jobs=[jobids[tnr]])
             else:
                 jobid = submitter.submit_command(cmd=cmd, mem=1000, auto_requeue=False)
-            LOGGER.info("Setting up downloads for %s ... (jobid=%s)", fname, jobid)
+            LOGGER.info("Setting up downloads for %s ... (jobid=%s)", edstem, jobid)
             newids.append(int(jobid))
             tnr += 1
             if tnr == self.athreads:
@@ -528,7 +522,7 @@ class ed_data_handler(object):
             cmd += ' && time cat %s | summarizeFile > %s' % (rfastq1, summaryFile)
 
             # Register processed files in repository
-            cmd += ' && time cs_addFile.py -m -s %s --archive ebiark %s %s' % (summaryFile, rfastq1, rfastq2)
+            cmd += ' && time cs_addFile.py -m -s %s --archive ebiark %s %s && rm %s' % (summaryFile, rfastq1, rfastq2, summaryFile)
 
             # Set lane status complete
             cmd += ' && time communicateStatus.py --laneid %d --status complete' % self.edfiles[edstem].laneid
@@ -554,14 +548,14 @@ class ed_data_handler(object):
         '''Downloads all files for the userid'''
         # For each fastq file in Edinburgh Genomics, there is also a *_R1_fastqc.html file to download
 
-        file1_fastqc = rfastq.rstrip('.fastq.gz') + '_fastqc.html'
-        rfiles = [rfastq, rfastqc]
+        file1_fastqc = file1.rstrip('.fastq.gz') + '_fastqc.html'
+        rfiles = [file1, file1_fastqc]
         rmd5s = [file1_md5, None]
 
         fail_command = 'cs_edinburgh_download.py -a --file1 %s --file1_md5 %s -p %s -l %d' % (file1, file1_md5, self.project, laneid)
 
         if file2 is not None:
-            file2_fastqc = rfastq.rstrip('.fastq.gz') + '_fastqc.html'
+            file2_fastqc = file2.rstrip('.fastq.gz') + '_fastqc.html'
             rfiles = rfiles + [file2, file2_fastqc]
             rmd5s = rmd5s + [file2_md5, None]
 
@@ -570,7 +564,7 @@ class ed_data_handler(object):
         failed = False        
 
         # Download files in rfiles
-        for rfpath, md5sum in zip(rfiles, md5s):
+        for rfpath, md5sum in zip(rfiles, rmd5s):
             attempts = 0
             while attempts < self.maxattempts:
                 # Depending if the file to be downloaded is .html skip or download also associated .md5 file
