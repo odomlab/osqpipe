@@ -340,7 +340,7 @@ class ed_data_handler(object):
                 lib = Library.objects.search_by_name(self.sample2library[libcode])
             except Library.DoesNotExist, _err:
                 missing_lib=True
-                LOGGER.error("%s\tnoLibrary" % sample2library[libcode])
+                LOGGER.error("%s\tnoLibrary" % self.sample2library[libcode])
         if missing_lib:
             sys.exit(1)
 
@@ -435,7 +435,7 @@ class ed_data_handler(object):
             ## Prepare download command for for submision to the cluster
             cmd = 'cs_edinburgh_download.py -a --file1 %s --file2 %s --file1_md5 %s --file2_md5 %s -p %s -l %d' % (self.edfiles[edstem].file1, self.edfiles[edstem].file2, self.edfiles[edstem].file1_md5, self.edfiles[edstem].file2_md5, self.project, self.edfiles[edstem].laneid)
             if print_download_commands_only:
-                print command
+                print cmd
                 continue
             # Submit download job
             if jobids:
@@ -570,7 +570,7 @@ class ed_data_handler(object):
                 else:            
                     attempts += 1
                     if attempts == self.maxattempts:
-                        LOGGER.error("Giving up (after %d attempts) on trying to download %s" % rpath)
+                        LOGGER.error("Giving up (after %d attempts) on trying to download %s" % rfpath)
 
                         # Set download failed
                         cmd = 'communicateStatus.py --laneid %d --status downloading_failed' % laneid
@@ -579,7 +579,7 @@ class ed_data_handler(object):
                         run_command(cmd, shell=True)
                         failed = True
                     else:
-                        LOGGER.error("Trying to download %s again." % rpath)
+                        LOGGER.error("Trying to download %s again." % rfpath)
                         
         # Register files as downloaded
         if not failed:
