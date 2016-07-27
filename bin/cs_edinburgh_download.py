@@ -33,15 +33,6 @@ from osqpipe.models import Lane, Status, Library, Facility, Machine, Adapter, Ar
 # set up config
 DBCONF = Config()
 
-## In the heart of the download code lies following:
-# 1. Given [USER ID], construct links to all files for this [userid]. NB! What edinburgh calls userid will be in our case donumber.
-# 2. Download file and download md5sum
-# 3. Compare file and md5sum, if not same, go back to 2. Keep track how many attempts file was downloaded (limit to 10.)
-# 4. Set file on diks .done
-# 5. Get lane info for lane and flowcell. If none, register flowcell.
-# 6. Set flowcell status 'downloaded'
-## There are multiple entry points to this code
-
 ## Note that the code depends on following variables defined in config:
 # acredfile - containing credentials for connecting to Edinburgh
 # ahost - host of the aspera server in Ediburng (edgen-dt.rdf.ac.uk)
@@ -51,9 +42,9 @@ DBCONF = Config()
 # athreads - number of parallel downloads to execute
 
 ## TODO:
-# 1. Test the script with -l and -i options. The script has been tested with -f and -F options.
-# 2. Test the script with -i option with different number of threads. See the athread option in the config file.
-# 3. Check that the logging of failed download commands to a file specified in config as 'faileddownloads' is working fine.
+#
+# Some of the general functions sould be moved to utilities.
+#
 
 def read_credentials(credentials_file):
     '''Reads credentials from a file to memory.'''
@@ -410,6 +401,8 @@ class ed_data_handler(object):
             self.edfiles[edstem].repstem = repstem
 
             LOGGER.info("%s\t%s\t%d\t%s", edstem, lane.status.code, lane.id, repstem)
+
+            print "communicateStatus.py --laneid %d --status complete" % lane.id
 
     def ed_download(self, print_download_commands_only=False):
         '''Downloads all project related files.'''
