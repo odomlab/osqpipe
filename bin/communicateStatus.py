@@ -1,9 +1,16 @@
-#!/usr/bin/env python
+#!/sw/gentoo/usr/bin/python2.7
 #
 # $Id$
 
+import sys
+from osqutil.utilities import run_in_communication_host
+
 if __name__ == '__main__':
+
+    run_in_communication_host(sys.argv)
+
     import argparse
+    from osqpipe.pipeline.communicate import CommunicateStatus
     
     PARSER = argparse.ArgumentParser(
         description='communicate Lane status to repository. Creates new lane in case lane with flowcell & flowlane & library & status is missing.')

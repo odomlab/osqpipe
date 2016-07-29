@@ -34,7 +34,7 @@ class LaneQCReport(object):
                'program_params', '_dbprog', '_delete_workdir')
 
   def __init__(self, lane, program_name, path=None, program_params='',
-               workdir=None):
+               workdir=None, move_files=True):
 
     self.lane           = lane
     self.program_name   = program_name
@@ -43,10 +43,15 @@ class LaneQCReport(object):
 
     self.output_files   = []
 
+    self.move_files = move_files
+    
     self.workdir = workdir
     if workdir is not None:
       self._delete_workdir = False
-
+    else:
+      if self.move_files == False:
+        raise StandardError("Not moving files from temporary directory to be deleted does not make sense!")
+        
     # This checks that the specified program exists, and where it
     # yields some kind of meaningful version info will record that.
     progdata = ProgramSummary(program_name, path=path)
@@ -112,12 +117,13 @@ class LaneQCReport(object):
       # Zip up the file if necessary.
       if ftype.gzip and os.path.splitext(fname)[1] != CONFIG.gzsuffix:
         fpath = rezip_file(fpath)
-      dest    = fobj.repository_file_path
-      destdir = os.path.dirname(dest)
-      if not os.path.exists(destdir):
-        os.makedirs(destdir)
-      move(fpath, dest)
-      set_file_permissions(CONFIG.group, dest)
+      if self.move_files:
+        dest    = fobj.repository_file_path
+        destdir = os.path.dirname(dest)
+        if not os.path.exists(destdir):
+          os.makedirs(destdir)
+        move(fpath, dest)
+        set_file_permissions(CONFIG.group, dest)
 
   def __exit__(self, exctype, excvalue, traceback):
     if self._delete_workdir:
