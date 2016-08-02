@@ -113,10 +113,11 @@ class InventoryImporter(object):
     known = ('sort', 'libraryid', 'assaytype', 'experiment', 'genome',
              'strain', 'tissue', 'cellline', 'tissueprocessing', 'projects',
              'individual', 'sex', 'factor', 'antibody', 'lotnumber', 'condition',
-             'barcode', 'barcode2', 'barcodetype', 'linkerset', 'pairedend', 'protocol',
+             'barcode', 'barcode2', 'barcode(column)', 'barcode2(row)',
+             'barcodetype', 'linkerset', 'pairedend', 'protocol',
              'notes', 'status', 'replicate', 'biopsyid', 'solexaid',
              'sequencingrunsatcri:', 'sequencingrunsatsanger:',
-             'total#ofmappedreadsobtained:',
+             'total#ofmappedreadsobtained:','comment',
              'mappedtogenomeversion:(e.g.hg18mm9usw)')
     for colname in header:
       if colname not in known:
@@ -153,6 +154,7 @@ class InventoryImporter(object):
                'pairedend'  : 'paired',
                'lotnumber'  : 'lot_number',
                'sex'        : 'sex',
+               'comment'    : 'comment',
                }
 
     # Read in any optional data into optvals.
@@ -177,8 +179,12 @@ class InventoryImporter(object):
 
       # NEB and TruSeq barcodes are identical, at least up to TS_12.
       if 'protocol' in rowdict:
-        prottag = re.sub(' ', '', rowdict['protocol'].lower())
-        if prottag in ('truseq', 'neb'):
+        prottag = rowdict['protocol'].lower()
+
+        if re.search(r'\b(?:truseq ?lt)\b', prottag):
+          adapter = 'TSLT_%d' % int(barcode)
+
+        elif re.search(r'\b(?:truseq|neb)\b', prottag):
 
           # TruSeq adapters have standard names in the repository.
           if rowdict['assaytype'].lower() in ('smrnaseq', 'rip-smrnaseq'):
@@ -198,12 +204,23 @@ class InventoryImporter(object):
             if int(barcode) > 12 and rowdict['protocol'].lower() == 'neb':
               LOGGER.error('NEB barcode index greater than 12 used; confirm sequences match TruSeq!')
               raise ValueError()
-        elif prottag in ('truseqlt',):
-          adapter = 'TSLT_%d' % int(barcode)
+
+        elif re.search(r'\b(?:nextera|nextera ?xt)\b', prottag):
+          adapter = 'NXT_N' + barcode
+
+        elif re.search(r'\b(?:thruplex)\b', prottag):
+          if int(barcode) < 20:
+            adapter = 'iPCRtagT' + barcode
+          elif ( int(barcode) > 500 and int(barcode) < 509 )\
+               or ( int(barcode) > 700 and int(barcode) < 713 ):
+            adapter = 'TP_D' + barcode   # dual indexing adapter set, as for TruSeq.
+
+        elif re.search(r'\b(?:haloplex|agilent ?haloplex)\b', prottag):
+          adapter = 'HAL' + barcode
 
         # FIXME the following protocol list should be simplified to
         # reflect whatever we end up actually using.
-        elif prottag in ('agilentsureselectxt', 'sureselectxt', 'sureselect', 'xt'):
+        elif re.search(r'\b(?:agilent ?sureselect ?xt|sureselect ?xt|sureselect)\b', prottag):
 
           if int(barcode) > 16:
             LOGGER.error('SureSelectXT barcode index greater than 16 used.')
@@ -216,19 +233,6 @@ class InventoryImporter(object):
             barcode = rowdict[code_column]
 
           adapter = 'XT_' + barcode
-
-        elif prottag in ('nextera', 'nexteraxt'):
-          adapter = 'NXT_N' + barcode
-
-        elif prottag in ('thruplex',):
-          if int(barcode) < 20:
-            adapter = 'iPCRtagT' + barcode
-          elif ( int(barcode) > 500 and int(barcode) < 509 )\
-               or ( int(barcode) > 700 and int(barcode) < 713 ):
-            adapter = 'TP_D' + barcode   # dual indexing adapter set, as for TruSeq.
-
-        elif prottag in ('haloplex', 'agilenthaloplex'):
-          adapter = 'HAL' + barcode
 
         else:
           LOGGER.error('Uncertain which adapter scheme (e.g. TruSeq) has been used: %s',
@@ -297,19 +301,28 @@ class InventoryImporter(object):
     # Overwrite tissue with cellline if the latter is given.
     if 'cellline' in rowdict and rowdict['cellline'] != '':
       tissue = rowdict['cellline']
-      LOGGER.info(tissue)
     else:
       tissue = rowdict['tissue']
 
     # Munge the barcode/barcodetype/protocol info into an adapter string.
-    try:
+    try: # Test New vs. Old column naming, in case we ever switch back.
+
       (optvals['adapter'],  optvals['linkerset']) = \
-          self.munge_barcode_info(rowdict, libcode, code_column='barcode')
-      (optvals['adapter2'], discarded)            = \
-          self.munge_barcode_info(rowdict, libcode, code_column='barcode2', optional=True)
+          self.munge_barcode_info(rowdict, libcode, code_column='barcode(column)')
+      if optvals['adapter'] is None:
+        (optvals['adapter'],  optvals['linkerset']) = \
+            self.munge_barcode_info(rowdict, libcode, code_column='barcode')
+
+      (optvals['adapter2'], discarded) = \
+          self.munge_barcode_info(rowdict, libcode, code_column='barcode2(row)', optional=True)
+      if optvals['adapter2'] is None:
+        (optvals['adapter2'], discarded) = \
+            self.munge_barcode_info(rowdict, libcode, code_column='barcode2', optional=True)
+      
       if discarded is not None:
         raise ValueError("Unexpectedly identified a linkerset (%s) while parsing adapter2." % discarded)
 
+    # Here we finally admit defeat.
     except ValueError, err:
       LOGGER.error("Barcode parsing failed for library %s. Skipping.", libcode)
       return

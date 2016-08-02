@@ -274,8 +274,11 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
     '''
     paired_sanity_check(filenames, is_paired)
 
-    # First, copy the files across and uncompress on the server.
+    # First, copy the files across and uncompress on the server. We
+    # remove commas here because otherwise tophat is a little too keen
+    # to split on them (quoting doesn't work).
     LOGGER.info("Copying files to the cluster.")
+    destnames = [ re.sub(',+', '_', os.path.basename(fname)) for fname in filenames ]
     destnames = self.job.transfer_data(filenames, destnames)
 
     # Next, create flag for cleanup
@@ -289,8 +292,9 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
     else:
       sampleflag = ''
 
-    # FIXME assumes path on localhost is same as path on cluster.
-    progpath = spawn.find_executable('cs_runTophatWithSplit.py', path=self.conf.clusterpath)
+    # This now searches directly on the cluster.
+    progpath = self.job.find_remote_executable('cs_runTophatWithSplit.py',
+                                               path=self.conf.clusterpath)
 
     # Next, submit the actual jobs on the actual cluster.
     fnlist = " ".join([ quote(x) for x in destnames ])
