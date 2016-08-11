@@ -222,11 +222,16 @@ class FlowCellQuery(object):
   '''Main query class.'''
 
   __slots__ = ('verbose', 'lims_fc', 'lib_status', 'lane_library',
-               'lane_demuxed', 'lims')
+               'lane_demuxed', 'lims', 'quiet')
 
-  def __init__(self, flowcell_id, flow_lane=None, verbose=False, lims=None):
+  def __init__(self, flowcell_id, flow_lane=None, verbose=False, lims=None, quiet=False):
     LOGGER.setLevel(INFO)
+
+    # Will output debugging info:
     self.verbose = verbose
+
+    # Will suppress regular INFO-level output:
+    self.quiet   = quiet
 
     # Map libcode to status
     self.lib_status   = {}
@@ -261,7 +266,8 @@ class FlowCellQuery(object):
       try:
         lib = Library.objects.search_by_name(user_code)
       except Library.DoesNotExist, _err:
-        print "%s %s %s %s" % (lims_fc.fcid, lane.lane, user_code, 'noLibrary')
+        if not self.quiet:
+          print "%s %s %s %s" % (lims_fc.fcid, lane.lane, user_code, 'noLibrary')
         continue
 
       lib_status = None
@@ -276,11 +282,13 @@ class FlowCellQuery(object):
           LOGGER.warn("%s %s: LIMS code='%s' but LIB code='%s'",
                       lims_fc.fcid, lane.lane, lib.code, db_lib.code)
         lib_status = 'processed'
-        print "%s %s %s %s %s" % (lims_fc.fcid, lane.lane,
-                                  db_lib.code, lib_status, db_lane.name)
+        if not self.quiet:
+          print "%s %s %s %s %s" % (lims_fc.fcid, lane.lane,
+                                    db_lib.code, lib_status, db_lane.name)
       else:
         lib_status = 'new'
-        print "%s %s %s %s" % (lims_fc.fcid, lane.lane, lib.code, lib_status)
+        if not self.quiet:
+          print "%s %s %s %s" % (lims_fc.fcid, lane.lane, lib.code, lib_status)
 
       if self.lib_status.get(lib.code) != 'new':
         self.lib_status[lib.code] = lib_status
@@ -330,12 +338,13 @@ class FlowCellQuery(object):
         lims_fc.fcid, flowcell_id)
       sys.exit("LIMS query retrieved unexpected results.")
 
-    try:
-      print ("%s %s %s" % (flowcell_id,
-                           lims_fc.analysis_status,
-                           lims_fc.finish_date))
-    except AttributeError, _err:
-      print "%s UNK %s" % (flowcell_id, lims_fc.finish_date)
+    if not self.quiet:
+      try:
+        print ("%s %s %s" % (flowcell_id,
+                             lims_fc.analysis_status,
+                             lims_fc.finish_date))
+      except AttributeError, _err:
+        print "%s UNK %s" % (flowcell_id, lims_fc.finish_date)
     for lane in lims_fc.iter_lanes():
       if flowlane_num == None or lane.lane == int(flowlane_num):
         if any([x.lower() in emails for x in lane.user_emails]):
