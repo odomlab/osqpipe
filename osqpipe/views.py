@@ -404,8 +404,6 @@ class SampleDetailView(MyDetailView):
     if self.request.user not in allowed_users:
       return redirect('denied')
 
-    # FIXME ideally we also need to get session_library set here somehow. Also
-    # fix the sitetree stuff.
     self.request.session['session_sample'] = object.pk
     return super(SampleDetailView, self).get(request, *args, **kwargs)
 
