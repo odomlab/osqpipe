@@ -14,7 +14,7 @@
     <tr><th>Tissue: </th><td>{{ sample.tissue }}</td></tr>
     <tr><th>Size: </th><td>{{ sample.size }}{{ sample.size_unit }}</td></tr>
     {% for char in sample.characteristics.all|sortby:"category" %}
-      <tr><th>{{ char.category }}</th><td>{{ char.value }}</td></tr>
+      <tr><th>{{ char.category }}: </th><td>{{ char.value }}</td></tr>
     {% endfor %}
     <tr><th>Notes: </th><td>{{ sample.comment }}</td></tr>
   </table>

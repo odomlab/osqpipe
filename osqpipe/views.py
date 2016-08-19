@@ -398,7 +398,8 @@ class SampleDetailView(MyDetailView):
     object = get_object_or_404(self.model, id=self.kwargs['pk'])
 
     # Per-project user authorization.
-    allowed_users = [ person for project in object.library.projects.all()
+    allowed_users = [ person for library in object.library_set.all()
+                             for project in library.projects.all()
                              for person  in project.people.all() ]
     if self.request.user not in allowed_users:
       return redirect('denied')

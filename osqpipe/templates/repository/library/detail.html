@@ -33,7 +33,7 @@
     <tr><th>Antibody: </th><td>{{ library.antibody }}</td></tr>
     <tr><th>Individual: </th><td>{% if library.code == library.sample.source.name %}&nbsp;
         {% else %}{{ library.sample.source.name }}{% if library.sample.source.species %}&nbsp;(<i>{{library.sample.source.species}}</i>){% endif %}
-	<br/>(sample <a href="url "sample-detail" pk=library.sample.pk">{{ library.sample.name }}</a>){% endif %}</td></tr>
+	<br/>(sample <a href="{% url "sample-detail" pk=library.sample.pk %}">{{ library.sample.name }}</a>){% endif %}</td></tr>
     <tr><th>Factor: </th><td>{{ library.factor }}</td></tr>
     <tr><th>Library type: </th><td>{{ library.libtype }}</td></tr>
     <tr><th>Barcode: </th><td>{{ library.barcode }}</td></tr>
