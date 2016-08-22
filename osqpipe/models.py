@@ -427,6 +427,12 @@ class Library(models.Model):
   paired       = models.BooleanField(default=False)
   adapter      = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True, related_name='libraries')
   adapter2     = models.ForeignKey(Adapter, on_delete=models.PROTECT, null=True, blank=True, related_name='libraries2')
+  platecode    = models.CharField(max_length=32, null=True, blank=True)
+  platecol     = models.IntegerField(null=True, blank=True)
+  platerow     = models.CharField(max_length=1,
+                                  choices=[('A','A'),('B','B'),('C','C'),('D','D'),
+                                           ('E','E'),('F','F'),('G','G'),('H','H')],
+                                  null=True, blank=True)
   comment      = models.TextField(null=True, blank=True)
 
   objects      = LibraryManager()
