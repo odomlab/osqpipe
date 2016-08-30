@@ -481,7 +481,7 @@ class FileDownloadMixin(object):
       response = HttpResponse(content_type=mtype[0])
     else:
       response = HttpResponse(content_type='application/force-download')
-      response['Content-Disposition'] = 'attachment; filename=%s' % smart_str(fname)
+      response['Content-Disposition'] = r'attachment; filename="%s"' % smart_str(fname)
     response['X-Sendfile']          = smart_str(filepath)
     # You can also set any other required headers: Cache-Control, etc.
 
