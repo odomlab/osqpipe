@@ -414,3 +414,12 @@ class ExternalRecordAdmin(admin.ModelAdmin):
   list_display = ('accession', 'repository', 'is_public')
   search_fields = ('accession', 'repository')
 
+#############################################
+@admin.register(ArchiveLocation)
+class ArchiveLocationAdmin(admin.ModelAdmin):
+  list_display  = ('name', 'host', 'root_path')
+  search_fields = ('name', 'host', 'root_path')
+
+  fields = ('name', 'host', 'root_path',
+            'host_port', 'host_path', 'host_user',
+            'host_delete_timelag')
