@@ -462,12 +462,14 @@ class ArchiveManager(object):
     fobj.save()
     repopath = fobj.repository_file_path
 
-    # This really shouldn't happen, and indicates manual intervention
-    # may be necessary.
+    # This may happen when restoring a file halfway through the
+    # transfer process. We default to using the copy already present,
+    # not least because if e.g. the archive is unavailable this is the
+    # only way to restore access quickly.
     if os.path.exists(repopath):
-      raise StandardError("File %s already present in repository tree." % fobj)
-
-    copy2(archpath, repopath)
+      LOGGER.warning("File %s already present in repository tree.", fobj)
+    else:
+      copy2(archpath, repopath)
 
     checksum = checksum_file(repopath)
 
