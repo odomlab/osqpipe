@@ -14,7 +14,7 @@ from django.views.generic.edit import FormMixin
 from collections import OrderedDict
 
 from .models import Library, Project, Genome, Lane, Alnfile, Lanefile, QCfile,\
-    Peakfile, MergedAlignment, MergedAlnfile, HistologyImagefile, Alignment
+    Peakfile, MergedAlignment, MergedAlnfile, HistologyImagefile, Alignment, Sample
 from .forms import SimpleSearchForm, LibrarySearchForm, LibraryEditForm,\
     LibraryProjectPicker
 
@@ -386,6 +386,27 @@ class LaneDetailView(MyDetailView):
     self.request.session['session_library'] = object.library.code
     return super(LaneDetailView, self).get(request, *args, **kwargs)
 
+class SampleDetailView(MyDetailView):
+  context_object_name = 'sample'
+  template_name       = 'repository/sample/detail.html'
+  model               = Sample
+
+  # Dummy value for pylint.
+  kwargs              = {}
+
+  def get(self, request, *args, **kwargs):
+    object = get_object_or_404(self.model, id=self.kwargs['pk'])
+
+    # Per-project user authorization.
+    allowed_users = [ person for library in object.library_set.all()
+                             for project in library.projects.all()
+                             for person  in project.people.all() ]
+    if self.request.user not in allowed_users:
+      return redirect('denied')
+
+    self.request.session['session_sample'] = object.pk
+    return super(SampleDetailView, self).get(request, *args, **kwargs)
+
 class QualplotDetailView(LaneDetailView):
   template_name       = 'repository/lane/qualplot.html'
 
@@ -460,7 +481,7 @@ class FileDownloadMixin(object):
       response = HttpResponse(content_type=mtype[0])
     else:
       response = HttpResponse(content_type='application/force-download')
-      response['Content-Disposition'] = 'attachment; filename=%s' % smart_str(fname)
+      response['Content-Disposition'] = r'attachment; filename="%s"' % smart_str(fname)
     response['X-Sendfile']          = smart_str(filepath)
     # You can also set any other required headers: Cache-Control, etc.
 

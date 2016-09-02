@@ -226,7 +226,13 @@ class OdomDataRetriever(object):
     else:
       if self.with_download:
         LOGGER.info("Starting file download: %s", dl_fname)
-        self.session.rest_download_file(filedict['download'], dl_fname)
+
+        try:
+          self.session.rest_download_file(filedict['download'], dl_fname)
+        except HTTPError, err:
+          LOGGER.error("Unable to download file: %s", err)
+          return
+        
         LOGGER.info("Completed file download: %s", dl_fname)
         if not os.path.exists(dl_fname):
           LOGGER.warning("Downloaded file appears to be missing: %s", dl_fname)

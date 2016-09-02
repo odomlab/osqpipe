@@ -1,0 +1,33 @@
+{% extends "repository/base.html" %}
+
+{% load sortby %}
+
+{% block title %} Sample {{ sample.name }} {% endblock %}
+
+{% block content %}
+  {% if sample %}
+  <h2></h2>
+  
+  <table class="horizontal">
+    <tr><th>Sample Name: </th><td>{{ sample.name }}</td></tr>
+    <tr><th>From Individual: </th><td>{{ sample.source }}</td></tr>
+    <tr><th>Tissue: </th><td>{{ sample.tissue }}</td></tr>
+    <tr><th>Size: </th><td>{{ sample.size }}{{ sample.size_unit }}</td></tr>
+    {% for char in sample.characteristics.all|sortby:"category" %}
+      <tr><th>{{ char.category }}: </th><td>{{ char.value }}</td></tr>
+    {% endfor %}
+    <tr><th>Notes: </th><td>{{ sample.comment }}</td></tr>
+  </table>
+
+  <h2>Libraries</h2>
+
+    {% for lib in sample.library_set.all|sortby:"code" %}
+    <table class="horizontal">
+      <tr><th>Library code: </th><td><a href="{% url "library-detail" slug=lib.code %}">{{ lib.code }}</a></td></tr>
+    </table>
+    {% endfor %}
+
+  {% else %}
+  <p>No sample provided.</p>
+  {% endif %}
+{% endblock %}    

@@ -55,6 +55,9 @@ CACHE_FILE = os.path.join(os.path.expanduser('~'), '.sanger_run_status_latest')
 # Sanger web site itself.
 DATEFORMAT = '%Y-%m-%d %H:%M:%S'
 
+# Number of seconds to wait on the web requests.
+REQ_TIMEOUT = 300
+
 # This is the link queried by embedded AJAX in the target web pages;
 # see the output of Firebug (Firefox extension) to see how it's used
 # (and if it's been changed).
@@ -157,12 +160,14 @@ class SangerLims(object):
     support and automatically follows HTML redirect tags.'''
     proxies = { 'http': self.conf.sanger_http_proxy }
     LOGGER.debug("Querying url %s", url)
-    req = requests.get(url, proxies=proxies, *args, **kwargs)
+    req = requests.get(url, proxies=proxies,
+                       timeout=REQ_TIMEOUT, *args, **kwargs)
     req.raise_for_status()
     count = 0
     while self._meta_redirect(req.text):
       redirect_url = urljoin(url, self._meta_redirect(req.text))
-      req = requests.get(redirect_url, proxies=proxies, *args, **kwargs)
+      req = requests.get(redirect_url, proxies=proxies,
+                         timeout=REQ_TIMEOUT, *args, **kwargs)
       req.raise_for_status()
       count += 1
       if count > 200:
