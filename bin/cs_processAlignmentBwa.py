@@ -216,17 +216,14 @@ class AlignProcessingManager(object):
 
     # Set aligner, later passed as argument to AlignmentHandler.
     if aligner is None:
-      aligner = self.conf.aligner
 
-    # In the case of PolIII/TFIIIC libraries, assume that the bam file
-    # was created by keeping many non-unique reads. Note: we assume
-    # here that re-running the reallocateReads script over the output
-    # file would have little to no effect, and so we do not wrap this
-    # within our database transaction.
-    if lib.libtype.code == 'rnaseq': # See TophatAlignmentManager
+      if lib.libtype.code == 'rnaseq': # See TophatAlignmentManager
 
-      aligner = [ 'bowtie2', 'tophat2', 'samtools' ]
-      params  = [ '', '--no-coverage-search --libtype fr-firststrand', 'view -F 0x100' ]
+        aligner = [ 'bowtie2', 'tophat2', 'samtools' ]
+        params  = [ '', '--no-coverage-search --libtype fr-firststrand', 'view -F 0x100' ]
+
+      else:
+        aligner = self.conf.aligner
 
     else:
 
@@ -235,6 +232,11 @@ class AlignProcessingManager(object):
       else:
         params = ''
 
+      # In the case of PolIII/TFIIIC libraries, assume that the bam file
+      # was created by keeping many non-unique reads. Note: we assume
+      # here that re-running the reallocateReads script over the output
+      # file would have little to no effect, and so we do not wrap this
+      # within our database transaction.
       if reallocate or lib.libtype.code == "chipseq" \
                    and lib.factor is not None \
                    and lib.factor.name in self.conf.reallocation_factors:

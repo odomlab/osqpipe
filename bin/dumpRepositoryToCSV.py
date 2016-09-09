@@ -122,6 +122,8 @@ class RepositoryDumper(object):
       ('Library Type',           lambda x: x.library.libtype.name),
       ('Library ChIP Factor',    lambda x: _helper_optional_value(x.library.factor, 'name')),
       ('Library ChIP Antibody',  lambda x: str(_helper_optional_value(x.library.antibody))),
+      ('Sequencing Adapter 1',   lambda x: str(_helper_optional_value(x.library.adapter, 'sequence'))),
+      ('Sequencing Adapter 2',   lambda x: str(_helper_optional_value(x.library.adapter2, 'sequence'))),
 
       ('Paired/Single Ended',    lambda x: 'PE' if x.paired else 'SE'),
       ('Flowcell ID',            lambda x: x.flowcell),
@@ -179,6 +181,7 @@ class RepositoryDumper(object):
                             'library__sample__source',
                             'library__sample__source__strain',
                             'library__sample__source__sex',
+                            'library__adapter',
                             'lanefile_set', 'lanefile_set__filetype',
                             'laneqc_set', 'laneqc_set__qcfile_set',
                             'laneqc_set__qcfile_set__filetype',
