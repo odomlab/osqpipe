@@ -128,16 +128,14 @@ class InventoryImporter(object):
       self.import_data_row([x.value for x in row], header)
 
   @staticmethod
-  def extract_barcode_int(key, rowdict, needs_adapter = False):
+  def extract_barcode_int(key, rowdict):
     int_re  = re.compile('(\d+)')
     barcode = None
     if key in rowdict:
-      if str(rowdict[key]).strip() != '':
-        needs_adapter = True
       match = int_re.search(unicode(rowdict[key]))
       if match:
         barcode = match.group(1)
-    return (barcode, needs_adapter)
+    return barcode
 
   @staticmethod
   def process_optional_values(rowdict):
@@ -169,10 +167,13 @@ class InventoryImporter(object):
 
     adapter = linkerset = None
 
-    (barcode, needs_adapter) = self.extract_barcode_int('barcodetype', rowdict)
-    if not barcode:
-      (barcode, needs_adapter) = self.extract_barcode_int(code_column,
-                                                          rowdict, needs_adapter)
+    needs_adapter = False
+    if 'barcodetype' in rowdict:
+      needs_adapter = str(rowdict['barcodetype']).strip() != ''
+
+    barcode = self.extract_barcode_int(code_column, rowdict)
+    if code_column in rowdict:
+      needs_adapter |= str(rowdict[code_column]).strip() != ''
 
     # Handle failures, inconsistencies and other corner cases.
     if barcode:  # If we have a barcode number we need to know the scheme
@@ -214,6 +215,10 @@ class InventoryImporter(object):
           elif ( int(barcode) > 500 and int(barcode) < 509 )\
                or ( int(barcode) > 700 and int(barcode) < 713 ):
             adapter = 'TP_D' + barcode   # dual indexing adapter set, as for TruSeq.
+          else:
+            LOGGER.error('Uncertain which ThruPlex adapters have been used: %s',
+                         libcode)
+            raise ValueError()
 
         elif re.search(r'\b(?:haloplex|agilent ?haloplex)\b', prottag):
           adapter = 'HAL' + barcode
