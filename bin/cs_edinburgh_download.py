@@ -451,8 +451,7 @@ class ed_data_handler(object):
                 tnr = 0
 
     def ed_process(self, print_commands_only=False):        
-        '''Process downloaded files'''
-        # NB! In future, the commands in this function sould be added to the end of function 'ed_get_files_by_fastqfile'
+        '''Process files that have been labeled as downloaded'''
         
         # Set some variables for submitting the download jobs to cluster.
         submitter = ClusterJobSubmitter()
