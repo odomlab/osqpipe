@@ -39,7 +39,7 @@ def run_qc(fnames, workdir, destination=None, cleanup=True, register=False):
                 argslist.append(os.path.basename(fn))
                 argslist.append(md5) 
             # register files in repository
-            cmd = "cs_addFile.py --qcfile -M --program_name %s" % qc.program_name
+            cmd = "cs_addFile.py --qcfile -M --program_name %s " % qc.program_name
             cmd += " ".join(argslist)
             print "Executing \"%s\" ..." % cmd
 #            subproc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
