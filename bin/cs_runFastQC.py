@@ -18,19 +18,24 @@ def run_qc(fnames, workdir, destination=None, cleanup=True, register=False):
         qc.run_fastqc(qc.fastqs)
         qc.postprocess_results(qc.fastqs)
 
+        # create list of disk files and if needed compress some of them before.
+        dfiles = []
+        # NB! This is not elegant, a better way of doing it would be if ftype.gzip and os.path.splitext(fname)[1] != CONFIG.gzsuffix:,
+        #     However, this code is set up no to directly interact with database.
+        for fn in qc.output_files:
+            if fn.endswith('txt') or fn.endswith('tar'):
+                dfn = rezip_file(fn)
+                dfiles.append(dfn)
+            else:
+                dfiles.append(fn)
+
         if destination is not None:
             # transfer files to destination
-            for fn in qc.output_files:
-                # In case files have not yet been compressed but may need to to be for repository, compress file and transfer compressed file.
-                tfn = fn
-                # NB! This is not elegant, a better way of doing it would be if ftype.gzip and os.path.splitext(fname)[1] != CONFIG.gzsuffix:,
-                #     However, this code is set up no to directly interact with database.
-                if tfn.endswith('txt') or tfn.endswith('tar'):
-                    tfn = rezip_file(tfn)
+            for dfn in dfiles:
                 # set permissions
-                set_file_permissions(CONFIG.group, tfn)
+                set_file_permissions(CONFIG.group, dfn)
                 # transfer file
-                transfer_file(tfn, destination)
+                transfer_file(dfn, destination)
                 
         if register:
             # register QC files in repository
@@ -54,8 +59,8 @@ def run_qc(fnames, workdir, destination=None, cleanup=True, register=False):
             # NB! A cleaner way would be to save the dir name to self.bpath in postprocess_results in LaneQCReport class and use this value.
             fqc_dirname = os.path.splitext(qc.output_files[0])[0]
             rmtree(fqc_dirname)
-            for fn in qc.output_files:
-                os.remove(fn)
+            for dfn in dfiles:
+                os.remove(dfn)
 
 if __name__ == '__main__':
 
