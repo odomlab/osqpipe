@@ -31,7 +31,7 @@ class LaneQCReport(object):
   '''
 
   __slots__ = ('lane', 'workdir', 'output_files', 'program_name', 'path',
-               'program_params', '_dbprog', '_delete_workdir')
+               'program_params', '_dbprog', '_delete_workdir','output_md5s','move_files')
 
   def __init__(self, lane, program_name, path=None, program_params='',
                workdir=None, move_files=True):
@@ -40,8 +40,9 @@ class LaneQCReport(object):
     self.program_name   = program_name
     self.program_params = program_params
     self.path           = path
-
+    
     self.output_files   = []
+    self.output_md5s    = []
 
     self.move_files = move_files
     
@@ -82,9 +83,9 @@ class LaneQCReport(object):
     raise NotImplementedError()
 
   @transaction.atomic
-  def insert_into_repository(self):
+  def insert_into_repository(self, move_files=True):
 
-    '''Insert self.output_files into the database.'''
+    '''Insert self.output_files into the database.'''    
 
     if len(self.output_files) == 0:
       self.generate()
@@ -95,7 +96,7 @@ class LaneQCReport(object):
                                   rank_index   = 1,
                                   data_process = laneqc)
 
-    for fname in self.output_files:
+    for (fname, checksum) in zip(self.output_files, self.output_md5s):
 
       # Note: this will fail if multiple types match.
       ftype = Filetype.objects.guess_type(fname)
@@ -105,25 +106,23 @@ class LaneQCReport(object):
       else:
         fpath = os.path.join( self.workdir, fname )
 
-      checksum = checksum_file(fpath)
-
       fobj = QCfile(laneqc   = laneqc,
                     filename = os.path.split(fname)[1],
                     checksum = checksum,
                     filetype = ftype)
-
       fobj.save()
 
-      # Zip up the file if necessary.
-      if ftype.gzip and os.path.splitext(fname)[1] != CONFIG.gzsuffix:
-        fpath = rezip_file(fpath)
-      if self.move_files:
-        dest    = fobj.repository_file_path
-        destdir = os.path.dirname(dest)
-        if not os.path.exists(destdir):
-          os.makedirs(destdir)
-        move(fpath, dest)
-        set_file_permissions(CONFIG.group, dest)
+      if move_files:
+        # Zip up the file if necessary.
+        if ftype.gzip and os.path.splitext(fname)[1] != CONFIG.gzsuffix:
+          fpath = rezip_file(fpath)
+        if self.move_files:
+          dest    = fobj.repository_file_path
+          destdir = os.path.dirname(dest)
+          if not os.path.exists(destdir):
+            os.makedirs(destdir)
+          move(fpath, dest)
+          set_file_permissions(CONFIG.group, dest)
 
   def __exit__(self, exctype, excvalue, traceback):
     if self._delete_workdir:
@@ -221,12 +220,14 @@ class LaneFastQCReport(LaneQCReport):
 
       tar.close()
       self.output_files.append(gzarch)
+      self.output_md5s.append(checksum_file(gzarch))
 
       # The text file containing summary results. Useful for analyses.
       resfile = "%s.txt" % bpath
       copy(os.path.join(bpath, 'fastqc_data.txt'), resfile)
       self.output_files.append(resfile)
-
+      self.output_md5s.append(checksum_file(resfile))
+      
       # Generating a PDF for our end-users.
       html = os.path.join(bpath, 'fastqc_report.html')
       pdf  = "%s.pdf" % bpath
@@ -240,3 +241,4 @@ class LaneFastQCReport(LaneQCReport):
               html, pdf ]
       call_subprocess(cmd, path=self.path)
       self.output_files.append(pdf)
+      self.output_md5s.append(checksum_file(pdf))
