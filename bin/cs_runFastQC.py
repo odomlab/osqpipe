@@ -20,7 +20,7 @@ def run_qc(fnames, workdir, destination=None, cleanup=True, register=False):
 
         if destination is not None:
             # transfer files to destination
-            for fn in qc.fastqs:
+            for fn in qc.output_files:
                 # In case files have not yet been compressed but may need to to be for repository, compress file and transfer compressed file.
                 tfn = fn
                 # NB! This is not elegant, a better way of doing it would be if ftype.gzip and os.path.splitext(fname)[1] != CONFIG.gzsuffix:,
@@ -36,10 +36,11 @@ def run_qc(fnames, workdir, destination=None, cleanup=True, register=False):
             # register QC files in repository
             argslist = []
             for (fn,md5) in zip(qc.output_files, qc.output_md5s):
-                argslist.append(fn)
+                argslist.append(os.path.basename(fn))
                 argslist.append(md5) 
             # register files in repository
-            cmd = "cs_addFile.py --qcfile -M --program_name " + " ".join(argslist)
+            cmd = "cs_addFile.py --qcfile -M --program_name %s" % qc.program_name
+            cmd += " ".join(argslist)
             print "Executing \"%s\" ..." % cmd
 #            subproc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
 #            (stdout, stderr) = subproc.communicate()
@@ -51,9 +52,9 @@ def run_qc(fnames, workdir, destination=None, cleanup=True, register=False):
 
             # assuming fastqc report dir is still around, construct dirname.
             # NB! A cleaner way would be to save the dir name to self.bpath in postprocess_results in LaneQCReport class and use this value.
-            fqc_dirname = os.path.splitext(qc.fastqs[0])[0]
+            fqc_dirname = os.path.splitext(qc.output_files[0])[0]
             rmtree(fqc_dirname)
-            for fn in qc.fastqs:
+            for fn in qc.output_files:
                 os.remove(fn)
 
 if __name__ == '__main__':
@@ -66,7 +67,7 @@ if __name__ == '__main__':
                         help='List of files.')
     PARSER.add_argument('--workdir',dest='workdir', type=str,
                         help='Dir where the files are generated.')
-    PARSER.add_argument('--cleanup',dest='cleanup', action='store_true', default=True,
+    PARSER.add_argument('--cleanup',dest='cleanup', action='store_true', default=False,
                         help='Remove local files after being transferred to destination.')
     PARSER.add_argument('--destination',dest='destination', type=str, default=None,
                         help='Move files to destination (local folder or foreign destination user@host:/dir/)')
