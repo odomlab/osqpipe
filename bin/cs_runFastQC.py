@@ -60,7 +60,7 @@ def run_qc(fnames, workdir, destination=None, cleanup=True, register=False):
             for dfn in dfiles:
                 os.remove(dfn)
                 if dfn.endswith('pdf'):
-                    fqc_dirname = os.path.splitext(qc.output_files[0])[0]
+                    fqc_dirname = os.path.splitext(dfn)[0]
                     rmtree(fqc_dirname)
                     zipfile = fqc_dirname + '.zip'
                     os.remove(zipfile)
