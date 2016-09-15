@@ -54,13 +54,16 @@ def run_qc(fnames, workdir, destination=None, cleanup=True, register=False):
             
         if cleanup:
             # remove local files
-
             # assuming fastqc report dir is still around, construct dirname.
             # NB! A cleaner way would be to save the dir name to self.bpath in postprocess_results in LaneQCReport class and use this value.
-            fqc_dirname = os.path.splitext(qc.output_files[0])[0]
-            rmtree(fqc_dirname)
+            #     Even better, perhaps LaneFastQCReport should be implemented to keep track of all temporary files it creates.
             for dfn in dfiles:
                 os.remove(dfn)
+                if dfn.endswith('pdf'):
+                    fqc_dirname = os.path.splitext(qc.output_files[0])[0]
+                    rmtree(fqc_dirname)
+                    zipfile = fqc_dirname + '.zip'
+                    os.remove(zipfile)
 
 if __name__ == '__main__':
 
