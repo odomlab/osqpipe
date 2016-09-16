@@ -51,22 +51,7 @@ class LaneQCReport(object):
       self._delete_workdir = False
     else:
       if self.move_files == False:
-        raise StandardError("Not moving files from temporary directory to be deleted does not make sense!")
-        
-    # This checks that the specified program exists, and where it
-    # yields some kind of meaningful version info will record that.
-    progdata = ProgramSummary(program_name, path=path)
-
-    # This is a little vulnerable to correct version parsing by
-    # progsum.
-    try:
-      self._dbprog = Program.objects.get(program = progdata.program,
-                                         version = progdata.version,
-                                         current = True)
-    except Program.DoesNotExist, _err:
-      raise StandardError(("Unable to find current %s program (version %s)"
-                           + " record in the repository")
-                          % (progdata.program, progdata.version))
+        raise StandardError("Not moving files from temporary directory to be deleted does not make sense!")        
 
   def __enter__(self):
     if self.workdir is None:
@@ -89,8 +74,24 @@ class LaneQCReport(object):
 
     if len(self.output_files) == 0:
       self.generate()
-
+          
     laneqc = LaneQC.objects.create(lane = self.lane)
+
+    # This checks that the specified program exists, and where it
+    # yields some kind of meaningful version info will record that.
+    progdata = ProgramSummary(self.program_name, path=self.path)
+
+    # This is a little vulnerable to correct version parsing by
+    # progsum.
+    try:
+      self._dbprog = Program.objects.get(program = progdata.program,
+                                         version = progdata.version,
+                                         current = True)
+    except Program.DoesNotExist, _err:
+      raise StandardError(("Unable to find current %s program (version %s)"
+                           + " record in the repository")
+                          % (progdata.program, progdata.version))
+    
     DataProvenance.objects.create(program      = self._dbprog,
                                   parameters   = self.program_params,
                                   rank_index   = 1,
