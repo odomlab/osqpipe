@@ -33,16 +33,19 @@ def count_readgroup_reads(bam):
   '''
   # This is liable to create a bam index file if one is not already
   # available.
+  total   = dict()
   mapped  = dict()
   munique = dict()
   with open_bamfile(bam) as bamfile:
-    for read in bamfile.fetch():
+    for read in bamfile.fetch(until_eof=True):
       rgid = read.tags.get('RG')
-      mapped[rgid] = mapped.setdefault(rgid, 0) + 1
-      if read.mapq > 0:
-        munique[rgid] = munique.setdefault(rgid, 0) + 1
+      total[rgid] = total.setdefault(rgid, 0) + 1
+      if not read.is_unmapped:
+        mapped[rgid] = mapped.setdefault(rgid, 0) + 1
+        if read.mapq > 0:
+          munique[rgid] = munique.setdefault(rgid, 0) + 1
 
-  return (mapped, munique)
+  return (total, mapped, munique)
 
 @transaction.atomic
 def load_merged_bam(bam, genome=None, bamfilter=False, autoaln=False):
@@ -50,7 +53,7 @@ def load_merged_bam(bam, genome=None, bamfilter=False, autoaln=False):
   Insert the specified merged bam file into the repository, linking
   against per-lane Alignments as appropriate.
   '''
-  LOGGER.info("Storing merged bam file %s in repository.", bam)
+  LOGGER.info("Storing merged bam file %s in repository...", bam)
 
   bamtype = Filetype.objects.get(code='bam')
 
@@ -67,9 +70,9 @@ def load_merged_bam(bam, genome=None, bamfilter=False, autoaln=False):
     LOGGER.warning("No samples specified in bam file.")
 
   # Count reads in readgroups for autoaln, if activated.
-  rg_readcounts = (dict(), dict())
+  readcountdict = None
   if autoaln:
-    rg_readcounts = count_readgroup_reads(bam)
+    readcountdict = count_readgroup_reads(bam)
 
   # Slightly convoluted multiple query (as opposed to query__in) so we
   # can be sure we're identifying all the target Alignments. We also
@@ -81,8 +84,8 @@ def load_merged_bam(bam, genome=None, bamfilter=False, autoaln=False):
     except Alignment.DoesNotExist, err:
       if autoaln:
         autocreate_alignment(rgp, genome,
-                             [ sub.get(rgp.get('ID'), 0)
-                               for sub in rg_readcounts ])
+                             [ rgcount.get(rgp.get('ID'), 0)
+                               for rgcount in readcountdict ])
       else:
         raise err
 
@@ -96,11 +99,11 @@ def load_merged_bam(bam, genome=None, bamfilter=False, autoaln=False):
   # Raise ValidationError if the MergedAlignment contains inconsistencies.
   maln.full_clean()
 
-  LOGGER.info("Calculating bam file MD5 checksum.")
+  LOGGER.info("Calculating bam file MD5 checksum...")
   chksum = checksum_file(bam, unzip=False)
 
-  LOGGER.info("Counting reads in bam file.")
-  check_bam_readcount(bam, maln)
+  LOGGER.info("Checking read count in bam file against lane records...")
+  check_bam_readcount(bam, maln, readcountdict)
 
   malnfile = MergedAlnfile.objects.create(alignment=maln,
                                           filename=bam,

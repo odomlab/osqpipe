@@ -52,7 +52,7 @@ def retrieve_readgroup_alignment(rgroup, genome=None, bamfilter=False):
   else:
     return alns[0]
 
-def check_bam_readcount(bam, maln):
+def check_bam_readcount(bam, maln, readcountdict=None):
   '''
   In principle, the total reads returned by the GATK pipeline should
   be the sum of the reads in the original fastq files. We check that
@@ -60,7 +60,10 @@ def check_bam_readcount(bam, maln):
   MergedAlignment db object).
   '''
   expected = sum([ aln.lane.total_passedpf for aln in maln.alignments.all() ])
-  numreads = count_bam_reads(bam)
+  if readcountdict is None:
+    numreads = count_bam_reads(bam)
+  else:
+    numreads = sum([ count[1] for count in readcountdict ])
 
   ## See how things pan out: if we have to relax this check, here
   ## would be a good place to start (i.e., raise a warning rather than
@@ -74,7 +77,7 @@ def autocreate_alignment(rgroup, genome, readcounts):
   '''
   Given the metadata harvested from a bam file, create an Alignment
   object suitable for linking to MergedAlignment. The readcounts
-  argument is a tuple or list with two entries: (mapped, munique).
+  argument is a tuple or list with three entries: (total, mapped, munique).
   '''
   if genome is None:
     raise ValueError("Genome code is required for Alignment autocreation.")
@@ -86,9 +89,9 @@ def autocreate_alignment(rgroup, genome, readcounts):
   genobj  = Genome.objects.get(code=genome)
   aln     = Alignment.objects.get_or_create(lane=lane,
                                             genome=genobj,
-                                            total_reads=lane.total_passedpf,
-                                            mapped=readcounts[1],
-                                            munique=readcounts[2])
+                                            total_reads=readcounts[1],
+                                            mapped=readcounts[2],
+                                            munique=readcounts[3])
 
   return aln
 
