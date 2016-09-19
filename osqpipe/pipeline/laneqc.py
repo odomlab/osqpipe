@@ -75,10 +75,15 @@ class LaneQCReport(object):
     if len(self.output_files) == 0:
       self.generate()
           
-    laneqc = LaneQC.objects.create(lane = self.lane)
+    try:
+      laneqc = LaneQC.objects.get(lane = self.lane)
+    except LaneQC.DoesNotExist, _err:
+      LOGGER.info("Creating LaneQC object for %d", self.lane.id)
+      laneqc = LaneQC.objects.create(lane = self.lane)
 
     # This checks that the specified program exists, and where it
     # yields some kind of meaningful version info will record that.
+    LOGGER.info("Collecting information about \"%s\"", self.program_name)
     progdata = ProgramSummary(self.program_name, path=self.path)
 
     # This is a little vulnerable to correct version parsing by
@@ -91,14 +96,18 @@ class LaneQCReport(object):
       raise StandardError(("Unable to find current %s program (version %s)"
                            + " record in the repository")
                           % (progdata.program, progdata.version))
-    
-    DataProvenance.objects.create(program      = self._dbprog,
-                                  parameters   = self.program_params,
-                                  rank_index   = 1,
-                                  data_process = laneqc)
-
+    try:
+      dpo = DataProvenance.objects.get(program = self._dbprog,
+                                       parameters   = self.program_params,
+                                       rank_index   = 1,
+                                       data_process = laneqc)
+    except DataProvenance.DoesNotExist, _err:      
+      DataProvenance.objects.create(program      = self._dbprog,
+                                    parameters   = self.program_params,
+                                    rank_index   = 1,
+                                    data_process = laneqc)
     for (fname, checksum) in zip(self.output_files, self.output_md5s):
-
+      LOGGER.info("Inserting %s", fname)
       # Note: this will fail if multiple types match.
       ftype = Filetype.objects.guess_type(fname)
 

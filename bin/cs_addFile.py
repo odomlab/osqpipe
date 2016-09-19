@@ -118,7 +118,7 @@ class RepoFileHandler(object):
 
     LOGGER.info("Inserting QC files for lane=%d", l.id)
 
-    with LaneFastQCReport(lane=l, program_name=program_name, workdir='./', move_files=False) as rep:
+    with LaneFastQCReport(lane=l, program_name=program_name, workdir='/some/dir/', move_files=False) as rep:
       # set output_files and corresponding md5s
       rep.output_files = fnames
       if md5sums is not None:
@@ -202,7 +202,7 @@ if __name__ == '__main__':
   PARSER.add_argument('files', metavar='<files>', type=str, nargs='*',
                       help='The list of files.')
   PARSER.add_argument('-m', '--md5sum', dest='md5files', action='store_true', help='Assume pre-computed md5sums available in filename.md5.', default=False)
-  PARSER.add_argument('-M', dest='md5sums', action='store_true', help='Assumes md5 sum is provided on command line following the file. (e.g. file1 md5sum1 file2 md5sum2 ...)', default=False)
+  PARSER.add_argument('-M', dest='md5arguments', action='store_true', help='Assumes md5 sum is provided on command line following the file. (e.g. file1 md5sum1 file2 md5sum2 ...)', default=False)
   PARSER.add_argument('-s', '--file_summary', dest='summary_file', type=str, help='File created by summaryFile from a fastq file.', default=None)
   PARSER.add_argument('--archive', dest='archive', type=str, help='Archive (e.g. bamark, ebiark, ark) where the file has been saved. Deafult=none.', default=None)
   PARSER.add_argument('--qcfile', dest='qcfile', action='store_true', help='Files should be inserted as QC files. NB! Function has property of also moving the files to repository at the same time!', default=False)
@@ -215,9 +215,10 @@ if __name__ == '__main__':
     sys.exit(1)
 
   # Check whether to expect md5sums following file names in ARGS.files list
-  md5sums = []
-  if md5sums:
+  md5sums = None
+  if ARGS.md5arguments:
     fnames = []
+    md5sums = []
     fname = True
     for s in ARGS.files:
       if fname:
