@@ -10,7 +10,7 @@ from shutil import copy
 from pipes import quote
 from django.db import transaction
 
-from ..models import Alnfile, Library, Alignment, MergedAlnfile, Genome
+from ..models import Alnfile, Library, Alignment, MergedAlnfile, Genome, Lane
 from osqutil.samtools import count_bam_reads
 from osqutil.utilities import call_subprocess, checksum_file, \
     sanitize_samplename
@@ -48,7 +48,7 @@ def retrieve_readgroup_alignment(rgroup, genome=None, bamfilter=False):
   if alns.count() > 1:
     raise ValueError("Multiple Alignments match read group and genome parameters. Maybe filter by bam file presence also?")
   elif alns.count() == 0:
-    raise StandardError("No Alignments found to match read group and genome parameters.")
+    raise Alignment.DoesNotExist("No Alignments found to match read group and genome parameters.")
   else:
     return alns[0]
 
@@ -69,6 +69,28 @@ def check_bam_readcount(bam, maln):
     message = ("Number of reads in bam file is differs from that in "
                + "fastq file: %d (bam) vs %d (fastq)")
     raise ValueError(message % (numreads, expected))
+
+def autocreate_alignment(rgroup, genome, readcounts):
+  '''
+  Given the metadata harvested from a bam file, create an Alignment
+  object suitable for linking to MergedAlignment. The readcounts
+  argument is a tuple or list with two entries: (mapped, munique).
+  '''
+  if genome is None:
+    raise ValueError("Genome code is required for Alignment autocreation.")
+  
+  library = Library.objects.get(code=rgroup.get('LB'))
+  lane    = Lane.objects.get(library__code=rgroup.get('LB'),
+                             facility__code=rgroup.get('CN'),
+                             lanenum=rgroup.get('PU'))
+  genobj  = Genome.objects.get(code=genome)
+  aln     = Alignment.objects.get_or_create(lane=lane,
+                                            genome=genobj,
+                                            total_reads=lane.total_passedpf,
+                                            mapped=readcounts[1],
+                                            munique=readcounts[2])
+
+  return aln
 
 ################################################################################
 # Functions to update bam read group information in as lightweight a
