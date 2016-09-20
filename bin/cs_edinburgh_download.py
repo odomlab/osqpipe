@@ -529,6 +529,18 @@ class ed_data_handler(object):
             else:
                 jobid = submitter.submit_command(cmd=cmd, mem=1000, auto_requeue=False, mincpus=1)
             LOGGER.info("Submitting job with commands \'%s\' (jobid=%s)" % (cmd, jobid))
+
+            # Stage fastqc depenednet on jobid being completed.
+            # qc_cmd = "cs_runFastQC.py --cleanup --workdir %s --destination %s --register %s %s" % (self.destination, apath, rfastq1, rfastq2)
+            # sys.stdout.write("QC_CMD=\"%s\"" % qc_cmd)
+            # qc_jobid = submitter.submit_command(cmd=qc_cmd, mem=4000, auto_requeue=False, depend_jobs=[jobid], mincpus=2)
+
+            # Stage alignments dependent on jobid being completed.
+            # TODO
+            # bwa_cmd = "cs_runBwaWithSplit.py --algorithm mem --no-split /homes/mlukk/fnc-odompipe_hps/genomes/mus_musculus/C3HHeJ_Apr2015_S288C/bwa-0.7.12/C3HHeJ_Apr2015_S288C.fa %s %s" % (rfastq1, rfastq2)
+            # sys.stdout.write("BWA_CMD=\"%s\"" % bwa_cmd)
+            # bwa_jobid = submitter.submit_command(cmd=qc_cmd, mem=2000, auto_requeue=False, depend_jobs=[qc_jobid], mincpus=1)
+
             newids.append(int(jobid))
             tnr += 1
             if tnr == self.athreads:
