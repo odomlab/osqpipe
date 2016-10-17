@@ -6,6 +6,7 @@ them in our repository as MergedAlignment/MergedAlnfile pairs.
 '''
 
 import os
+import time
 
 from shutil import move
 from logging import INFO
@@ -18,7 +19,7 @@ django.setup()
 
 from pysam import AlignmentFile
 from django.db import transaction
-from osqpipe.models import MergedAlignment, MergedAlnfile, Filetype, Alignment
+from osqpipe.models import MergedAlignment, MergedAlnfile, Filetype, Alignment, ArchiveLocation
 from osqutil.utilities import checksum_file, set_file_permissions
 from osqutil.config import Config
 from osqpipe.pipeline.gatk import retrieve_readgroup_alignment, \
@@ -48,12 +49,15 @@ def count_readgroup_reads(bam):
   return (total, mapped, munique)
 
 @transaction.atomic
-def load_merged_bam(bam, genome=None, bamfilter=False, autoaln=False):
+def load_merged_bam(bam, genome=None, bamfilter=False, autoaln=False, archloc=None):
   '''
   Insert the specified merged bam file into the repository, linking
   against per-lane Alignments as appropriate.
   '''
-  LOGGER.info("Storing merged bam file %s in repository...", bam)
+  if archloc is None:
+    LOGGER.info("Storing merged bam file %s in repository...", bam)
+  else:
+    LOGGER.info("Storing merged bam file %s in archive %s...", bam, archloc)
 
   bamtype = Filetype.objects.get(code='bam')
 
@@ -110,6 +114,11 @@ def load_merged_bam(bam, genome=None, bamfilter=False, autoaln=False):
                                           filetype=bamtype,
                                           checksum=chksum)
 
+  if archloc is not None:
+    malnfile.archive = ArchiveLocation.objects.get(name=archloc)
+    malnfile.archive_date = time.strftime('%Y-%m-%d')
+    malnfile.save()
+
   LOGGER.info("Moving file into repository.")
   destname = malnfile.repository_file_path
   move(bam, destname)
@@ -144,10 +153,18 @@ if __name__ == '__main__':
                       help='Automatically create missing Alignment objects'
                       + ' using the data in the bam files.')
 
+  PARSER.add_argument('--archive', dest='archloc', type=str, required=False,
+                      help='The archive location destination in which to store'
+                      + ' files (defaults to the configured location).')
+
   ARGS = PARSER.parse_args()
 
   for filename in ARGS.bams:
-    load_merged_bam(filename, ARGS.genome, ARGS.bamfilt, ARGS.autoaln)
+    load_merged_bam(filename,
+                    ARGS.genome,
+                    ARGS.bamfilt,
+                    ARGS.autoaln,
+                    ARGS.archloc)
 
     # Remove bam.done file if present.
     donefile = "%s.done" % filename
