@@ -52,18 +52,19 @@ def retrieve_readgroup_alignment(rgroup, genome=None, bamfilter=False):
   else:
     return alns[0]
 
-def check_bam_readcount(bam, maln, readcountdict=None):
+def check_bam_readcount(bam, maln, readcountdicts=None):
   '''
   In principle, the total reads returned by the GATK pipeline should
   be the sum of the reads in the original fastq files. We check that
   here. Arguments are: bam (the GATK output bam file), maln (the
-  MergedAlignment db object).
+  MergedAlignment db object), readcountdicts, an (optional) tuple of
+  dicts (total, mapped, munique) keyed by readgroup ID.
   '''
   expected = sum([ aln.lane.total_passedpf for aln in maln.alignments.all() ])
-  if readcountdict is None:
+  if readcountdicts is None:
     numreads = count_bam_reads(bam)
   else:
-    numreads = sum([ count[1] for count in readcountdict ])
+    numreads = sum(readcountdicts[0].values())
 
   ## See how things pan out: if we have to relax this check, here
   ## would be a good place to start (i.e., raise a warning rather than
@@ -89,11 +90,11 @@ def autocreate_alignment(rgroup, genome, readcounts):
   genobj  = Genome.objects.get(code=genome)
   aln     = Alignment.objects.get_or_create(lane=lane,
                                             genome=genobj,
-                                            total_reads=readcounts[1],
-                                            mapped=readcounts[2],
-                                            munique=readcounts[3])
+                                            total_reads=readcounts[0],
+                                            mapped=readcounts[1],
+                                            munique=readcounts[2])
 
-  return aln
+  return aln[0]
 
 ################################################################################
 # Functions to update bam read group information in as lightweight a

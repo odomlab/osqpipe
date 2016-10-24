@@ -19,7 +19,8 @@ django.setup()
 
 from pysam import AlignmentFile
 from django.db import transaction
-from osqpipe.models import MergedAlignment, MergedAlnfile, Filetype, Alignment, ArchiveLocation
+from osqpipe.models import MergedAlignment, MergedAlnfile, Filetype, \
+    Alignment, ArchiveLocation, Program, DataProvenance
 from osqutil.utilities import checksum_file, set_file_permissions
 from osqutil.config import Config
 from osqpipe.pipeline.gatk import retrieve_readgroup_alignment, \
@@ -39,7 +40,9 @@ def count_readgroup_reads(bam):
   munique = dict()
   with open_bamfile(bam) as bamfile:
     for read in bamfile.fetch(until_eof=True):
-      rgid = read.tags.get('RG')
+      if read.is_supplementary:
+        continue
+      rgid = read.get_tag('RG')
       total[rgid] = total.setdefault(rgid, 0) + 1
       if not read.is_unmapped:
         mapped[rgid] = mapped.setdefault(rgid, 0) + 1
@@ -49,34 +52,15 @@ def count_readgroup_reads(bam):
   return (total, mapped, munique)
 
 @transaction.atomic
-def load_merged_bam(bam, genome=None, bamfilter=False, autoaln=False, archloc=None):
+def _store_bam_within_transaction(bam, rgroups, readcountdicts,
+                                  genome=None, bamfilter=False, autoaln=False,
+                                  alignprog=None, alignparams=None,
+                                  archloc=None):
   '''
-  Insert the specified merged bam file into the repository, linking
-  against per-lane Alignments as appropriate.
+  Function to make all the database changes within a single short
+  transaction.
   '''
-  if archloc is None:
-    LOGGER.info("Storing merged bam file %s in repository...", bam)
-  else:
-    LOGGER.info("Storing merged bam file %s in archive %s...", bam, archloc)
-
   bamtype = Filetype.objects.get(code='bam')
-
-  # We use AlignmentFile rather than open_bamfile where possible,
-  # because the latter will typically index the bam before doing
-  # anything and that's not always desirable.
-  with AlignmentFile(filename=bam) as bamhandle:
-    rgroups = bamhandle.header.get('RG', [])
-
-  samples = list(set([ rg.get('SM') for rg in rgroups ]))
-  if len(samples) > 1:
-    raise StandardError("More than one sample represented in input.")
-  elif len(samples) == 0:
-    LOGGER.warning("No samples specified in bam file.")
-
-  # Count reads in readgroups for autoaln, if activated.
-  readcountdict = None
-  if autoaln:
-    readcountdict = count_readgroup_reads(bam)
 
   # Slightly convoluted multiple query (as opposed to query__in) so we
   # can be sure we're identifying all the target Alignments. We also
@@ -87,9 +71,15 @@ def load_merged_bam(bam, genome=None, bamfilter=False, autoaln=False, archloc=No
       alns += [ retrieve_readgroup_alignment(rgp, genome, bamfilter) ]
     except Alignment.DoesNotExist, err:
       if autoaln:
-        autocreate_alignment(rgp, genome,
-                             [ rgcount.get(rgp.get('ID'), 0)
-                               for rgcount in readcountdict ])
+        newaln = autocreate_alignment(rgp, genome,
+                                      [ rgcount.get(rgp.get('ID'), 0)
+                                        for rgcount in readcountdicts ])
+        if alignprog is not None:
+          DataProvenance.objects.create(program      = alignprog,
+                                        parameters   = alignparams,
+                                        rank_index   = 0,
+                                        data_process = newaln)          
+        alns += [ newaln ]
       else:
         raise err
 
@@ -107,7 +97,7 @@ def load_merged_bam(bam, genome=None, bamfilter=False, autoaln=False, archloc=No
   chksum = checksum_file(bam, unzip=False)
 
   LOGGER.info("Checking read count in bam file against lane records...")
-  check_bam_readcount(bam, maln, readcountdict)
+  check_bam_readcount(bam, maln, readcountdicts)
 
   malnfile = MergedAlnfile.objects.create(alignment=maln,
                                           filename=bam,
@@ -123,6 +113,53 @@ def load_merged_bam(bam, genome=None, bamfilter=False, autoaln=False, archloc=No
   destname = malnfile.repository_file_path
   move(bam, destname)
   set_file_permissions(CONFIG.group, destname)
+
+def load_merged_bam(bam, genome=None, bamfilter=False, autoaln=False,
+                    aligner=None, alignvers=None, alignparams=None,
+                    archloc=None):
+  '''
+  Insert the specified merged bam file into the repository, linking
+  against per-lane Alignments as appropriate.
+  '''
+  if archloc is None:
+    LOGGER.info("Storing merged bam file %s in repository...", bam)
+  else:
+    LOGGER.info("Storing merged bam file %s in archive %s...", bam, archloc)
+
+  alignprog = None
+  if aligner is not None:
+    if alignvers is None:
+      raise ValueError("Aligner version must be set if specifying aligner program")
+    try:
+      alignprog = Program.objects.get(program=aligner,
+                                      version=alignvers,
+                                      current=True)
+    except Program.DoesNotExist, _err:
+      raise StandardError("Unable to find current program in database: %s %s"
+                          % (aligner, alignvers))
+
+  # We use AlignmentFile rather than open_bamfile where possible,
+  # because the latter will typically index the bam before doing
+  # anything and that's not always desirable.
+  with AlignmentFile(filename=bam) as bamhandle:
+    rgroups = bamhandle.header.get('RG', [])
+
+  samples = list(set([ rg.get('SM') for rg in rgroups ]))
+  if len(samples) > 1:
+    raise StandardError("More than one sample represented in input.")
+  elif len(samples) == 0:
+    LOGGER.warning("No samples specified in bam file.")
+
+  # Count reads in readgroups for autoaln, if activated.
+  readcountdicts = None
+  if autoaln:
+    LOGGER.info("Counting reads per readgroup for %s...", bam)
+    readcountdicts = count_readgroup_reads(bam)
+
+  _store_bam_within_transaction(bam, rgroups, readcountdicts,
+                                genome, bamfilter, autoaln,
+                                alignprog, alignparams,
+                                archloc)
 
 if __name__ == '__main__':
 
@@ -153,6 +190,18 @@ if __name__ == '__main__':
                       help='Automatically create missing Alignment objects'
                       + ' using the data in the bam files.')
 
+  PARSER.add_argument('--aligner', dest='aligner', type=str, required=False,
+                      help='The aligner with which to annotate any automatically'
+                      + ' created Alignment objects.')
+
+  PARSER.add_argument('--aligner-version', dest='alignvers', type=str, required=False,
+                      help='The aligner version with which to annotate any automatically'
+                      + ' created Alignment objects.')
+
+  PARSER.add_argument('--aligner-params', dest='alignparams', type=str, required=False,
+                      help='The aligner parameters with which to annotate any automatically'
+                      + ' created Alignment objects.')
+
   PARSER.add_argument('--archive', dest='archloc', type=str, required=False,
                       help='The archive location destination in which to store'
                       + ' files (defaults to the configured location).')
@@ -164,6 +213,9 @@ if __name__ == '__main__':
                     ARGS.genome,
                     ARGS.bamfilt,
                     ARGS.autoaln,
+                    ARGS.aligner,
+                    ARGS.alignvers,
+                    ARGS.alignparams,
                     ARGS.archloc)
 
     # Remove bam.done file if present.
