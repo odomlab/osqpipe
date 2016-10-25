@@ -41,10 +41,10 @@
     <tr><th>Adapter: </th><td>{{ library.adapter }}{% if library.adapter %} (sequence: {{ library.adapter.sequence }}){% endif %}</td></tr>
     <tr><th>Adapter2: </th><td>{{ library.adapter2 }}{% if library.adapter2 %} (sequence: {{ library.adapter2.sequence }}){% endif %}</td></tr>
     <tr><th>Experiment: </th><td>{{ library.chipsample }}</td></tr>
-    <tr><th>Single or Paired-End: </th><td>{{ library.paired|yesno:"PE,SE" }}
+    <tr><th>Single or Paired-End: </th><td>
         {% if library.lane_set.all.count > 0 %}
-        &nbsp;&nbsp;( lanes: {% for lane in library.lane_set.all %}{{ lane.paired|yesno:"PE,SE" }} {% endfor %})
-        {% endif %}
+        lanes:{% for lane in library.lane_set.all %} {{ lane.paired|yesno:"PE,SE" }}{% endfor %}
+        {% else %}{{ library.paired|yesno:"PE,SE" }}{% endif %}
     </td></tr>
     <tr><th>Notes: </th><td>{{ library.comment }}</td></tr>
     <tr><th>Library failed: </th><td>{{ library.bad|yesno }}</td></tr>
