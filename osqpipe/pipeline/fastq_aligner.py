@@ -119,7 +119,7 @@ class FastqAligner(object):
                         nocc=nocc, cleanup=(not nocleanup))
 
   def align_standalone(self, filepaths, genome, destnames=None,
-                       nocc=None, nocleanup=False):
+                       nocc=None, nocleanup=False, nosplit=False, rcp=None, lcp=None, fileshost=None):
 
     '''Align fastq file(s) against a genome recorded in the
     repository. Does not require the fastq files themselves to be
@@ -127,7 +127,7 @@ class FastqAligner(object):
 
     gobj = self._retrieve_genome(genome)
     self._call_aligner(filepaths, gobj, destnames=destnames,
-                      nocc=nocc, cleanup=(not nocleanup))
+                       nocc=nocc, cleanup=(not nocleanup), nosplit=False, rcp=None, lcp=None, fileshost=None)
 
 class FastqBwaAligner(FastqAligner):
   '''
@@ -152,7 +152,7 @@ class FastqBwaAligner(FastqAligner):
     return 'mem' if rlen >= 70 else 'aln'
 
   def _call_aligner(self, filepaths, genome, destnames=None,
-                    nocc=None, cleanup=True, *args, **kwargs):
+                    nocc=None, cleanup=True, nosplit=False, rcp=None, lcp=None, fileshost=None, *args, **kwargs):
     '''
     Method used to dispatch cs_runBwaWithSplit.py processes on the
     cluster.
@@ -198,7 +198,7 @@ class FastqBwaAligner(FastqAligner):
                     num_threads=num_threads)
     bsub.submit(filenames=filepaths, auto_requeue=False,
                 destnames=destnames, bwa_algorithm=self.bwa_algorithm,
-                is_paired=paired, cleanup=cleanup, nocc=nocc)
+                is_paired=paired, cleanup=cleanup, nocc=nocc, nosplit=nosplit, rcp=rcp, lcp=lcp, fileshost=fileshost)
 
     LOGGER.info("Jobs submitted.")
 
