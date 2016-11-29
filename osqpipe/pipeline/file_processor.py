@@ -370,7 +370,8 @@ class GenericFileProcessor(object):
       flds = line.split()
       if flds[0] == "empty":
         LOGGER.warning("%s: no data", self.files[0])
-        self.lane.runnumber = 'unknown'
+        self.collect_info_empty()
+        return
       keyword = flds[0]
       if len(flds) > 2:
         data = [ float(x) for x in flds[1:] ]
@@ -434,7 +435,7 @@ class GenericFileProcessor(object):
   def collect_info_empty(self):
     '''
     Dummy method to fill in as much metadata we can for lanes without
-    a functional fastq fil.
+    a functional fastq file.
     '''
     lims_fc = None
     if self.facility != 'SAN':
@@ -604,7 +605,9 @@ class GenericFileProcessor(object):
         if fobj.filetype.code == 'fq':
           try:
             self.lane.readlength = get_fastq_readlength(fobj)
-          except IOError, _err:
+          except IOError:       # no file.
+            LOGGER.warning("Unable to detect read length from fastq file.")
+          except StopIteration: # no data in file.
             LOGGER.warning("Unable to detect read length from fastq file.")
 
   def clean_up(self):
@@ -1031,6 +1034,10 @@ class FileProcessingManager(object):
                   '.qseq': ChIPQseqFileProc,
                   '.map': ChIPMaqFileProc},
       'ripseq': {'.fq': ChIPFastqFileProc,
+                 '.export': ChIPExportFileProc,
+                 '.qseq': ChIPQseqFileProc,
+                 '.map': ChIPMaqFileProc},
+      'riboseq': {'.fq': ChIPFastqFileProc,
                  '.export': ChIPExportFileProc,
                  '.qseq': ChIPQseqFileProc,
                  '.map': ChIPMaqFileProc},

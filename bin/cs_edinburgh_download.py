@@ -531,15 +531,18 @@ class ed_data_handler(object):
             LOGGER.info("Submitting job with commands \'%s\' (jobid=%s)" % (cmd, jobid))
 
             # Stage fastqc depenednet on jobid being completed.
-            # qc_cmd = "cs_runFastQC.py --cleanup --workdir %s --destination %s --register %s %s" % (self.destination, apath, rfastq1, rfastq2)
-            # sys.stdout.write("QC_CMD=\"%s\"" % qc_cmd)
-            # qc_jobid = submitter.submit_command(cmd=qc_cmd, mem=4000, auto_requeue=False, depend_jobs=[jobid], mincpus=2)
+            qc_cmd = "cs_runFastQC.py --cleanup --workdir %s --destination %s --register %s %s" % (self.destination, apath, rfastq1, rfastq2)
+            sys.stdout.write("QC_CMD=\"%s\"\n" % qc_cmd)
+            qc_jobid = submitter.submit_command(cmd=qc_cmd, mem=4000, auto_requeue=False, depend_jobs=[jobid], mincpus=2)
 
+            # if fastq files are not in clusterworkdir (likely), symlink them first to workdir
+            bwa_cmd = ""
+            if DBCONF.clusterworkdir.rstrip('/') != self.destination.rstrip('/'):
+		bwa_cmd = "ln -s %s %s && ln -s %s %s && cd %s && " % (rfastq1, DBCONF.clusterworkdir, rfastq2, DBCONF.clusterworkdir, DBCONF.clusterworkdir)
             # Stage alignments dependent on jobid being completed.
-            # TODO
-            # bwa_cmd = "cs_runBwaWithSplit.py --algorithm mem --no-split /homes/mlukk/fnc-odompipe_hps/genomes/mus_musculus/C3HHeJ_Apr2015_S288C/bwa-0.7.12/C3HHeJ_Apr2015_S288C.fa %s %s" % (rfastq1, rfastq2)
-            # sys.stdout.write("BWA_CMD=\"%s\"" % bwa_cmd)
-            # bwa_jobid = submitter.submit_command(cmd=qc_cmd, mem=2000, auto_requeue=False, depend_jobs=[qc_jobid], mincpus=1)
+            bwa_cmd += "cs_runBwaWithSplit.py --algorithm mem --no-split /homes/mlukk/fnc-odompipe_hps/genomes/mus_musculus/C3HHeJ_Apr2015_S288C/bwa-0.7.12/C3HHeJ_Apr2015_S288C.fa %s %s" % (rfastq1, rfastq2)
+            sys.stdout.write("BWA_CMD=\"%s\"\n" % bwa_cmd)
+            bwa_jobid = submitter.submit_command(cmd=bwa_cmd, mem=2000, auto_requeue=False, depend_jobs=[qc_jobid], mincpus=1)
 
             newids.append(int(jobid))
             tnr += 1
