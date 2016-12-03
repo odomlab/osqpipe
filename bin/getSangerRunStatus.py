@@ -245,7 +245,12 @@ class SangerLims(object):
           raise ValueError('"Name" column not found in header: ' % ", ".join(header))
         href    = elems[urlcol].find('a')
         url = urljoin(self.conf.sanger_lims_url, href['href'])
-        (libdict, is_paired) = self._consume_recent_row(url)
+        try:
+          (libdict, is_paired) = self._consume_recent_row(url)
+        except requests.exceptions.HTTPError, err:
+          LOGGER.warning("Unable to retrieve Run URL, skipping (%d error): %s",
+                         int(err.response.status_code), url)
+          continue
 
         # Pull out a few more details.
         statstr    = elems[statuscol].text
