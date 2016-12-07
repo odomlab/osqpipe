@@ -134,7 +134,18 @@ class FQFileFetcher(object):
     # We download these over http now.
     LOGGER.debug("Downloading LIMS file ID %s to %s", lfile.lims_id, target)
     if not self.test_mode:
-      self.lims.get_file_by_id(lfile.lims_id, target)
+
+      # This is actually the preferred download mechanism.
+      try:
+        self.lims.get_file_by_uri(lfile.uri, target)
+
+      # Fall back to download via LIMS API, if supported.
+      except Exception, err:
+        if lfile.lims_id is not None:
+          self.lims.get_file_by_id(lfile.lims_id, target)
+        else:
+          raise err
+
       set_file_permissions(self.conf.group, target)
 
     if not os.path.exists(target) and not self.test_mode:
