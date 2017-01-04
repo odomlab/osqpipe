@@ -142,7 +142,7 @@ def confirm_file_checksum(fname, checksum, blocksize=65536):
 class OdomDataRetriever(object):
 
   __slots__ = ('session', 'with_download', 'with_checksum', '_base_url',
-               '_projdirs', 'filetype', '_filename_processed')
+               '_projdirs', 'filetype', '_filename_processed', '_mergedfiles')
 
   def __init__(self, download=True, checksum=True,
                base_url='http://localhost:8000/repository', project_dirs=None,
@@ -162,9 +162,13 @@ class OdomDataRetriever(object):
     self.with_checksum = checksum
     self._base_url     = base_url
     self._filename_processed = set()
+    self._mergedfiles  = False
 
     if filetype is None:
       filetype = 'fastq'
+    elif filetype[:6] == 'merged': # mergedbam and its ilk
+      filetype = filetype[6:]
+      self._mergedfiles = True
     self.filetype = filetype
 
     if project_dirs is None:
@@ -233,9 +237,15 @@ class OdomDataRetriever(object):
                  merged_alndict['genome'])
     for filedict in merged_alndict['mergedalnfile_set']:
       if filedict['filetype'] == self.filetype:
-        self.download_datafile(filedict)
+        self.download_datafile(filedict, merged=True)
 
-  def download_datafile(self, filedict):
+  def download_datafile(self, filedict, merged=False):
+
+    # This makes the distinction between downloads of merged files
+    # (e.g., bams) and unmerged files.
+    if merged != self._mergedfiles:
+      LOGGER.debug("Skipping download due to merge flag setting.")
+      return
 
     dl_fname = filedict['filename_on_disk']
 
@@ -319,9 +329,8 @@ if __name__ == '__main__':
                       + ' download is to be skipped.')
 
   PARSER.add_argument('--filetype', dest='filetype', type=str,
-                      default='fastq',
-                      help='The type of file to download. Examples are fastq (the'
-                      + ' default), bam, bed.')
+                      default='fastq', choices=['fastq','bed','bam','mergedbam'],
+                      help='The type of file to download. The default is fastq.')
 
   ARGS = PARSER.parse_args()
 
