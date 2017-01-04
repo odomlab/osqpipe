@@ -142,7 +142,7 @@ def confirm_file_checksum(fname, checksum, blocksize=65536):
 class OdomDataRetriever(object):
 
   __slots__ = ('session', 'with_download', 'with_checksum', '_base_url',
-               '_projdirs', 'filetype')
+               '_projdirs', 'filetype', '_filename_processed')
 
   def __init__(self, download=True, checksum=True,
                base_url='http://localhost:8000/repository', project_dirs=None,
@@ -161,6 +161,7 @@ class OdomDataRetriever(object):
     self.with_download = download
     self.with_checksum = checksum
     self._base_url     = base_url
+    self._filename_processed = set()
 
     if filetype is None:
       filetype = 'fastq'
@@ -206,14 +207,40 @@ class OdomDataRetriever(object):
                 lanedict['flowlane'], lanedict['flowcell'])
     for filedict in lanedict['lanefile_set']:
       if filedict['filetype'] == self.filetype:
-        self.process_lanefile(filedict)
+        self.download_datafile(filedict)
 
     for alnurl in lanedict['alignment_set']:
       self.process_alnurl(alnurl)
 
-  def process_lanefile(self, filedict):
+  def process_alnurl(self, url):
+
+    alndict = self.session.api_metadata(url)
+    LOGGER.debug("Retrieved metadata for aln %s (flowcell %s)",
+                 alndict['flowlane'], alndict['flowcell'])
+    for filedict in alndict['alnfile_set']:
+      if filedict['filetype'] == self.filetype:
+        self.download_datafile(filedict)
+
+    for merged_alnurl in alndict['mergedalignment_set']:
+      self.process_merged_alnurl(merged_alnurl)
+
+  def process_merged_alnurl(self, url):
+
+    # Repeated tries at the same MergedAlnfile are detected and
+    # ignored by download_datafile.
+    merged_alndict = self.session.api_metadata(url)
+    LOGGER.debug("Retrieved metadata for mergedaln (genome %s)",
+                 merged_alndict['genome'])
+    for filedict in merged_alndict['mergedalnfile_set']:
+      if filedict['filetype'] == self.filetype:
+        self.download_datafile(filedict)
+
+  def download_datafile(self, filedict):
 
     dl_fname = filedict['filename_on_disk']
+
+    if dl_fname in self._filename_processed:
+      LOGGER.debug("Already processed file %s this session. Skipping.", dl_fname)
 
     # Look for pre-existing file. This is a little more convoluted
     # than strictly necessary in case we want to continue supporting
@@ -244,14 +271,8 @@ class OdomDataRetriever(object):
       if self.with_checksum:
         confirm_file_checksum(dl_fname, filedict['checksum'])
 
-  def process_alnurl(self, url):
-
-    alndict = self.session.api_metadata(url)
-#    LOGGER.info("Retrieved metadata for aln %s (flowcell %s)",
-#                alndict['flowlane'], alndict['flowcell'])
-    for filedict in alndict['alnfile_set']:
-      if filedict['filetype'] == self.filetype:
-        self.process_lanefile(filedict)
+    # This is needed to prevent multiple downloads of MergedAlnfiles.
+    self._filename_processed.add(dl_fname)
 
   def synchronise_datafiles(self, project=None):
 
