@@ -108,7 +108,7 @@ class MergedAlignmentSerializer(serializers.ModelSerializer):
 
   class Meta:
     model = MergedAlignment
-    fields = ('mergedalnfile_set',)
+    fields = ('genome','mergedalnfile_set',)
 
 class AlnfileSerializer(serializers.ModelSerializer):
   '''

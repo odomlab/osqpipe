@@ -629,7 +629,7 @@ class MergedAlignmentViewSet(SessionAuthViewSet):
 
   def get_queryset(self):
     return MergedAlignment.objects\
-        .filter(alignment__alignment__lane__library__projects__people=self.request.user).distinct()
+        .filter(alignments__lane__library__projects__people=self.request.user).distinct()
 
 class RESTFileDownloadView(FileDownloadMixin, APIView):
   '''
