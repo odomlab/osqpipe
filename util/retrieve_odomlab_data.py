@@ -219,8 +219,8 @@ class OdomDataRetriever(object):
   def process_alnurl(self, url):
 
     alndict = self.session.api_metadata(url)
-    LOGGER.debug("Retrieved metadata for aln %s (flowcell %s)",
-                 alndict['flowlane'], alndict['flowcell'])
+    LOGGER.debug("Retrieved metadata for aln against genome %s",
+                 alndict['genome'])
     for filedict in alndict['alnfile_set']:
       if filedict['filetype'] == self.filetype:
         self.download_datafile(filedict)
