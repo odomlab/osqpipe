@@ -251,6 +251,7 @@ class OdomDataRetriever(object):
 
     if dl_fname in self._filename_processed:
       LOGGER.debug("Already processed file %s this session. Skipping.", dl_fname)
+      return
 
     # Look for pre-existing file. This is a little more convoluted
     # than strictly necessary in case we want to continue supporting
