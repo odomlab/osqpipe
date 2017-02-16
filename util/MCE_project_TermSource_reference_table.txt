@@ -1,0 +1,22 @@
+Term	Category	Term Source REF	Term Source ID	Term Source URI
+CAST/EiJ	strain	EFO	EFO_0007727	http://www.ebi.ac.uk/efo
+C3H/HeOuJ	strain			
+CAROLI/EiJ	strain			
+Mus musculus castaneus	Organism	NCBI Taxonomy	10091	http://www.ncbi.nlm.nih.gov/taxonomy
+Mus musculus	Organism	NCBI Taxonomy	10090	http://www.ncbi.nlm.nih.gov/taxonomy
+Mus caroli	Organism	NCBI Taxonomy	10089	http://www.ncbi.nlm.nih.gov/taxonomy
+male	Sex	EFO	PATO_0000384	http://www.ebi.ac.uk/efo
+ear	tissue_type	UBERON	UBERON_0001757	https://www.ebi.ac.uk/ols/ontologies/uberon
+tail	tissue_type	UBERON	UBERON_0002415	https://www.ebi.ac.uk/ols/ontologies/uberon
+ear or tail	tissue_type			
+liver	tissue_type	EFO	EFO_0000887	http://www.ebi.ac.uk/efo
+DEN	treatment_agent	CHEBI	CHEBI_34873	http://www.ebi.ac.uk/chebi
+unclassified	diagnosis	NCIthesaurus	C53269	https://ncit.nci.nih.gov/
+HCC	diagnosis	EFO	EFO_0000182	http://www.ebi.ac.uk/efo
+hepatocellular adenoma	diagnosis	EFO	EFO_0000762	http://www.ebi.ac.uk/efo
+dysplastic nodule	diagnosis	NCIthesaurus	C7656	https://ncit.nci.nih.gov/
+moderate	tumour_grading	NCIthesaurus	C96790	https://ncit.nci.nih.gov/
+poor	tumour_grading	NCIthesaurus	C96791	https://ncit.nci.nih.gov/
+well	tumour_grading	NCIthesaurus	C96789	https://ncit.nci.nih.gov/
+high	tumour_grading	NCIthesaurus	C96768	https://ncit.nci.nih.gov/
+low	tumour_grading	NCIthesaurus	C96770	https://ncit.nci.nih.gov/

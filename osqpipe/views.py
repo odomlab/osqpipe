@@ -32,7 +32,8 @@ from mimetypes import guess_type
 from .viewclasses import MyListView, MyDetailView, MyFormView, FilterMixin,\
   FormListView, RestrictedFileDownloadView
 
-from .serializers import ProjectSerializer, LibrarySerializer, LaneSerializer, AlignmentSerializer
+from .serializers import ProjectSerializer, LibrarySerializer, LaneSerializer, \
+  AlignmentSerializer, MergedAlignmentSerializer
 from .permissions import IsProjectMember
 from rest_framework import viewsets, permissions, authentication
 from rest_framework.views import APIView
@@ -617,6 +618,18 @@ class AlignmentViewSet(SessionAuthViewSet):
   def get_queryset(self):
     return Alignment.objects\
         .filter(lane__library__projects__people=self.request.user).distinct()
+
+class MergedAlignmentViewSet(SessionAuthViewSet):
+  '''
+  A simple ViewSet for listing or retrieving alignments.
+  '''
+  serializer_class = MergedAlignmentSerializer
+  permission_classes = ( permissions.IsAuthenticated,
+                         IsProjectMember )
+
+  def get_queryset(self):
+    return MergedAlignment.objects\
+        .filter(alignments__lane__library__projects__people=self.request.user).distinct()
 
 class RESTFileDownloadView(FileDownloadMixin, APIView):
   '''
