@@ -1080,7 +1080,11 @@ class FileProcessingManager(object):
                      '.fq': BisulphiteFastqFileProc},
       'bisulph-smrna': {'.fq': MiRFastqFileProc, # Frye lab. Obsolete?
                         '.export': MiRExportFileProc,
-                        '.qseq': MiRQseqFileProc}
+                        '.qseq': MiRQseqFileProc},
+      'chartseq': {'.fq': ChIPFastqFileProc,
+                   '.export': ChIPExportFileProc,
+                   '.qseq': ChIPQseqFileProc,
+                   '.map': ChIPMaqFileProc}
       }
 
   def process_sanger_bam(self, fname, metadata, code, library):
