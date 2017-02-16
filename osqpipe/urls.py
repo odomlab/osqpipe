@@ -76,7 +76,7 @@ urlpatterns = [
       views.SampleDetailView.as_view(),
       name='sample-detail',
       ),
-  url(r'^download/(?P<cls>alnfile|lanefile|qcfile|peakfile|mergedalnfile|histologyimagefile)/(?P<pk>\d+)$',
+  url(r'^download/(?P<cls>alnfile|lanefile|qcfile|alnqcfile|peakfile|mergedalnfile|histologyimagefile)/(?P<pk>\d+)$',
       views.FileDownloadView.as_view(),
       name='file-download',
       ),

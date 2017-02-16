@@ -14,7 +14,8 @@ from django.views.generic.edit import FormMixin
 from collections import OrderedDict
 
 from .models import Library, Project, Genome, Lane, Alnfile, Lanefile, QCfile,\
-    Peakfile, MergedAlignment, MergedAlnfile, HistologyImagefile, Alignment, Sample
+    AlnQCfile, Peakfile, MergedAlignment, MergedAlnfile, HistologyImagefile,\
+    Alignment, Sample
 from .forms import SimpleSearchForm, LibrarySearchForm, LibraryEditForm,\
     LibraryProjectPicker
 
@@ -441,6 +442,9 @@ class FileDownloadMixin(object):
     elif cls == 'qcfile':
       model = QCfile
       libraryrel = lambda x: x.laneqc.lane.library
+    elif cls == 'alnqcfile':
+      model = AlnQCfile
+      libraryrel = lambda x: x.alignmentqc.alignment.lane.library
     elif cls == 'peakfile':
       model = Peakfile
       libraryrel = lambda x: x.peakcalling.factor_align.lane.library

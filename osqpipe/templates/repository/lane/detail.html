@@ -37,10 +37,10 @@
       {% include "repository/file_table.html" %}
     {% endwith %}
 
-  <h2>Lane Quality Assessment</h2>
+  <h3>Lane Quality Assessment</h3>
     {% if lane.laneqc_set.count > 0 %}
       {% for qc in lane.laneqc_set.all %}
-      <h3>{% for prov in qc.provenance.all|sortby:"rank_index" %}{{ prov.program }}{% if prov.parameters %} {{ prov.parameters }}{% endif %}; {% endfor %}</h3>
+      <h4>{% for prov in qc.provenance.all|sortby:"rank_index" %}{{ prov.program }}{% if prov.parameters %} {{ prov.parameters }}{% endif %}; {% endfor %}</h4>
         {% if qc.qc_values.count > 0 %}
           <table class="horizontal">
             <caption>Summary:</caption>
@@ -76,6 +76,18 @@
       {% include "repository/file_table.html" %}
     {% endwith %}
     
+    <h3>Alignment Quality Assessment</h3>
+    {% if aln.alignmentqc_set.count > 0 %}
+      {% for qc in aln.alignmentqc_set.all %}
+        <h4>{% for prov in qc.provenance.all|sortby:"rank_index" %}{{ prov.program }}{% if prov.parameters %} {{ prov.parameters }}{% endif %}; {% endfor %}</h4>
+        {% with files=qc.alnqcfile_set.all|sortby:"filetype.name" %}
+          {% include "repository/file_table.html" %}
+        {% endwith %}
+      {% endfor %}
+    {% else %}
+      No Alignment QC files available yet.
+    {% endif %}
+
     {% endfor %}
 
   {% else %}
