@@ -224,6 +224,7 @@ class AlignProcessingManager(object):
 
       else:
         aligner = self.conf.aligner
+        params  = ''
 
     else:
 

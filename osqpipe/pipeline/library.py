@@ -213,8 +213,12 @@ class LibraryHandler(object):
                           % defproj)
     for proj in projcodes:
       if proj.lower() not in retrieved:
-        raise StandardError("Requested project not found in the database: %s"
-                            % proj)
+        if self.interactive:
+          raise StandardError("Requested project not found in the database: %s"
+                              % proj)
+        else:
+          LOGGER.warning("Requested project not found in the database: '%s'. Skipping", proj)
+          return
 
     keys['code']   = code
     keys['genome'] = genome
