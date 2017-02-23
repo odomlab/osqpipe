@@ -80,7 +80,7 @@ class AlignmentCrossCorrReport(AlignmentQCReport):
                   'REMOVE_DUPLICATES=true',
                   'VALIDATION_STRINGENCY=SILENT' ]
 
-        LOGGER.debug('Removing bam file duplicate reads: %s', fns[0])
+        LOGGER.info('Removing bam file duplicate reads prior to cross-correlation analysis')
 
         call_subprocess(mdcmd, path=self.path)
 
@@ -94,7 +94,8 @@ class AlignmentCrossCorrReport(AlignmentQCReport):
         cmd.extend( self.program_params.split() )
 
       cmd = [ str(x) for x in cmd ]
-      LOGGER.info("Running Cross-correlation analysis: %s", " ".join(cmd))
+      LOGGER.debug("Constructed cross-correlation command: %s", " ".join(cmd))
+      LOGGER.info("Running Cross-correlation analysis")
       call_subprocess(cmd, path=self.path)
 
     # tempbam closes and is deleted.
