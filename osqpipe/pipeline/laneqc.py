@@ -67,7 +67,7 @@ class QCReport(object):
 
   def __enter__(self):
     if self.workdir is None:
-      self.workdir = mkdtemp()
+      self.workdir = mkdtemp(dir=CONFIG.tmpdir)
       LOGGER.debug("Working directory is %s", self.workdir)
       self._delete_workdir = True
     return self

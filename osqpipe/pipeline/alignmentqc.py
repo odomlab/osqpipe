@@ -69,24 +69,24 @@ class AlignmentCrossCorrReport(AlignmentQCReport):
     pdf    = "%s_xcor.pdf" % basefn
     out    = "%s_xcor.txt" % basefn
 
-    with NamedTemporaryFile() as tempbam:
-      with NamedTemporaryFile() as tempout:
+    with NamedTemporaryFile(suffix='.bam', dir=self.workdir) as tempbam:
+      with NamedTemporaryFile(suffix='.txt', dir=self.workdir) as tempout:
 
         mdcmd = [ 'picard',
                   'MarkDuplicates',
                   'I=%s' % fns[0],
-                  'O=%s' % tempbam,
-                  'M=%s' % tempout,
+                  'O=%s' % tempbam.name,
+                  'M=%s' % tempout.name,
                   'REMOVE_DUPLICATES=true',
                   'VALIDATION_STRINGENCY=SILENT' ]
 
         LOGGER.debug('Removing bam file duplicate reads: %s', fns[0])
 
-        call_subprocess(mdcmd, self.path)
+        call_subprocess(mdcmd, path=self.path)
 
       # tempout closes and is deleted.
       cmd = [ self.program_name,
-              '-c=%s' % tempbam,
+              '-c=%s' % tempbam.name,
               '-savp=%s' % pdf,
               '-out=%s' % out ]
 
