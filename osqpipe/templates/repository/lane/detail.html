@@ -8,9 +8,11 @@
                   lane {{ lane.name }} {% endblock %}
 
 {% block content %}
-  {% if lane %}
+<div class="lane">
+{% if lane %}
   <h2></h2>
   
+  <div class="lanedetail">
   <table class="horizontal">
     <tr><th>Status: </th><td style="color: {{ lane.status.colour }}; background-color: black;"><b><span>{{ lane.status }}</span></b></td></tr>
     <tr><th>Facility: </th><td>{{ lane.facility.name }}</td></tr>
@@ -35,8 +37,10 @@
 
     {% with files=lane.lanefile_set.all|sortby:"filetype.name" %}
       {% include "repository/file_table.html" %}
-    {% endwith %}
+  {% endwith %}
+  </div>
 
+  <div class="laneqc">
   <h3>Lane Quality Assessment</h3>
     {% if lane.laneqc_set.count > 0 %}
       {% for qc in lane.laneqc_set.all %}
@@ -54,10 +58,13 @@
     {% else %}
       No QC files available yet.
     {% endif %}
+  </div>
 
+  <div class="alignment_list">
   <h2>Alignments</h2>
 
-    {% for aln in lane.alignment_set.all|sortby:"genome" %}
+  {% for aln in lane.alignment_set.all|sortby:"genome" %}
+    <div class="alignment">
     <table class="horizontal">
       <tr><th>Aligned Genome: </th>      <td>{% with gen=aln.genome %}
         {{ gen }} (<i>{{ gen.species.scientific_name }}</i>; {{ gen.species.common_name }}; version: {{ gen.version }})
@@ -87,10 +94,13 @@
     {% else %}
       No Alignment QC files available yet.
     {% endif %}
+    </div>	
 
     {% endfor %}
 
+  </div>
   {% else %}
   <p>No library lane provided.</p>
   {% endif %}
+</div>
 {% endblock %}    
