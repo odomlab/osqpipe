@@ -345,9 +345,22 @@ class FlowCellQuery(object):
                              lims_fc.finish_date))
       except AttributeError, _err:
         print "%s UNK %s" % (flowcell_id, lims_fc.finish_date)
+
+    # Lately the LIMS has been failing to link our users' email
+    # addresses to every occurrence of their sample in a given
+    # flowcell. This can lead to lanes not being processed. So here we
+    # first survey the flowcell for all likely samples and then
+    # download based on that key.
+    oursamples = set()
     for lane in lims_fc.iter_lanes():
       if flowlane_num == None or lane.lane == int(flowlane_num):
         if any([x.lower() in emails for x in lane.user_emails]):
+          oursamples.add(lane.genomics_sample_id)
+
+    # Actually query data for our samples.
+    for lane in lims_fc.iter_lanes():
+      if flowlane_num == None or lane.lane == int(flowlane_num):
+        if lane.genomics_sample_id in oursamples:
           self.check_lane(lane, lims_fc)
 
     return lims_fc

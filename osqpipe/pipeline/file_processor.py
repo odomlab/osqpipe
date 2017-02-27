@@ -647,7 +647,7 @@ class GenericFileProcessor(object):
       # of our GenericFileProcessor subclasses might fail here, but we
       # just let that happen for now.
       try:
-        with LaneFastQCReport(lane=self.lane, path=CONFIG.hostpath) as qcrep:
+        with LaneFastQCReport(target=self.lane, path=CONFIG.hostpath) as qcrep:
           qcrep.insert_into_repository()
       except Exception, err:
         LOGGER.warning("FastQC report generation failed: %s", err)
@@ -1080,7 +1080,11 @@ class FileProcessingManager(object):
                      '.fq': BisulphiteFastqFileProc},
       'bisulph-smrna': {'.fq': MiRFastqFileProc, # Frye lab. Obsolete?
                         '.export': MiRExportFileProc,
-                        '.qseq': MiRQseqFileProc}
+                        '.qseq': MiRQseqFileProc},
+      'chartseq': {'.fq': ChIPFastqFileProc,
+                   '.export': ChIPExportFileProc,
+                   '.qseq': ChIPQseqFileProc,
+                   '.map': ChIPMaqFileProc}
       }
 
   def process_sanger_bam(self, fname, metadata, code, library):

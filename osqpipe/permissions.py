@@ -2,7 +2,7 @@
 Custom project-level permissions.
 '''
 
-from .models import Project, Library, Lane, Alignment
+from .models import Project, Library, Lane, Alignment, Sample, MergedAlignment
 from rest_framework import permissions
 
 class IsProjectMember(permissions.BasePermission):
@@ -31,6 +31,16 @@ class IsProjectMember(permissions.BasePermission):
     elif type(obj) is Alignment:
       return request.user in [ person
                                for prj in obj.lane.library.projects.all()
+                               for person in prj.people.all() ]
+    elif type(obj) is MergedAlignment:
+      return request.user in [ person
+                               for aln in obj.alignments.all()
+                               for prj in aln.lane.library.projects.all()
+                               for person in prj.people.all() ]
+    elif type(obj) is Sample:
+      return request.user in [ person
+                               for lib in obj.library_set.all()
+                               for prj in lib.projects.all()
                                for person in prj.people.all() ]
     else:
       return False

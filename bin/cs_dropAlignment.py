@@ -38,6 +38,15 @@ def drop_aln(libcode, facility, lanenum):
     sys.exit("Lane '%s_%s%02d' not found in repository" % errtuple)
 
   for aln in lane.alignment_set.all():
+    for qc in aln.alignmentqc_set.all():
+      for fobj in qc.alnqcfile_set.all():
+        LOGGER.info("Dropping alnqcfile '%s'", fobj.filename)
+        if not TEST_MODE:
+          fobj.delete()
+      LOGGER.info("Dropping alignment QC %d", qc.id)
+      if not TEST_MODE:
+        qc.delete()
+
     for fobj in aln.alnfile_set.all():
       LOGGER.info("Dropping alnfile '%s'", fobj.filename)
       if not TEST_MODE:

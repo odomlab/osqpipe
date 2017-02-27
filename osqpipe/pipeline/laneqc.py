@@ -9,7 +9,7 @@ from tempfile import mkdtemp
 from shutil import rmtree, move, copy
 from pkg_resources import Requirement, resource_filename
 
-from django.db import transaction
+from django.db import transaction, models
 from ..models import Program, LaneQC, QCfile, Filetype, Lanefile, DataProvenance
 from osqutil.progsum import ProgramSummary
 from osqutil.utilities import checksum_file, call_subprocess, rezip_file, set_file_permissions
@@ -19,24 +19,28 @@ from osqutil.setup_logs import configure_logging
 CONFIG = Config()
 LOGGER = configure_logging('laneqc')
 
-class LaneQCReport(object):
-
-  '''Abstract superclass handling all QC reports. Note that this is
+class QCReport(object):
+  '''
+  Abstract superclass handling all QC reports. Note that this is
   implemented as a context manager, so you would typically use
   subclasses in the following way::
 
-    with LaneFastQCReport(lane=l, program_name='fastqc') as rep:
+    with LaneFastQCReport(target=l, program_name='fastqc') as rep:
       rep.insert_into_repository()
-
   '''
 
-  __slots__ = ('lane', 'workdir', 'output_files', 'program_name', 'path',
+  __slots__ = ('target', 'workdir', 'output_files', 'program_name', 'path',
                'program_params', '_dbprog', '_delete_workdir','output_md5s','move_files')
 
-  def __init__(self, lane, program_name, path=None, program_params='',
-               workdir=None, move_files=True):
+  data_process     = models.Model # for the benefit of pylint
+  target_name      = None
+  data_file        = models.Model # for the benefit of pylint
+  file_target_name = None
+  
+  def __init__(self, target, program_name, path=None, program_params='',
+               workdir=None,  move_files=True):
 
-    self.lane           = lane
+    self.target         = target
     self.program_name   = program_name
     self.program_params = program_params
     self.path           = path
@@ -55,7 +59,7 @@ class LaneQCReport(object):
 
   def __enter__(self):
     if self.workdir is None:
-      self.workdir = mkdtemp()
+      self.workdir = mkdtemp(dir=CONFIG.tmpdir)
       LOGGER.debug("Working directory is %s", self.workdir)
       self._delete_workdir = True
     return self
@@ -81,34 +85,16 @@ class LaneQCReport(object):
       LOGGER.info("Creating LaneQC object for %d", self.lane.id)
       laneqc = LaneQC.objects.create(lane = self.lane)
 
-    # This checks that the specified program exists, and where it
-    # yields some kind of meaningful version info will record that.
-    LOGGER.info("Collecting information about \"%s\"", self.program_name)
-    progdata = ProgramSummary(self.program_name, path=self.path)
+    params = { self.target_name : self.target }
+    qcobj  = self.data_process.objects.create(**params)
+    DataProvenance.objects.create(program      = self._dbprog,
+                                  parameters   = self.program_params,
+                                  rank_index   = 1,
+                                  data_process = qcobj)
 
-    # This is a little vulnerable to correct version parsing by
-    # progsum.
-    try:
-      self._dbprog = Program.objects.get(program = progdata.program,
-                                         version = progdata.version,
-                                         current = True)
-    except Program.DoesNotExist, _err:
-      raise StandardError(("Unable to find current %s program (version %s)"
-                           + " record in the repository")
-                          % (progdata.program, progdata.version))
-    try:
-      dpo = DataProvenance.objects.get(program = self._dbprog,
-                                       parameters   = self.program_params,
-                                       rank_index   = 1,
-                                       data_process = laneqc)
-    except DataProvenance.DoesNotExist, _err:      
-      DataProvenance.objects.create(program      = self._dbprog,
-                                    parameters   = self.program_params,
-                                    rank_index   = 1,
-                                    data_process = laneqc)
-    for (fname, checksum) in zip(self.output_files, self.output_md5s):
-      LOGGER.info("Inserting %s", fname)
-      # Note: this will fail if multiple types match.
+    for fname in self.output_files:
+
+      # Note: this will fail if multiple types match.                                                                                                                         
       ftype = Filetype.objects.guess_type(fname)
 
       if os.path.isabs(fname):
@@ -116,10 +102,14 @@ class LaneQCReport(object):
       else:
         fpath = os.path.join( self.workdir, fname )
 
-      fobj = QCfile(laneqc   = laneqc,
-                    filename = os.path.split(fname)[1],
-                    checksum = checksum,
-                    filetype = ftype)
+      checksum = checksum_file(fpath)
+
+      fparms = { self.file_target_name : qcobj,
+                 'filename'            : os.path.split(fname)[1],
+                 'checksum'            : checksum,
+                 'filetype'            : ftype }
+      fobj = self.data_file(**fparms)
+
       fobj.save()
 
       if move_files:
@@ -142,11 +132,20 @@ class LaneQCReport(object):
       except Exception, _err:
         LOGGER.warning("Unable to delete working directory %s", self.workdir)
 
+class LaneQCReport(QCReport):
+  '''
+  Abstract class handling all lane-based QC Reports.
+  '''
+  data_process     = LaneQC
+  target_name      = 'lane'
+  data_file        = QCfile
+  file_target_name = 'laneqc'
+
 class LaneFastQCReport(LaneQCReport):
-
-  '''Specific LaneQCReport subclass implementing fastqc report
-  generation. See the superclass for usage notes.'''
-
+  '''
+  Concrete LaneQCReport subclass implementing fastqc report
+  generation. See the superclass for usage notes.
+  '''
   def __init__(self, fastqs=None, program_name='fastqc', *args, **kwargs):
     '''
     The fastqs attribute is to allow callers to override Lane objects
@@ -167,7 +166,7 @@ class LaneFastQCReport(LaneQCReport):
       fns = self.fastqs
     else:
       LOGGER.debug('Using the fastq files stored in the repository.')
-      lanefiles = Lanefile.objects.filter(lane=self.lane,
+      lanefiles = Lanefile.objects.filter(lane=self.target,
                                           filetype__code='fq')
       assert(len(lanefiles) > 0)
       fns = [ x.repository_file_path for x in lanefiles ]
