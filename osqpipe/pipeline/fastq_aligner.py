@@ -127,7 +127,7 @@ class FastqAligner(object):
 
     gobj = self._retrieve_genome(genome)
     self._call_aligner(filepaths, gobj, destnames=destnames,
-                       nocc=nocc, cleanup=(not nocleanup), nosplit=False, rcp=None, lcp=None, fileshost=None)
+                       nocc=nocc, cleanup=(not nocleanup), nosplit=nosplit, rcp=rcp, lcp=lcp, fileshost=fileshost)
 
 class FastqBwaAligner(FastqAligner):
   '''
