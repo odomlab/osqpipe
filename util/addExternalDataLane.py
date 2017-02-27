@@ -241,7 +241,7 @@ class ExternalDataHandler(object):
         fastqs = None # Use the fastqs now stored in the repository.
 
       # Note: this code doesn't understand updating pre-existing reports.
-      with LaneFastQCReport(lane=lane, fastqs=fastqs, path=os.environ['PATH']) as fastqc:
+      with LaneFastQCReport(target=lane, fastqs=fastqs, path=os.environ['PATH']) as fastqc:
         fastqc.insert_into_repository() # database transaction
 
     # Alignments are always appended to the lane; multiple alignments

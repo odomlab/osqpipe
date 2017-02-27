@@ -12,6 +12,7 @@ router.register(r'projects',  views.ProjectViewSet, base_name='project')
 router.register(r'libraries', views.LibraryViewSet, base_name='library')
 router.register(r'lanes',     views.LaneViewSet,    base_name='lane')
 router.register(r'alignments', views.AlignmentViewSet, base_name='alignment')
+router.register(r'mergedalignments', views.MergedAlignmentViewSet, base_name='mergedalignment')
 
 # REST API file download links. This can be extended as necessary to
 # Alnfile, QCfile etc.
@@ -25,6 +26,11 @@ restdownloadurls = [
       views.RESTFileDownloadView.as_view(),
       name='alnfile-download',
       kwargs={'cls': 'alnfile'}
+    ),
+  url(r'^download/mergedalnfile/(?P<pk>\d+)$',
+      views.RESTFileDownloadView.as_view(),
+      name='mergedalnfile-download',
+      kwargs={'cls': 'mergedalnfile'}
     ),
 ]
 
@@ -70,7 +76,7 @@ urlpatterns = [
       views.SampleDetailView.as_view(),
       name='sample-detail',
       ),
-  url(r'^download/(?P<cls>alnfile|lanefile|qcfile|peakfile|mergedalnfile|histologyimagefile)/(?P<pk>\d+)$',
+  url(r'^download/(?P<cls>alnfile|lanefile|qcfile|alnqcfile|peakfile|mergedalnfile|histologyimagefile)/(?P<pk>\d+)$',
       views.FileDownloadView.as_view(),
       name='file-download',
       ),

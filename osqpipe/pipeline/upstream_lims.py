@@ -513,13 +513,19 @@ class Lims(object):
       # Store Lane-level data file info.
       filedict = {}
       ftype_map = {
-        re.compile(r'FASTQC Lane Report$')  : 'LANE_FASTQC',
-        re.compile(r'FASTQ MD5 Checksums$') : 'FASTQ_MD5',
-        re.compile(r'MGA Lane Report$')     : 'LANE_MGA',
-        re.compile(r'Read \d+ FASTQ$')      : 'FASTQ',
+        re.compile(r'^FASTQC$')             : 'LANE_FASTQC',
+        re.compile(r'^FASTQ Checksum$')     : 'FASTQ_MD5',
+        re.compile(r'^MGA$')                : 'LANE_MGA',
+        re.compile(r'^FASTQ R\d+$')         : 'FASTQ',
       }
       for file_elem in lanelib.findall('./file'):
-        fdesig = file_elem.find('./artifactName').text
+
+        # This will only work if the LIMS continues attaching
+        # artifactName tags to our data of interest.
+        name_elem = file_elem.find('./artifactName')
+        if name_elem is None:
+          continue
+        fdesig = name_elem.text
         for ( elem_re, ftype ) in ftype_map.iteritems():
           if elem_re.search(fdesig) is not None:
             LOGGER.debug('Classifying LIMS file artifact %s as %s',
@@ -527,10 +533,12 @@ class Lims(object):
             ftype_list = filedict.setdefault(ftype, [])
             md5elem = file_elem.find('./checksum')
             md5sum  = None if md5elem is None else md5elem.text
-            newfile = LimsLaneFile(uri=file_elem.find('./url').text,
+            uri     = file_elem.find('./url').text
+            lims_id = file_elem.attrib['fileLimsId'] if 'fileLimsId' in file_elem.attrib else None
+            newfile = LimsLaneFile(uri=uri,
                                    filetype=ftype,
                                    md5sum=md5sum,
-                                   lims_id=str(file_elem.attrib['fileLimsId']))
+                                   lims_id=lims_id)
             ftype_list.append(newfile)
             break
       lanedict['files'] = filedict
@@ -546,7 +554,7 @@ class Lims(object):
       # by a hyphen; we do not handle that here, but in the calling
       # code.
       adapterdict = {}
-      wanted = re.compile(r'Read \d+ FASTQ$')
+      wanted = re.compile(r'^FASTQ R\d+$')
       for sample_elem in lanelib.findall('./sample'):
 
         try: # Don't record samples which are definitely not ours.
@@ -559,15 +567,20 @@ class Lims(object):
         libcode = sample_elem.find('./name').text
         demux_list = sampledict.setdefault(libcode, [])
         for file_elem in sample_elem.findall('./file'):
-          fdesig = file_elem.find('./artifactName').text
+          name_elem = file_elem.find('./artifactName')
+          if name_elem is None:
+            continue
+          fdesig = name_elem.text
           if wanted.search(fdesig) is not None:
             LOGGER.debug('Found demultiplexed FASTQ file %s', fdesig)
             md5elem = file_elem.find('./checksum')
             md5sum  = None if md5elem is None else md5elem.text
-            newfile = LimsLaneFile(uri=file_elem.find('./url').text,
+            uri     = file_elem.find('./url').text
+            lims_id = file_elem.attrib['fileLimsId'] if 'fileLimsId' in file_elem.attrib else None
+            newfile = LimsLaneFile(uri=uri,
                                    filetype='FASTQ',
                                    md5sum=md5sum,
-                                   lims_id=str(file_elem.attrib['fileLimsId']))
+                                   lims_id=lims_id)
             demux_list.append(newfile)
         try:
           sample_adapter = sample_elem.find('./reagentLabel/sequence').text
@@ -619,12 +632,21 @@ class Lims(object):
   def get_file_by_id(self, file_lims_id, local_filename):
     '''
     Download a LIMS file (using its LIMS ID) to a local
-    filename. Returns the local filename on success.
+    filename. Returns the local filename on success. Typically only
+    used for sftp queries.
     '''
     download_uri = "%s/downloadFile" % self.uri
     return http_download_file(download_uri,
                             local_filename,
                             {'fileLimsId':file_lims_id})
+
+  def get_file_by_uri(self, uri, local_filename):
+    '''
+    Download a LIMS file (using its quoted URI) to a local
+    filename. Returns the local filename on success. This is currently
+    the preferred transfer mechanism.
+    '''
+    return http_download_file(uri, local_filename)
 
 ###############################################################################
 

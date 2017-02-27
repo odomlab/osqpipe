@@ -163,6 +163,37 @@ class InventoryImporter(object):
 
     return optvals
 
+  def _munge_truseq_neb_barcode_info(self, rowdict, barcode):
+    '''
+    Specialised method to handle some of the niceties surrounding
+    TruSeq adapter parsing. This method is designed to handle rows for
+    which the protocol contains \b(truseq|neb)\b.
+    '''
+    adapter = linkerset = None
+
+    prottag = rowdict['protocol'].lower()
+
+    # TruSeq adapters have standard names in the repository.
+    if rowdict['assaytype'].lower() in ('smrnaseq', 'rip-smrnaseq'):
+      adapter = 'smRNA_TS_' + barcode   # smRNAseq
+
+      # Often, linkerset is not given but it's easily guessed.
+      if 'linkerset' not in rowdict or rowdict['linkerset'] == '':
+        linkerset = 'TruSeqSmRNAIndex' + barcode
+
+    elif ( int(barcode) > 500 and int(barcode) < 509 )\
+         or ( int(barcode) > 700 and int(barcode) < 713 ):
+      adapter = 'TS_D' + barcode   # dual indexing adapter set.
+
+    else:
+      adapter = 'TS_' + barcode    # not smRNAseq
+
+      if int(barcode) > 12 and rowdict['protocol'].lower() == 'neb':
+        LOGGER.error('NEB barcode index greater than 12 used; confirm sequences match TruSeq!')
+        raise ValueError()
+
+    return (adapter, linkerset)
+
   def munge_barcode_info(self, rowdict, libcode, code_column='barcode', optional=False):
 
     adapter = linkerset = None
@@ -186,25 +217,7 @@ class InventoryImporter(object):
           adapter = 'TSLT_%d' % int(barcode)
 
         elif re.search(r'\b(?:truseq|neb)\b', prottag):
-
-          # TruSeq adapters have standard names in the repository.
-          if rowdict['assaytype'].lower() in ('smrnaseq', 'rip-smrnaseq'):
-            adapter = 'smRNA_TS_' + barcode   # smRNAseq
-
-            # Often, linkerset is not given but it's easily guessed.
-            if 'linkerset' not in rowdict or rowdict['linkerset'] == '':
-              linkerset = 'TruSeqSmRNAIndex' + barcode
-
-          elif ( int(barcode) > 500 and int(barcode) < 509 )\
-               or ( int(barcode) > 700 and int(barcode) < 713 ):
-            adapter = 'TS_D' + barcode   # dual indexing adapter set.
-
-          else:
-            adapter = 'TS_' + barcode    # not smRNAseq
-
-            if int(barcode) > 12 and rowdict['protocol'].lower() == 'neb':
-              LOGGER.error('NEB barcode index greater than 12 used; confirm sequences match TruSeq!')
-              raise ValueError()
+          (adapter, linkerset) = self._munge_truseq_neb_barcode_info(rowdict, barcode)
 
         elif re.search(r'\b(?:nextera|nextera ?xt)\b', prottag):
           adapter = 'NXT_N' + barcode
@@ -239,10 +252,15 @@ class InventoryImporter(object):
 
           adapter = 'XT_' + barcode
 
-        else:
-          LOGGER.error('Uncertain which adapter scheme (e.g. TruSeq) has been used: %s',
-                       libcode)
-          raise ValueError()
+        elif 'barcodetype' in rowdict:
+          # In some cases we can fall back to barcodetype
+          bctag = rowdict['barcodetype'].lower()
+          if re.search(r'\b(?:truseq|neb)\b', bctag):
+            (adapter, linkerset) = self._munge_truseq_neb_barcode_info(rowdict, barcode)
+          else:
+            LOGGER.error('Uncertain which adapter scheme (e.g. TruSeq) has been used: %s',
+                         libcode)
+            raise ValueError()
           
       else:
         LOGGER.error('Protocol not specified in spreadsheet for library %s', libcode)

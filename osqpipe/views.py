@@ -14,7 +14,8 @@ from django.views.generic.edit import FormMixin
 from collections import OrderedDict
 
 from .models import Library, Project, Genome, Lane, Alnfile, Lanefile, QCfile,\
-    Peakfile, MergedAlignment, MergedAlnfile, HistologyImagefile, Alignment, Sample
+    AlnQCfile, Peakfile, MergedAlignment, MergedAlnfile, HistologyImagefile,\
+    Alignment, Sample
 from .forms import SimpleSearchForm, LibrarySearchForm, LibraryEditForm,\
     LibraryProjectPicker
 
@@ -32,7 +33,8 @@ from mimetypes import guess_type
 from .viewclasses import MyListView, MyDetailView, MyFormView, FilterMixin,\
   FormListView, RestrictedFileDownloadView
 
-from .serializers import ProjectSerializer, LibrarySerializer, LaneSerializer, AlignmentSerializer
+from .serializers import ProjectSerializer, LibrarySerializer, LaneSerializer, \
+  AlignmentSerializer, MergedAlignmentSerializer
 from .permissions import IsProjectMember
 from rest_framework import viewsets, permissions, authentication
 from rest_framework.views import APIView
@@ -440,6 +442,9 @@ class FileDownloadMixin(object):
     elif cls == 'qcfile':
       model = QCfile
       libraryrel = lambda x: x.laneqc.lane.library
+    elif cls == 'alnqcfile':
+      model = AlnQCfile
+      libraryrel = lambda x: x.alignmentqc.alignment.lane.library
     elif cls == 'peakfile':
       model = Peakfile
       libraryrel = lambda x: x.peakcalling.factor_align.lane.library
@@ -617,6 +622,18 @@ class AlignmentViewSet(SessionAuthViewSet):
   def get_queryset(self):
     return Alignment.objects\
         .filter(lane__library__projects__people=self.request.user).distinct()
+
+class MergedAlignmentViewSet(SessionAuthViewSet):
+  '''
+  A simple ViewSet for listing or retrieving alignments.
+  '''
+  serializer_class = MergedAlignmentSerializer
+  permission_classes = ( permissions.IsAuthenticated,
+                         IsProjectMember )
+
+  def get_queryset(self):
+    return MergedAlignment.objects\
+        .filter(alignments__lane__library__projects__people=self.request.user).distinct()
 
 class RESTFileDownloadView(FileDownloadMixin, APIView):
   '''

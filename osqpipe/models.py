@@ -721,6 +721,18 @@ class QCValue(models.Model):
     verbose_name    = u'QC Value'
     unique_together = ('laneqc', 'name')
 
+class AlignmentQC(DataProcess):
+
+  alignment        = models.ForeignKey(Alignment, on_delete=models.PROTECT)
+
+  def __unicode__(self):
+    provenance = ", ".join([str(x) for x in self.provenance.all().order_by('rank_index')])
+    return "%s %s" % (self.alignment, provenance)
+
+  class Meta:
+    db_table = u'alignment_qc'
+    verbose_name = u'Alignment QC'
+
 class ArchiveLocation(models.Model):
   name         = models.CharField(max_length=32, unique=True)
   root_path    = models.CharField(max_length=1024, unique=True)
@@ -839,6 +851,18 @@ class Alnfile(Datafile):
 
   class Meta:
     db_table = u'alnfile'
+    ordering = ['filename']
+
+class AlnQCfile(Datafile):
+  alignmentqc      = models.ForeignKey(AlignmentQC, on_delete=models.PROTECT)
+
+  @property
+  def libcode(self):
+    return self.alignmentqc.alignment.lane.library.code
+
+  class Meta:
+    db_table = u'alnqcfile'
+    verbose_name = u'Alignment QC file'
     ordering = ['filename']
 
 class MergedAlnfile(Datafile):
