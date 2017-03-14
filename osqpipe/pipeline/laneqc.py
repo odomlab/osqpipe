@@ -12,7 +12,7 @@ from pkg_resources import Requirement, resource_filename
 from django.db import transaction, models
 from ..models import Program, LaneQC, QCfile, Filetype, Lanefile, DataProvenance
 from osqutil.progsum import ProgramSummary
-from osqutil.utilities import checksum_file, call_subprocess, rezip_file, set_file_permissions
+from osqutil.utilities import checksum_file, call_subprocess, rezip_file, set_file_permissions, transfer_file
 from osqutil.config import Config
 from osqutil.setup_logs import configure_logging
 
@@ -94,7 +94,7 @@ class QCReport(object):
 
     for fname in self.output_files:
 
-      # Note: this will fail if multiple types match.                                                                                                                         
+      # Note: this will fail if multiple types match.                                                                                                            
       ftype = Filetype.objects.guess_type(fname)
 
       if os.path.isabs(fname):
@@ -118,11 +118,12 @@ class QCReport(object):
           fpath = rezip_file(fpath)
         if self.move_files:
           dest    = fobj.repository_file_path
-          destdir = os.path.dirname(dest)
-          if not os.path.exists(destdir):
-            os.makedirs(destdir)
-          move(fpath, dest)
-          set_file_permissions(CONFIG.group, dest)
+          #destdir = os.path.dirname(dest)
+          #if not os.path.exists(destdir):
+          #  os.makedirs(destdir)
+          #move(fpath, dest)
+          #set_file_permissions(CONFIG.group, dest)
+          transfer_file(fpath, "%s@%s:%s" % (CONFIG.user, CONFIG.datahost, dest))
 
   def __exit__(self, exctype, excvalue, traceback):
     if self._delete_workdir:

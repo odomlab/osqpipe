@@ -15,7 +15,7 @@ from tempfile import mkstemp
 
 from osqutil.utilities import parse_incoming_fastq_name, call_subprocess, \
     checksum_file, parse_repository_filename, is_zipped, rezip_file, unzip_file, \
-    set_file_permissions, get_filename_libcode, bash_quote
+    set_file_permissions, get_filename_libcode, bash_quote, transfer_file
 from osqutil.config import Config
 from ..models import Filetype, Library, Lane, Lanefile, Facility, \
     Status, LibraryNameMap, Machine
@@ -598,8 +598,9 @@ class GenericFileProcessor(object):
         # collisions between file classes, e.g. Lanefile vs. Alnfile
         # (Update: this is no longer the case now that both are
         # subtypes of Datafile).
-        move(disk_fname, dest)
-        set_file_permissions(CONFIG.group, dest)
+        # move(disk_fname, dest)
+        # set_file_permissions(CONFIG.group, dest)
+        transfer_file(disk_fname, "%s@%s:%s" % (CONFIG.user, CONFIG.datahost, dest))
 
         # Get the read length directly from the fastq file.
         if fobj.filetype.code == 'fq':
@@ -1288,5 +1289,3 @@ class FileProcessingManager(object):
       # Delete temporary files, e.g. Sanger bam and metadata
       for tmpnam in tempfiles:
         os.unlink(tmpnam)
-
-

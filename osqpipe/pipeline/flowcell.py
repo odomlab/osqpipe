@@ -11,11 +11,13 @@ import os.path
 import re
 
 from osqutil.utilities import parse_incoming_fastq_name, checksum_file, \
-    build_incoming_fastq_name, call_subprocess, set_file_permissions, \
+    build_incoming_fastq_name, parse_incoming_fastq_name, call_subprocess, set_file_permissions, \
     munge_cruk_emails, unzip_file, rezip_file, is_zipped
 from .upstream_lims import Lims
 from osqutil.config import Config
 from ..models import Library, Lane, Status, LibraryNameMap, User
+
+from osqpipe.pipeline.smtp import send_email
 
 from .fetch_fastq import FQFileFetcher
 
@@ -166,7 +168,8 @@ class FlowCellProcess(object):
     os.chdir(destdir)
 
     downloading = Status.objects.get(code='downloading data')
-
+    downloaded = Status.objects.get(code='downloaded')
+    
     # for each lane...
     path = destdir
     for (flowcell, flowlane) in flowlanes:
@@ -187,12 +190,14 @@ class FlowCellProcess(object):
                % (flowcell, flowlane, path))
         continue
 
+      failed_fnames = {}
       for fname in fetcher.targets:
         if len(fname) > 0:
 
           # Check file was retrieved.
           if not os.path.exists(fname):
             LOGGER.error("Can't seem to find expected file '%s'", fname)
+            failed_fnames[fname] = fname
           else:
             muxed_libs = multiplexed[flowlane]
             if len(muxed_libs) > 1:
@@ -211,6 +216,20 @@ class FlowCellProcess(object):
               LOGGER.info("File does not require demultiplexing: %s", fname)
               self.output_files.append(fname)
 
+    for fname in output_files:
+      if fname not in failed_fnames:
+        (code, flowcell, flowlane, flowpair) = parse_incoming_fastq_name(fname, ext='.fq')
+        lane = Lane.objects.get(flowcell=flowcell, flowlane=flowlane, library__code=code)
+        lane.status = downloaded
+        lane.save()
+
+    if len(failed_fnames) > 0:
+      subject = "[PIPELINE] cs_processFlowcell %s: File download failed!" % flowcell
+      body = "Following files failed to download:\n"
+      for fname in failed_fnames:
+        body += fname + "\n"
+      send_email(subject, body, self.conf.recipient)
+        
     os.chdir(pwd)
     LOGGER.info("Initial FlowCell processing complete.")
     return self.output_files
