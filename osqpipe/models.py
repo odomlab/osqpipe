@@ -400,6 +400,7 @@ class Sample(models.Model):
   size_unit    = models.ForeignKey(SizeUnit, on_delete=models.PROTECT,
                                    null=True, blank=True)
   comment      = models.TextField(null=True, blank=True)
+  external_records = models.ManyToManyField(ExternalRecord, db_table='sample_external_record', related_name='samples')
 
   def __unicode__(self):
     return self.name
@@ -434,7 +435,7 @@ class Library(models.Model):
                                            ('E','E'),('F','F'),('G','G'),('H','H')],
                                   null=True, blank=True)
   comment      = models.TextField(null=True, blank=True)
-
+  external_records = models.ManyToManyField(ExternalRecord, db_table='library_external_record', related_name='libraries')
   objects      = LibraryManager()
 
   @property
