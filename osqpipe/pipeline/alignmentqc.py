@@ -69,7 +69,7 @@ class AlignmentCrossCorrReport(AlignmentQCReport):
     pdf    = "%s_xcor.pdf" % basefn
     out    = "%s_xcor.txt" % basefn
 
-    with NamedTemporaryFile(suffix='.bam', dir=self.workdir) as tempbam:
+    with NamedTemporaryFile(prefix=basefn, suffix='.bam', dir=self.workdir) as tempbam:
       with NamedTemporaryFile(suffix='.txt', dir=self.workdir) as tempout:
 
         mdcmd = [ 'picard',
