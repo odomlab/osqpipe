@@ -388,6 +388,34 @@ class SizeUnit(ControlledVocab):
     db_table = u'size_unit'
     ordering = ['name']
 
+class ExternalRepository(ControlledVocab):
+  name         = models.CharField(max_length=32, unique=True)
+
+  _controlled_field = 'name'
+
+  def __unicode__(self):
+    return self.name
+
+  class Meta:
+    db_table = u'external_repository'
+    ordering = ['name']
+
+class ExternalRecord(ControlledVocab):
+  accession    = models.CharField(max_length=32, unique=True)
+  repository   = models.ForeignKey(ExternalRepository, on_delete=models.PROTECT)
+  is_public    = models.BooleanField(default=False)
+  release_date = models.DateField()
+
+  _controlled_field = 'accession'
+  
+  def __unicode__(self):
+    return "%s: %s" % (self.repository, self.accession)
+
+  class Meta:
+    db_table = u'external_record'
+    ordering = ['accession']
+
+    
 class Sample(models.Model):
   '''
   A tissue sample taken from a Source organism.
@@ -511,33 +539,6 @@ class Status(ControlledVocab):
     db_table = u'status'
     verbose_name_plural = 'status flags'
     ordering = ['code']
-
-class ExternalRepository(ControlledVocab):
-  name         = models.CharField(max_length=32, unique=True)
-
-  _controlled_field = 'name'
-
-  def __unicode__(self):
-    return self.name
-
-  class Meta:
-    db_table = u'external_repository'
-    ordering = ['name']
-
-class ExternalRecord(ControlledVocab):
-  accession    = models.CharField(max_length=32, unique=True)
-  repository   = models.ForeignKey(ExternalRepository, on_delete=models.PROTECT)
-  is_public    = models.BooleanField(default=False)
-  release_date = models.DateField()
-
-  _controlled_field = 'accession'
-  
-  def __unicode__(self):
-    return "%s: %s" % (self.repository, self.accession)
-
-  class Meta:
-    db_table = u'external_record'
-    ordering = ['accession']
 
 class Lane(models.Model):
   library      = models.ForeignKey(Library, on_delete=models.PROTECT)
