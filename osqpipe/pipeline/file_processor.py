@@ -477,7 +477,7 @@ class GenericFileProcessor(object):
     Start the alignment of our fastq files against the specified
     genome.
     '''
-    if 'noalign' in self.options:
+    if 'noalign' in self.options or self.library.libtype.code == 'race':
       LOGGER.info("Skipping alignment.")
       return
 
@@ -1085,7 +1085,11 @@ class FileProcessingManager(object):
                    '.export': ChIPExportFileProc,
                    '.qseq': ChIPQseqFileProc,
                    '.map': ChIPMaqFileProc}
-      }
+      'race': {'.fq': ChIPFastqFileProc,
+               '.export': ChIPExportFileProc,
+               '.qseq': ChIPQseqFileProc,
+               '.map': ChIPMaqFileProc}
+    }
 
   def process_sanger_bam(self, fname, metadata, code, library):
     '''
