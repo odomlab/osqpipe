@@ -1084,7 +1084,7 @@ class FileProcessingManager(object):
       'chartseq': {'.fq': ChIPFastqFileProc,
                    '.export': ChIPExportFileProc,
                    '.qseq': ChIPQseqFileProc,
-                   '.map': ChIPMaqFileProc}
+                   '.map': ChIPMaqFileProc},
       'race': {'.fq': ChIPFastqFileProc,
                '.export': ChIPExportFileProc,
                '.qseq': ChIPQseqFileProc,
