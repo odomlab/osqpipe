@@ -11,7 +11,8 @@ import copy
 from osqutil.config import Config
 
 from ..models import Factor, Genome, Antibody, Strain, Sex, Tissue, \
-    Library, Libtype, Project, Adapter, Linkerset, Sample, Source
+    Library, Libtype, Project, Adapter, Linkerset, Sample, Source, \
+    Condition
 
 from django.db import transaction
 
@@ -279,6 +280,9 @@ class LibraryHandler(object):
 
       if 'sex' in keys and keys['sex']:
         keys['sex'] = self._retrieve_cv(keys['sex'], Sex)
+
+      if 'condition' in keys and keys['condition']:
+        keys['condition'] = self._retrieve_cv(keys['condition'], Condition)
 
       if 'adapter' in keys and keys['adapter']:
         keys['adapter'] = self._retrieve_cv(keys['adapter'], Adapter)

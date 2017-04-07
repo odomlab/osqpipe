@@ -233,6 +233,19 @@ class Libtype(ControlledVocab):
     db_table = u'libtype'
     ordering = ['code']
 
+class Condition(ControlledVocab):
+  name         = models.CharField(max_length=255, unique=True)
+  description  = models.TextField(null=True, blank=True)
+
+  _controlled_field = 'name'
+
+  def __unicode__(self):
+    return self.name
+
+  class Meta:
+    db_table = u'condition'
+    ordering = ['name']
+
 class Linkerset(ControlledVocab):
   name         = models.CharField(max_length=255, unique=True)
   fivep        = models.CharField(max_length=255)
@@ -447,6 +460,7 @@ class Library(models.Model):
   sample       = models.ForeignKey(Sample, on_delete=models.PROTECT)
   antibody     = models.ForeignKey(Antibody, on_delete=models.PROTECT, null=True, blank=True)
   factor       = models.ForeignKey(Factor, on_delete=models.PROTECT, null=True, blank=True)
+  condition    = models.ForeignKey(Condition, on_delete=models.PROTECT, null=True, blank=True)
   bad          = models.BooleanField(default=False)
   projects     = models.ManyToManyField(Project, db_table='library_project', related_name='libraries')
   libtype      = models.ForeignKey(Libtype, on_delete=models.PROTECT)
@@ -478,6 +492,8 @@ class Library(models.Model):
     sta = self.sample.source.strain.name if self.sample.source.strain  else ''
 
     tis = self.sample.tissue.name
+    if self.condition is not None:
+      tis = "%s_%s" % (tis, self.condition)
     gen = self.genome.code
 
     # Here we pull out unnecessary duplication of the tissue name

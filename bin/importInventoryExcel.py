@@ -327,6 +327,10 @@ class InventoryImporter(object):
     else:
       tissue = rowdict['tissue']
 
+    # Condition is occcasionally supplied; if so, we record it.
+    if 'condition' in rowdict and rowdict['condition'] != '':
+      optvals['condition'] = rowdict['condition']
+
     # Munge the barcode/barcodetype/protocol info into an adapter string.
     try: # Test New vs. Old column naming, in case we ever switch back.
 

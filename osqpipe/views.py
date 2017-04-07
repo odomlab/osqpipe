@@ -89,6 +89,7 @@ class LibraryListView(FilterMixin, FormListView):
     'tissue'   : 'sample__tissue__name__icontains',
     'sex'      : 'sample__source__sex__name__iexact', # otherwise 'male' is not a useful search term.
     'factor'   : 'factor__name__icontains',
+    'condition' : 'condition__name__icontains',
     'antibody' : 'antibody__name__icontains',
     'experiment' : 'chipsample__icontains',
     'individual' : 'sample__name__icontains',
@@ -119,7 +120,7 @@ class LibraryListView(FilterMixin, FormListView):
     # clause allows us to greatly reduce the number of SQL queries a
     # given page view triggers.
     self.queryset = Library.objects\
-        .select_related('genome', 'libtype', 'factor', 'antibody')\
+        .select_related('genome', 'libtype', 'factor', 'antibody', 'condition')\
         .prefetch_related('lane_set', 'lane_set__facility', 'lane_set__lanefile_set',
                           'lane_set__alignment_set', 'lane_set__alignment_set__genome',
                           'lane_set__alignment_set__provenance__program', 'lane_set__alignment_set__lane',
