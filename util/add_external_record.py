@@ -166,10 +166,10 @@ class ExternalRecordManager(object):
       self.obj_type = 'lane'
 
     if self.receipt_type == 'EXPERIMENT':
-      add_library_obj(code=alias)
+      self.add_library_obj(code=alias)
 
     if self.receipt_type == 'SAMPLE':
-      add_sample_obj(sample_name=alias)
+      self.add_sample_obj(sample_name=alias)
 
 if __name__ == '__main__':
   
