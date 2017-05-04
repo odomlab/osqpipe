@@ -70,7 +70,7 @@ if __name__ == '__main__':
   PARSER.add_argument('-f', '--facility', dest='facility', type=str, required=True,
                       help='The facility code for the sequencing (e.g. CRI).')
 
-  PARSER.add_argument('-n', '--lane', metavar='lanenum', type=int, required=True,
+  PARSER.add_argument('-n', '--lane', dest='lanenum', type=int, required=True,
                       help='The flow lane number (using our own internal numbering, *not* the flowcell lane number).')
 
   ARGS = PARSER.parse_args()
