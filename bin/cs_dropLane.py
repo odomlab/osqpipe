@@ -63,6 +63,22 @@ def drop_lane(libcode, facility, lanenum):
 ###############################################################################
 
 if __name__ == '__main__':
-  (LIBCODE, FACILITY, LANENUM) = sys.argv[1:]
-  drop_lane(LIBCODE, FACILITY, LANENUM)
+
+  import argparse
+
+  PARSER = argparse.ArgumentParser(
+    description='Delete a Lane and all linked Alignments from the repository.')
+
+  PARSER.add_argument('-l', '--library', dest='libcode', type=str, required=True,
+                      help='The Library for which lanes should be deleted.')
+
+  PARSER.add_argument('-f', '--facility', dest='facility', type=str, required=True,
+                      help='The facility code for the sequencing (e.g. CRI).')
+
+  PARSER.add_argument('-n', '--lane', metavar='lanenum', type=int, required=True,
+                      help='The flow lane number (using our own internal numbering, *not* the flowcell lane number).')
+
+  ARGS = PARSER.parse_args()
+
+  drop_lane(ARGS.libcode, ARGS.facility, ARGS.lanenum)
   
