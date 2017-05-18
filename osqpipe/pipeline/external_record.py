@@ -117,6 +117,14 @@ class ExternalRecordManager(object):
             sys.exit(1)
         self.obj_type = 'sample'
 
+    def add_sample_obj_library(self, code):
+        try:
+            self.obj = Sample.objects.get(library__code=code)
+        except Sample.DoesNotExist:
+            LOGGER.error("No sample with name \"%s\".", sample_name)
+            sys.exit(1)
+            self.obj_type = 'sample'
+
     def parse_xml_receipt(self, fname):
         '''Parse ENA submission receipt XML'''
 

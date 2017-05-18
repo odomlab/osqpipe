@@ -861,7 +861,8 @@ class EnaSubmitter(object):
       if self.submit_xml:
         accession = ena_loader.upload_xml(sample_xml.submission_filename, sample_xml.filename, 'SAMPLE', validate=False)
         erm = ExternalRecordManager(sample_xml.otype, accession = accession, release_date = self.release_date_str, is_public = False, repository_name = self.external_repository)
-        erm.add_sample_obj(sample_xml.alias)
+        # erm.add_sample_obj(sample_xml.alias)
+        erm.add_sample_obj_library(ex.a.code)
         erm.add_external_record_to_obj()
 
     if not experiment_xml.submitted:
