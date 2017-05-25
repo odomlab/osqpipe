@@ -223,7 +223,7 @@ class InventoryImporter(object):
           adapter = 'NXT_N' + barcode
 
         elif re.search(r'\b(?:thruplex)\b', prottag):
-          if int(barcode) < 20:
+          if int(barcode) < 150:
             adapter = 'iPCRtagT' + barcode
           elif ( int(barcode) > 500 and int(barcode) < 509 )\
                or ( int(barcode) > 700 and int(barcode) < 713 ):
