@@ -19,7 +19,7 @@
     <tr><th>Flowcell: </th><td>{{ lane.flowcell }}</td></tr>
     <tr><th>Flowlane: </th><td>{{ lane.flowlane }}</td></tr>
     <tr><th>Genomics ID: </th><td>{{ lane.genomicssampleid }}</td></tr>
-    <tr><th>Machine: </th><td>{{ lane.machine }}</td></tr>
+    <tr><th>Machine: </th><td>{{ lane.machine }} ({{ lane.machine.platform }})</td></tr>
     <tr><th>Genomics Run No.: </th><td>{{ lane.runnumber }}</td></tr>
     <tr><th>Run Date: </th><td>{{ lane.rundate }}</td></tr>
     <tr><th>Reads Passed PF: </th><td>{{ lane.total_passedpf|intcomma }}</td></tr>
