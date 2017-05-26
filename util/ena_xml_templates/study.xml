@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<STUDY_SET xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xsi:noNamespaceSchemaLocation="ftp://ftp.sra.ebi.ac.uk/meta/xsd/sra_1_5/SRA.study.xsd">
+  <STUDY alias="TODO: UNIQUE NAME FOR SUBMISSION"
+	 center_name="TODO: CENTER NAME">
+    <DESCRIPTOR>
+      <STUDY_TITLE>TODO: STUDY TITLE AS IT COULD APPEAR IN A PUBLICATION</STUDY_TITLE>
+      <STUDY_TYPE existing_study_type="TODO: CHOOSE FROM CONTROLLED VOCABULARY AT END
+				       OF XML"/>
+      <STUDY_ABSTRACT>TODO: STUDY ABSTRACT AS IT COULD APPEAR IN A
+      PUBLICATION</STUDY_ABSTRACT>
+    </DESCRIPTOR>
+    <STUDY_ATTRIBUTES>
+      <STUDY_ATTRIBUTE>
+	<TAG>TODO: TAG NAME</TAG>
+	<VALUE>TODO: TAG VALUE</VALUE>
+      </STUDY_ATTRIBUTE>
+      <STUDY_ATTRIBUTE>
+	<TAG>TODO: TAG NAME</TAG>
+	<VALUE>TODO: TAG VALUE</VALUE>
+      </STUDY_ATTRIBUTE>
+      <!-- You can generate your own fields and values here using STUDY_ATTRIBUTE
+           tag-value pairs. Please delete any unused attributes and add as many as
+           required. -->
+    </STUDY_ATTRIBUTES>
+  </STUDY>
+  <!-- If you are submitting more than one study, replicate the block <STUDY> to </STUDY>
+       here, as many times as necessary. -->
+</STUDY_SET>
+  <!-- Controlled vocabulary for existing_study_type:
+       Whole Genome Sequencing
+       Metagenomics
+       Transcriptome Analysis
+       Resequencing
+       Epigenetics
+       Synthetic Genomics
+       Forensic or Paleo-genomics
+       Gene Regulation Study
+       Cancer Genomics
+       Population Genomics
+       RNASeq
+       Exome Sequencing
+       Pooled Clone Sequencing
+       Other
+       If using "Other" please add new_study_type="TODO: add own term" attribute
+  -->
