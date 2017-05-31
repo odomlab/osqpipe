@@ -203,15 +203,16 @@ class LimsLane(object):
         if dfile.filetype == 'FASTQ':
           demux.append(dfile)
 
-    # Generate a directory URL from the file url
-    if len(files) > 0:
-      file_url = files[0].uri
-      url      = re.sub(r'primary/[^\/]+', '', file_url)
-      LOGGER.debug("Generated Summary URL: %s", url)
-    elif len(demux) > 0:
+    # Generate a directory URL from the file url. Note this is
+    # vulnerable to changes in the LIMS folder layout.
+    if len(demux) > 0:
       file_url = demux[0].uri
       url      = re.sub('fastq/[^\/]+', '', file_url)
       LOGGER.debug("Generated Summary URL from demuxed file: %s", url)
+    elif len(files) > 0:
+      file_url = files[0].uri
+      url      = re.sub(r'(primary|fastq)/[^\/]+', '', file_url)
+      LOGGER.debug("Generated Summary URL: %s", url)
     else:
       url = ""
 
