@@ -36,7 +36,7 @@ LOGGER = configure_logging('fetch_mga')
 
 TEST_MODE = False
 
-def fetch_mga (flowcell, flowlane, destination, nameprefix):
+def fetch_mga (flowcell, flowlane, destination, nameprefix, lims_fc):
   """Fetches MGA report from Genologics LIMS. Returns PDF report."""
   mgafiles = []
   flowlane = int(flowlane)
@@ -48,13 +48,15 @@ def fetch_mga (flowcell, flowlane, destination, nameprefix):
     LOGGER.setLevel(INFO)
 
   # install lims
-  lims = Lims()
-  if not lims.running():
-    LOGGER.error("Remote LIMS access broken... cannot continue.")
-    sys.exit("LIMS not running.")
+  if lims_fc is None:
+    lims = Lims()
+    if not lims.running():
+      LOGGER.error("Remote LIMS access broken... cannot continue.")
+      sys.exit("LIMS not running.")
 
-  # search lims for a lane on flowcell
-  lims_fc = lims.load_flowcell(flowcell)
+    # search lims for a lane on flowcell
+    lims_fc = lims.load_flowcell(flowcell)
+
   if TEST_MODE:
     lims_fc.dump()
   lane = lims_fc.get_lane(flowlane)
