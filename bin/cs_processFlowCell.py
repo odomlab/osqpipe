@@ -48,11 +48,20 @@ if __name__ == '__main__':
                       help='Select a different destination directory for downloads'
                       + ' (default is the configured incoming directory).')
 
+  PARSER.add_argument('--trust-lims-adapters', dest='trustAdapt', type=str, default=None,
+                      help='If set to the name of a protocol (taken from the Adapter'
+                      + ' table) then any empty adapter fields in the database'
+                      + ' will be automatically filled using LIMS data. This'
+                      + ' bypasses our usual consistency check so should only'
+                      + ' be used when certain. It will not overwrite'
+                      + ' previously-entered adapter metadata.')
+
   ARGS = PARSER.parse_args()
 
   PROC = FlowCellProcess(test_mode        = ARGS.testMode,
                          db_library_check = ARGS.checkForLibInDB,
-                         force_primary    = ARGS.forcePrimary)
+                         force_primary    = ARGS.forcePrimary,
+                         trust_lims_adapters = ARGS.trustAdapt)
 
   PROC.run(ARGS.flowCell, ARGS.flowLane, destdir = ARGS.destdir)
 
