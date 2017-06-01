@@ -93,14 +93,14 @@ class InventoryImporter(object):
     for rownum in range(shobj.nrows):
       yield shobj.row(rownum)
 
-  def import_work_sheet(self, path, sheet='DO_list'):
+  def import_work_sheet(self, path, sheet='DO_list', minlib=None):
 
-    rows = self.get_work_sheet_iterator(path, sheet)
+    row_iter = self.get_work_sheet_iterator(path, sheet)
     header = []
 
     # Detect the header row.
     space_re = re.compile(' ')
-    for row in rows:
+    for row in row_iter:
       rowvals = [ space_re.sub('', unicode(x.value).lower().strip()) for x in row ]
       if 'libraryid' in rowvals:
         header = rowvals
@@ -123,8 +123,23 @@ class InventoryImporter(object):
       if colname not in known:
         LOGGER.warning("Unrecognised column in input: %s", colname)
 
+    # If desired, skip over most of the file without running expensive database queries.
+    if minlib is not None:
+      codere = re.compile('(\w+)(\d+)')
+      minmo = codere.match(minlib)
+      if minmo is None:
+        raise ValueError("Starting library code does not fit our standard format (\w+\d+).")
+      for row in row_iter:
+        code = row[header.index('libraryid')]
+        libmo = codere.match(code)
+        if libmo is None:
+          raise ValueError("Library code in sheet does not fit our standard format (\w+\d+).")
+        if minmo.group(1) == libmo.group(1) and minmo.group(2) >= libmo.group(2):
+          self.import_data_row([x.value for x in row], header)
+          break
+
     # Read in the rest of the file.
-    for row in rows:
+    for row in row_iter:
       self.import_data_row([x.value for x in row], header)
 
   @staticmethod
@@ -385,6 +400,9 @@ if __name__ == '__main__':
                       help='(Optional) Log file name to store output'
                       + ' (appends to an existing file).')
 
+  PARSER.add_argument('--start-from', dest='minlib', type=str, required=False,
+                      help='(Optional) Library code from which to commence import (to save time).')
+
   ARGS = PARSER.parse_args()
 
   if ARGS.logfile:
@@ -395,4 +413,4 @@ if __name__ == '__main__':
 
   IMP = InventoryImporter(test_mode=ARGS.test_mode)
 
-  IMP.import_work_sheet(path=os.path.realpath(ARGS.dir), sheet=ARGS.sheet)
+  IMP.import_work_sheet(path=os.path.realpath(ARGS.dir), sheet=ARGS.sheet, minlib=ARGS.minlib)
