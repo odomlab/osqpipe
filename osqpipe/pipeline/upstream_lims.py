@@ -9,6 +9,7 @@ import re
 import os.path
 import weakref
 from datetime import date, timedelta
+from time import sleep
 import xml.etree.ElementTree as ET
 
 import requests
@@ -35,7 +36,7 @@ def http_download_file(url, local_filename, params=None):
     params = {}
 
   # Read large files in chunks using stream = True parameter
-  res = requests.get(url, stream = True, params=params)
+  res = robust_http_get(url, stream = True, params=params)
   if res.status_code is not 200:
     LOGGER.error("Failed to download file: %s (%s)", str(params), res.reason)
     raise StandardError("Unable download LIMS file: %s (%s)"
@@ -54,7 +55,7 @@ def get_lims_run_history(url, since):
   '''
   LOGGER.debug("Querying LIMS for runs since %s", since)
   history_url = "%s/runsWithFilesAttachedSince?start=%s" % (url, since)
-  res = requests.get(history_url)
+  res = robust_http_get(history_url)
   if res.status_code is not 200:
     LOGGER.error("Failed to retrieve runs since date %s.", since)
     raise StandardError("Unable to retrieve LIMS run history: %s" % history_url)
@@ -71,7 +72,7 @@ def get_lims_run_details(url, run_id):
   running the query response through xml.etree.ElementTree.fromstring.
   '''
   LOGGER.info("Querying LIMS for run_id: %s", run_id)
-  res = requests.get("%s/fullDetailsOfRun?runId=%s" % (url, run_id))
+  res = robust_http_get("%s/fullDetailsOfRun?runId=%s" % (url, run_id))
   if res.status_code is not 200:
     LOGGER.error("Failed to retrieve detail for %s.", run_id)
     raise StandardError("Unable to retrieve LIMS run detail.")
@@ -88,7 +89,7 @@ def runs_containing_samples(url, libcode):
   running the query response through xml.etree.ElementTree.fromstring.
   '''
   LOGGER.info("Querying LIMS for library: %s", libcode)
-  res = requests.get("%s/runsContainingSamples?sampleName=%s" % (url, libcode))
+  res = robust_http_get("%s/runsContainingSamples?sampleName=%s" % (url, libcode))
   if res.status_code is not 200:
     LOGGER.error("Failed to retrieve runs for library %s.", libcode)
     raise StandardError("Unable to retrieve run listing from LIMS.")
@@ -98,6 +99,23 @@ def runs_containing_samples(url, libcode):
     LOGGER.error("LIMS query returned bad XML.")
     raise StandardError("Bad XML in response from LIMS query: %s" % err)
   return root
+
+def robust_http_get(url):
+  '''
+  Wrapper function to requests.get() which handles failure a little
+  more gracefully.
+  '''
+  res = requests.get(url)
+  if res.status_code is not 200:
+    # Sleep for a minute, then retry once. This may become more
+    # involved at a later date.
+    LOGGER.warning("Response not OK from url; retrying: %s", url)
+    sleep(60)
+    res = requests.get(url)
+
+  # Any errors on the final retry need to be detected and reported by
+  # the caller.
+  return res
 
 ###############################################################################
 
@@ -203,15 +221,16 @@ class LimsLane(object):
         if dfile.filetype == 'FASTQ':
           demux.append(dfile)
 
-    # Generate a directory URL from the file url
-    if len(files) > 0:
-      file_url = files[0].uri
-      url      = re.sub(r'primary/[^\/]+', '', file_url)
-      LOGGER.debug("Generated Summary URL: %s", url)
-    elif len(demux) > 0:
+    # Generate a directory URL from the file url. Note this is
+    # vulnerable to changes in the LIMS folder layout.
+    if len(demux) > 0:
       file_url = demux[0].uri
       url      = re.sub('fastq/[^\/]+', '', file_url)
       LOGGER.debug("Generated Summary URL from demuxed file: %s", url)
+    elif len(files) > 0:
+      file_url = files[0].uri
+      url      = re.sub(r'(primary|fastq)/[^\/]+', '', file_url)
+      LOGGER.debug("Generated Summary URL: %s", url)
     else:
       url = ""
 
@@ -383,7 +402,7 @@ class Lims(object):
     self._fcid_mapping = {}
 
     # Retrieve the boilerplate help page as a test.
-    res = requests.get(self.uri)
+    res = robust_http_get(self.uri)
     if res.status_code is not 200:
       LOGGER.error("LIMS: REST API is not responding.")
       raise StandardError("Unable to query LIMS REST API.")
@@ -396,7 +415,7 @@ class Lims(object):
     Test to make sure the LIMS is running and we can connect to it.
     '''
     # Retrieve the boilerplate help page as a test.
-    res = requests.get(self.uri)
+    res = robust_http_get(self.uri)
     if res.status_code is 200:
       return True
     else:
