@@ -107,10 +107,10 @@ def robust_http_get(url, *args, **kwargs):
   '''
   res = requests.get(url, *args, **kwargs)
   if res.status_code is not 200:
-    # Sleep for a minute, then retry once. This may become more
+    # Sleep for five minutes, then retry once. This may become more
     # involved at a later date.
     LOGGER.warning("Response not OK from url; retrying: %s", url)
-    sleep(60)
+    sleep(300)
     res = requests.get(url, *args, **kwargs)
 
   # Any errors on the final retry need to be detected and reported by
