@@ -100,18 +100,18 @@ def runs_containing_samples(url, libcode):
     raise StandardError("Bad XML in response from LIMS query: %s" % err)
   return root
 
-def robust_http_get(url):
+def robust_http_get(url, *args, **kwargs):
   '''
   Wrapper function to requests.get() which handles failure a little
   more gracefully.
   '''
-  res = requests.get(url)
+  res = requests.get(url, *args, **kwargs)
   if res.status_code is not 200:
-    # Sleep for a minute, then retry once. This may become more
+    # Sleep for five minutes, then retry once. This may become more
     # involved at a later date.
     LOGGER.warning("Response not OK from url; retrying: %s", url)
-    sleep(60)
-    res = requests.get(url)
+    sleep(300)
+    res = requests.get(url, *args, **kwargs)
 
   # Any errors on the final retry need to be detected and reported by
   # the caller.
