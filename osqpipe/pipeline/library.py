@@ -22,7 +22,13 @@ LOGGER = configure_logging()
 CONFIG = Config()
 
 ######################################################################
+class AnnotationMismatchError(ValueError):
+  '''
+  Custom exception class used to signal a mismatch between input and database.
+  '''
+  pass
 
+######################################################################
 class LibraryHandler(object):
 
   '''Class encapsulating the creation of new library records.'''
@@ -137,15 +143,15 @@ class LibraryHandler(object):
       for field in source_fields:
         if field in sourcekeys:
           if getattr(sample.source, field) != sourcekeys[field]:
-            raise ValueError("Probable mislabeled sample ID, Source fields"
-                             + " disagree with database: %s" % sample.source.name)
+            raise AnnotationMismatchError("Probable mislabeled sample ID, Source fields"
+                                          + " disagree with database: %s (%s)" % (sample.source.name, field))
         elif getattr(sample.source, field) is not None:
 
           # We have no annotation in sheet but annotation in
           # DB. Possibly we could ignore this error and just assume
           # that data has been omitted for brevity?
-          raise ValueError("Probable mislabeled sample ID, Source fields"
-                           + " disagree with database: %s" % sample.source.name)
+          raise AnnotationMismatchError("Probable mislabeled sample ID, Source fields"
+                                        + " disagree with database: %s (%s)" % (sample.source.name, field))
       
     except Sample.DoesNotExist:
 
@@ -154,8 +160,8 @@ class LibraryHandler(object):
         source = Source.objects.get(name=str(keys[namefield]))
         for field in source_fields:
           if getattr(source, field) != sourcekeys[field]:
-            raise ValueError("Probable mislabeled sample ID, Source fields"
-                             + " disagree with database: %s" % source.name)
+            raise AnnotationMismatchError("Probable mislabeled sample ID, Source fields"
+                                          + " disagree with database: %s (%s)" % (source.name, field))
 
       except Source.DoesNotExist:
         sourcekeys['name'] = str(keys[namefield])
@@ -298,7 +304,7 @@ class LibraryHandler(object):
       if self.interactive:
         sys.exit(err)
       else:
-        LOGGER.warning(err)
+        LOGGER.error(err)
         return
 
     # Special case for antibody lot number.

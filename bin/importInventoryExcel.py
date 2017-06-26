@@ -23,7 +23,7 @@ django.setup()
 from osqutil.config import Config
 from osqpipe.models import Library
 
-from osqpipe.pipeline.library import LibraryHandler
+from osqpipe.pipeline.library import LibraryHandler, AnnotationMismatchError
 
 class InventoryImporter(object):
 
@@ -370,12 +370,15 @@ class InventoryImporter(object):
       return
 
     # We handle fuzzy matching in the LibraryHandler class.
-    self.libhandler.add(libtype = rowdict['assaytype'],
-                        code    = libcode,
-                        genome  = rowdict['genome'],
-                        tissue  = tissue,
-                        projcodes = projcodes,
-                        opts    = optvals)
+    try:
+      self.libhandler.add(libtype = rowdict['assaytype'],
+                          code    = libcode,
+                          genome  = rowdict['genome'],
+                          tissue  = tissue,
+                          projcodes = projcodes,
+                          opts    = optvals)
+    except AnnotationMismatchError, err:
+      LOGGER.error("Annotation mismatch error for %s (skipping): %s", libcode, err)
 
 
 if __name__ == '__main__':
