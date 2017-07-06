@@ -118,6 +118,7 @@ class RepositoryDumper(object):
       ('Sex',                    lambda x: str(_helper_optional_value(x.library.sample.source.sex))),
       ('Tissue/Cell Line',       lambda x: x.library.sample.tissue.name),
       ('Strain',                 lambda x: _helper_optional_value(x.library.sample.source.strain, 'name')),
+      ('Sample ID',              lambda x: _helper_optional_value(x.library.sample.name)),
       ('Individual',             lambda x: _helper_optional_value(x.library.sample.source.name)),
       ('Condition',              lambda x: _helper_optional_value(x.library.condition, 'name')),
       ('Library Type',           lambda x: x.library.libtype.name),
