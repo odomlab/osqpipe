@@ -388,6 +388,34 @@ class SizeUnit(ControlledVocab):
     db_table = u'size_unit'
     ordering = ['name']
 
+class ExternalRepository(ControlledVocab):
+  name         = models.CharField(max_length=32, unique=True)
+
+  _controlled_field = 'name'
+
+  def __unicode__(self):
+    return self.name
+
+  class Meta:
+    db_table = u'external_repository'
+    ordering = ['name']
+
+class ExternalRecord(ControlledVocab):
+  accession    = models.CharField(max_length=32, unique=True)
+  repository   = models.ForeignKey(ExternalRepository, on_delete=models.PROTECT)
+  is_public    = models.BooleanField(default=False)
+  release_date = models.DateField()
+
+  _controlled_field = 'accession'
+  
+  def __unicode__(self):
+    return "%s: %s" % (self.repository, self.accession)
+
+  class Meta:
+    db_table = u'external_record'
+    ordering = ['accession']
+
+    
 class Sample(models.Model):
   '''
   A tissue sample taken from a Source organism.
@@ -400,6 +428,7 @@ class Sample(models.Model):
   size_unit    = models.ForeignKey(SizeUnit, on_delete=models.PROTECT,
                                    null=True, blank=True)
   comment      = models.TextField(null=True, blank=True)
+  external_records = models.ManyToManyField(ExternalRecord, db_table='sample_external_record', related_name='samples')
 
   def __unicode__(self):
     return self.name
@@ -434,7 +463,7 @@ class Library(models.Model):
                                            ('E','E'),('F','F'),('G','G'),('H','H')],
                                   null=True, blank=True)
   comment      = models.TextField(null=True, blank=True)
-
+  external_records = models.ManyToManyField(ExternalRecord, db_table='library_external_record', related_name='libraries')
   objects      = LibraryManager()
 
   @property
@@ -510,33 +539,6 @@ class Status(ControlledVocab):
     db_table = u'status'
     verbose_name_plural = 'status flags'
     ordering = ['code']
-
-class ExternalRepository(ControlledVocab):
-  name         = models.CharField(max_length=32, unique=True)
-
-  _controlled_field = 'name'
-
-  def __unicode__(self):
-    return self.name
-
-  class Meta:
-    db_table = u'external_repository'
-    ordering = ['name']
-
-class ExternalRecord(ControlledVocab):
-  accession    = models.CharField(max_length=32, unique=True)
-  repository   = models.ForeignKey(ExternalRepository, on_delete=models.PROTECT)
-  is_public    = models.BooleanField(default=False)
-  release_date = models.DateField()
-
-  _controlled_field = 'accession'
-  
-  def __unicode__(self):
-    return "%s: %s" % (self.repository, self.accession)
-
-  class Meta:
-    db_table = u'external_record'
-    ordering = ['accession']
 
 class Lane(models.Model):
   library      = models.ForeignKey(Library, on_delete=models.PROTECT)
@@ -721,6 +723,18 @@ class QCValue(models.Model):
     verbose_name    = u'QC Value'
     unique_together = ('laneqc', 'name')
 
+class AlignmentQC(DataProcess):
+
+  alignment        = models.ForeignKey(Alignment, on_delete=models.PROTECT)
+
+  def __unicode__(self):
+    provenance = ", ".join([str(x) for x in self.provenance.all().order_by('rank_index')])
+    return "%s %s" % (self.alignment, provenance)
+
+  class Meta:
+    db_table = u'alignment_qc'
+    verbose_name = u'Alignment QC'
+
 class ArchiveLocation(models.Model):
   name         = models.CharField(max_length=32, unique=True)
   root_path    = models.CharField(max_length=1024, unique=True)
@@ -839,6 +853,18 @@ class Alnfile(Datafile):
 
   class Meta:
     db_table = u'alnfile'
+    ordering = ['filename']
+
+class AlnQCfile(Datafile):
+  alignmentqc      = models.ForeignKey(AlignmentQC, on_delete=models.PROTECT)
+
+  @property
+  def libcode(self):
+    return self.alignmentqc.alignment.lane.library.code
+
+  class Meta:
+    db_table = u'alnqcfile'
+    verbose_name = u'Alignment QC file'
     ordering = ['filename']
 
 class MergedAlnfile(Datafile):

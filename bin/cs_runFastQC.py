@@ -47,10 +47,13 @@ def run_qc(fnames, workdir, destination=None, cleanup=True, register=False):
             cmd = "cs_addFile.py --qcfile -M --program_name %s " % qc.program_name
             cmd += " ".join(argslist)
             print "Executing \"%s\" ..." % cmd
-#            subproc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
-#            (stdout, stderr) = subproc.communicate()
-#            retcode = subproc.wait()
-#            print "Execution completed. STDOUT:\n%s\nSTDERR:\n%s\n" % (stdout, stderr)            
+            subproc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+            (stdout, stderr) = subproc.communicate()
+            retcode = subproc.wait()
+            if stdout:
+                sys.stdout.write(stdout)
+            if stderr:
+                sys.stderr.write(stderr)
             
         if cleanup:
             # remove local files
