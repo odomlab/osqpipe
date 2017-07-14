@@ -40,14 +40,17 @@ class IntegrityCheck(object):
 
         '''Find list of lane(s) associated with library, lane number and facility'''
 
-        (code, facility, lanenum, pipeline) = parse_repository_filename(self.fn_base)
-        # Merged files have only code in their prefix meaning failure by parse_repository_filename() above.
-        if self.merged_file or self.lane:
-            code = self.fn_base.split('_')[0]
+        if not self.library:
+            (code, facility, lanenum, pipeline) = parse_repository_filename(self.fn_base)
+            # Merged files have only code in their prefix meaning failure by parse_repository_filename() above.
+            if self.merged_file or self.lane:
+                code = self.fn_base.split('_')[0]
+        else:
+            code = fn
         if code is None or code == '':
             LOGGER.error("Unable to extract code from filename %s." % self.fn_base)
             sys.exit(1)
-        if self.merged_file or self.lane:
+        if self.merged_file or self.lane or self.library:
             self.lanes = Lane.objects.filter(library__code=code)
         else:
             self.lanes = Lane.objects.filter(library__code=code,
@@ -112,7 +115,7 @@ class IntegrityCheck(object):
 
         # Compare number of reads with content of flagstat info for the bam.
         if r1count != nr_of_reads:
-            LOGGER.error("Reads in bam (%d) and lane(s) not same!\t%s" % (r1count, nr_of_reads, self.fn) )
+            LOGGER.error("Reads in bam=%d and database=%d not same!\t%s" % (r1count, nr_of_reads, self.fn) )
             print "File DIFFERENT!\t%s" % (fn)
             return "DIFFERENT"
         else:
@@ -130,8 +133,15 @@ class IntegrityCheck(object):
             fsuffix = '.gz'
         fpath = os.path.join(root_path, fobj.libcode, fobj.filename + fsuffix)
         return os.path.isfile(fpath)
-            
-    
+
+    def check_lane_fq_integrity(self, fobj):
+        if not self.check_file_on_disk(fobj.filename):
+            print "ERROR: %s FASTQ FILE MISSING on disk!" % fobj.filename
+            if lanefileobj.filetype.code=='fq':
+                expected_qcfiles[lanefile.filename + "_fastqc.pdf"] = 1
+                expected_qcfiles[lanefile.filename + "_fastqc.tar"] = 1
+                expected_qcfiles[lanefile.filename + "_fastqc.txt"] = 1
+                
     def check_lane_integrity(self):
         
         '''Check integrity of lane associated records.'''
@@ -141,7 +151,7 @@ class IntegrityCheck(object):
             # check if recorded lanefiles exist on disk
             for lanefile in Lanefile.objects.filter(lane__id=lane.id):
                 if not self.check_file_on_disk(lanefile):
-                    print "ERROR: %s MISSING on disk!" % lanefile.filename
+                    print "ERROR: %s FASTQ FILE MISSING on disk!" % lanefile.filename
                 if lanefile.filetype.code=='fq':
                     nr_of_fqfiles += 1
                     expected_qcfiles[lanefile.filename + "_fastqc.pdf"] = 1
@@ -160,7 +170,7 @@ class IntegrityCheck(object):
                     if qcf.filename in expected_qcfiles:
                         del expected_qcfiles[qcf.filename]
                         if not self.check_file_on_disk(qcf):
-                            print "ERROR: %s MISSING on disk!" % qcf.filename
+                            print "ERROR: %s QCFILE MISSING on disk!" % qcf.filename
             # check if database records for any of the expected QC files were missing.
             for fname in expected_qcfiles:
                 print "ERROR: %s MISSING in repository!" % fname
@@ -176,10 +186,13 @@ if __name__ == '__main__':
                       help='Filename.', nargs='+')
 
   PARSER.add_argument('-B', '--merged_bam', dest='merged_bam', action='store_true',
-                      help='Merged bam file(s) across all lanes for the library. Expects <filename>.flagstat in the same path.')
+                      help='Merged bam file(s) across all lanes for the library. Expects <filename>.flagstat in the same path. Checks if number of reads in file(s) equals to reads for the library.')
 
   PARSER.add_argument('-b', '--bam', dest='bam', action='store_true',
-                      help='Bam file(s). Expects <filename>.flagstat in the same path.')
+                      help='Bam file(s). Expects <filename>.flagstat in the same path. Checks if number of reads in file(s) is the same as for lane in repository.')
+
+#  PARSER.add_argument('-c', '--code', dest='code', action='store_true',
+#                      help='Library code.')
 
   PARSER.add_argument('-l', '--lane', dest='lane', action='store_true',
                       help='A filename following Odom file name convention. Checks presence of lane associated files and records.')
@@ -200,7 +213,7 @@ if __name__ == '__main__':
     if ARGS.bam:
         icheck.check_bam_integrity()
     if ARGS.library:            
-        sys.stderr.write("Integrity check for library not implemented.")
+        icheck.check_lane_integrity()
         # icheck.check_library_integrity()
     if ARGS.lane:
         icheck.check_lane_integrity()

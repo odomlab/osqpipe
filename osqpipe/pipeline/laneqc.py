@@ -85,16 +85,34 @@ class QCReport(object):
       LOGGER.info("Creating LaneQC object for %d", self.lane.id)
       laneqc = LaneQC.objects.create(lane = self.lane)
 
-    params = { self.target_name : self.target }
-    qcobj  = self.data_process.objects.create(**params)
-    DataProvenance.objects.create(program      = self._dbprog,
-                                  parameters   = self.program_params,
-                                  rank_index   = 1,
-                                  data_process = qcobj)
+    # This checks that the specified program exists, and where it
+    # yields some kind of meaningful version info will record that.
+    LOGGER.info("Collecting information about \"%s\"", self.program_name)
+    progdata = ProgramSummary(self.program_name, path=self.path)
 
-    for fname in self.output_files:
-
-      # Note: this will fail if multiple types match.                                                                                                            
+    # This is a little vulnerable to correct version parsing by
+    # progsum.
+    try:
+      self._dbprog = Program.objects.get(program = progdata.program,
+                                         version = progdata.version,
+                                         current = True)
+    except Program.DoesNotExist, _err:
+      raise StandardError(("Unable to find current %s program (version %s)"
+                           + " record in the repository")
+                          % (progdata.program, progdata.version))
+    try:
+      dpo = DataProvenance.objects.get(program = self._dbprog,
+                                       parameters   = self.program_params,
+                                       rank_index   = 1,
+                                       data_process = laneqc)
+    except DataProvenance.DoesNotExist, _err:      
+      DataProvenance.objects.create(program      = self._dbprog,
+                                    parameters   = self.program_params,
+                                    rank_index   = 1,
+                                    data_process = laneqc)
+    for (fname, checksum) in zip(self.output_files, self.output_md5s):
+      LOGGER.info("Inserting %s", fname)
+      # Note: this will fail if multiple types match.
       ftype = Filetype.objects.guess_type(fname)
 
       if os.path.isabs(fname):
