@@ -15,7 +15,7 @@ from tempfile import mkstemp
 
 from osqutil.utilities import parse_incoming_fastq_name, call_subprocess, \
     checksum_file, parse_repository_filename, is_zipped, rezip_file, unzip_file, \
-    set_file_permissions, get_filename_libcode, bash_quote
+    set_file_permissions, get_filename_libcode, bash_quote, transfer_file
 from osqutil.config import Config
 from ..models import Filetype, Library, Lane, Lanefile, Facility, \
     Status, LibraryNameMap, Machine
@@ -370,7 +370,8 @@ class GenericFileProcessor(object):
       flds = line.split()
       if flds[0] == "empty":
         LOGGER.warning("%s: no data", self.files[0])
-        self.lane.runnumber = 'unknown'
+        self.collect_info_empty()
+        return
       keyword = flds[0]
       if len(flds) > 2:
         data = [ float(x) for x in flds[1:] ]
@@ -434,7 +435,7 @@ class GenericFileProcessor(object):
   def collect_info_empty(self):
     '''
     Dummy method to fill in as much metadata we can for lanes without
-    a functional fastq fil.
+    a functional fastq file.
     '''
     lims_fc = None
     if self.facility != 'SAN':
@@ -597,14 +598,17 @@ class GenericFileProcessor(object):
         # collisions between file classes, e.g. Lanefile vs. Alnfile
         # (Update: this is no longer the case now that both are
         # subtypes of Datafile).
-        move(disk_fname, dest)
-        set_file_permissions(CONFIG.group, dest)
+        # move(disk_fname, dest)
+        # set_file_permissions(CONFIG.group, dest)
+        transfer_file(disk_fname, "%s@%s:%s" % (CONFIG.user, CONFIG.datahost, dest))
 
         # Get the read length directly from the fastq file.
         if fobj.filetype.code == 'fq':
           try:
             self.lane.readlength = get_fastq_readlength(fobj)
-          except IOError, _err:
+          except IOError:       # no file.
+            LOGGER.warning("Unable to detect read length from fastq file.")
+          except StopIteration: # no data in file.
             LOGGER.warning("Unable to detect read length from fastq file.")
 
   def clean_up(self):
@@ -644,7 +648,7 @@ class GenericFileProcessor(object):
       # of our GenericFileProcessor subclasses might fail here, but we
       # just let that happen for now.
       try:
-        with LaneFastQCReport(lane=self.lane, path=CONFIG.hostpath) as qcrep:
+        with LaneFastQCReport(target=self.lane, path=CONFIG.hostpath) as qcrep:
           qcrep.insert_into_repository()
       except Exception, err:
         LOGGER.warning("FastQC report generation failed: %s", err)
@@ -1034,6 +1038,10 @@ class FileProcessingManager(object):
                  '.export': ChIPExportFileProc,
                  '.qseq': ChIPQseqFileProc,
                  '.map': ChIPMaqFileProc},
+      'riboseq': {'.fq': ChIPFastqFileProc,
+                 '.export': ChIPExportFileProc,
+                 '.qseq': ChIPQseqFileProc,
+                 '.map': ChIPMaqFileProc},
       'chipexo': {'.fq': ChIPFastqFileProc,
                   '.export': ChIPExportFileProc,
                   '.qseq': ChIPQseqFileProc,
@@ -1073,7 +1081,11 @@ class FileProcessingManager(object):
                      '.fq': BisulphiteFastqFileProc},
       'bisulph-smrna': {'.fq': MiRFastqFileProc, # Frye lab. Obsolete?
                         '.export': MiRExportFileProc,
-                        '.qseq': MiRQseqFileProc}
+                        '.qseq': MiRQseqFileProc},
+      'chartseq': {'.fq': ChIPFastqFileProc,
+                   '.export': ChIPExportFileProc,
+                   '.qseq': ChIPQseqFileProc,
+                   '.map': ChIPMaqFileProc}
       }
 
   def process_sanger_bam(self, fname, metadata, code, library):
@@ -1277,5 +1289,3 @@ class FileProcessingManager(object):
       # Delete temporary files, e.g. Sanger bam and metadata
       for tmpnam in tempfiles:
         os.unlink(tmpnam)
-
-

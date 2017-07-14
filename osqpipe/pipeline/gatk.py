@@ -10,7 +10,7 @@ from shutil import copy
 from pipes import quote
 from django.db import transaction
 
-from ..models import Alnfile, Library, Alignment, MergedAlnfile, Genome
+from ..models import Alnfile, Library, Alignment, MergedAlnfile, Genome, Lane
 from osqutil.samtools import count_bam_reads
 from osqutil.utilities import call_subprocess, checksum_file, \
     sanitize_samplename
@@ -48,19 +48,23 @@ def retrieve_readgroup_alignment(rgroup, genome=None, bamfilter=False):
   if alns.count() > 1:
     raise ValueError("Multiple Alignments match read group and genome parameters. Maybe filter by bam file presence also?")
   elif alns.count() == 0:
-    raise StandardError("No Alignments found to match read group and genome parameters.")
+    raise Alignment.DoesNotExist("No Alignments found to match read group and genome parameters.")
   else:
     return alns[0]
 
-def check_bam_readcount(bam, maln):
+def check_bam_readcount(bam, maln, readcountdicts=None):
   '''
   In principle, the total reads returned by the GATK pipeline should
   be the sum of the reads in the original fastq files. We check that
   here. Arguments are: bam (the GATK output bam file), maln (the
-  MergedAlignment db object).
+  MergedAlignment db object), readcountdicts, an (optional) tuple of
+  dicts (total, mapped, munique) keyed by readgroup ID.
   '''
   expected = sum([ aln.lane.total_passedpf for aln in maln.alignments.all() ])
-  numreads = count_bam_reads(bam)
+  if readcountdicts is None:
+    numreads = count_bam_reads(bam)
+  else:
+    numreads = sum(readcountdicts[0].values())
 
   ## See how things pan out: if we have to relax this check, here
   ## would be a good place to start (i.e., raise a warning rather than
@@ -69,6 +73,28 @@ def check_bam_readcount(bam, maln):
     message = ("Number of reads in bam file is differs from that in "
                + "fastq file: %d (bam) vs %d (fastq)")
     raise ValueError(message % (numreads, expected))
+
+def autocreate_alignment(rgroup, genome, readcounts):
+  '''
+  Given the metadata harvested from a bam file, create an Alignment
+  object suitable for linking to MergedAlignment. The readcounts
+  argument is a tuple or list with three entries: (total, mapped, munique).
+  '''
+  if genome is None:
+    raise ValueError("Genome code is required for Alignment autocreation.")
+  
+  library = Library.objects.get(code=rgroup.get('LB'))
+  lane    = Lane.objects.get(library__code=rgroup.get('LB'),
+                             facility__code=rgroup.get('CN'),
+                             lanenum=rgroup.get('PU'))
+  genobj  = Genome.objects.get(code=genome)
+  aln     = Alignment.objects.get_or_create(lane=lane,
+                                            genome=genobj,
+                                            total_reads=readcounts[0],
+                                            mapped=readcounts[1],
+                                            munique=readcounts[2])
+
+  return aln[0]
 
 ################################################################################
 # Functions to update bam read group information in as lightweight a

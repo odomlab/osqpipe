@@ -2,7 +2,6 @@
 
 import os
 import sys
-
 from ExternalRecordManager import ExternalRecordManager
 
 if __name__ == '__main__':

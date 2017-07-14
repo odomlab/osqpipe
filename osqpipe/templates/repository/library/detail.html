@@ -9,8 +9,10 @@
 {% block title %} Library {{ library }} Summary {% endblock %}
 
 {% block content %}
+<div class="library">
 {% if library %}
 
+  <div class="librarydetail">
   <div class="project_picker">
     <form action="" method="post">{% csrf_token %}
       {{ form.as_p }}
@@ -41,10 +43,10 @@
     <tr><th>Adapter: </th><td>{{ library.adapter }}{% if library.adapter %} (sequence: {{ library.adapter.sequence }}){% endif %}</td></tr>
     <tr><th>Adapter2: </th><td>{{ library.adapter2 }}{% if library.adapter2 %} (sequence: {{ library.adapter2.sequence }}){% endif %}</td></tr>
     <tr><th>Experiment: </th><td>{{ library.chipsample }}</td></tr>
-    <tr><th>Single or Paired-End: </th><td>{{ library.paired|yesno:"PE,SE" }}
+    <tr><th>Single or Paired-End: </th><td>
         {% if library.lane_set.all.count > 0 %}
-        &nbsp;&nbsp;( lanes: {% for lane in library.lane_set.all %}{{ lane.paired|yesno:"PE,SE" }} {% endfor %})
-        {% endif %}
+        lanes:{% for lane in library.lane_set.all %} {{ lane.paired|yesno:"PE,SE" }}{% endfor %}
+        {% else %}{{ library.paired|yesno:"PE,SE" }}{% endif %}
     </td></tr>
     <tr><th>Notes: </th><td>{{ library.comment }}</td></tr>
     <tr><th>Library failed: </th><td>{{ library.bad|yesno }}</td></tr>
@@ -52,11 +54,13 @@
   <input type="submit" value="Edit Notes"/>
   </form>
   </div>
+  </div>
 
   <h2>Sequencing Lanes</h2>
-  
+
+  <div class="seqlane_list">
   {% if library.lane_set.all.count > 0 %}
-  <table>
+  <table class="fullwidth">
     <tr>
       <th>Lane</th>
       <th>Facility</th>
@@ -88,11 +92,15 @@
   {% else %}
     No Sequencing Lanes found.
   {% endif %}
+  </div>
 
   <h2>Multi-Library Merged Alignments</h2>
+
+  <div class="mergedaln_list">
   {% if merged_alignments.count > 0 %}
 
-    {% for maln in merged_alignments|sortby:"genome" %}
+  {% for maln in merged_alignments|sortby:"genome" %}
+    <div class="mergedaln">
     <table class="horizontal">
       <tr><th>Aligned Genome: </th>      <td>{% with gen=maln.genome %}
         {{ gen }} (<i>{{ gen.species.scientific_name }}</i>; {{ gen.species.common_name }}; version: {{ gen.version }})
@@ -104,13 +112,16 @@
     {% with files=maln.mergedalnfile_set.all|sortby:"filetype.name" %}
       {% include "repository/file_table.html" %}
     {% endwith %}
+    </div>
     
     {% endfor %}
   {% else %}
     No Merged Alignments found.
   {% endif %}
+  </div>
 
   <h2>Histology Images</h2>
+  <div class="histologyimages">
   {% if histology_images.count > 0 %}
     {% with files=histology_images|sortby:"filetype.name" %}
       {% include "repository/file_table.html" %}
@@ -126,8 +137,10 @@
   {% else %}
     No Histology Images found.
   {% endif %}
-
+  </div>
+	 
 {% else %}
   <p>No library provided.</p>
 {% endif %}
+</div>
 {% endblock %}    

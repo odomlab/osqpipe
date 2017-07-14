@@ -132,7 +132,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
 
   def submit(self, filenames,
              is_paired=False, destnames=None, cleanup=True,
-             nocc=None, bwa_algorithm='aln', *args, **kwargs):
+             nocc=None, bwa_algorithm='aln', fileshost=None, nosplit=False, rcp=None, lcp=None, *args, **kwargs):
 
     '''Actually submit the job. The optional destnames argument can be
     used to name files on the cluster differently to the source. This
@@ -159,18 +159,33 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     # Whether to run bwa mem or aln.
     algoflag = '--algorithm %s' % bwa_algorithm
 
-    # Check Whether the file is local or needs to be downloaded first.
-    cpflag = '--rcp %s:%s' % (self.conf.datahost, self.finaldir)
+    # Deal with default values for fileshost and rcp/lcp. I.e. figure out if files are located in cluster and results would need to be copied somewhere or not.
+    cpflag = '' 
     hostflag = ''
     filehost = gethostname()
     if filehost != self.conf.cluster:
       hostflag  = '--fileshost %s' % filehost
+      cpflag = '--rcp %s:%s' % (self.conf.datahost, self.finaldir)
     else:
       # the files are already in host. Override cleanup to prevent source files to be deleted.
       LOGGER.info("Input files are local. Overriding --cleanup to prevent files being deleted.")
       cleanupflag = ''
       cpflag = '--lcp %s' % self.finaldir
-    
+
+    # If fileshost has been specified, override default
+    if fileshost is not None:
+      hostflag = '--fileshost %s' % fileshost
+    # If rcp has been specified, override default
+    if rcp is not None:
+      cpflag = '--rcp %s' % rcp
+    # If lcp has been specified, override default
+    if lcp is not None:
+      cpflag = '--lcp %s' % rcp
+    # If nosplit has been set, forward the value
+    splitflag = ''
+    if nosplit is not None:
+      splitflag = '--no-split'
+
     # This now searches directly on the cluster.
     progpath = self.job.find_remote_executable('cs_runBwaWithSplit.py',
                                                path=self.conf.clusterpath)
@@ -187,13 +202,14 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
       ## In the submitted command:
       ##   --rcp       is where cs_runBwaWithSplit_Merge.py eventually copies
       ##                 the reassembled bam file (via scp).
-      cmd = ("python %s --loglevel %d %s %s %s %s %s %s %s %s"
+      cmd = ("python %s --loglevel %d %s %s %s %s %s %s %s %s %s"
              % (progpath,
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
                 hostflag,
                 noccflag,
                 cpflag,
+                splitflag,
                 sampleflag,
                 algoflag,
                 self.genome,
@@ -203,13 +219,14 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
       LOGGER.debug("Running bwa on single-end sequencing input.")
       fnlist = quote(filenames[0])
       # fnlist = quote(destnames[0])
-      cmd = ("python %s --loglevel %d %s %s %s %s %s %s %s %s"
+      cmd = ("python %s --loglevel %d %s %s %s %s %s %s %s %s %s"
              % (progpath,
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
                 hostflag,
                 noccflag,
                 cpflag,
+                splitflag,
                 sampleflag,
                 algoflag,
                 self.genome,

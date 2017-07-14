@@ -21,7 +21,7 @@ for lane in Lane.objects.all().order_by('library__extra__code_text_prefix','-lib
   if lane.laneqc_set.count() == 0:
     print "Generating report for lane %s..." % lane
     try:
-      with LaneFastQCReport(lane=lane, path=CONFIG.hostpath) as rep:
+      with LaneFastQCReport(target=lane, path=CONFIG.hostpath) as rep:
         rep.insert_into_repository() # This step will take a while.
     except Exception, err:
       print "Error encountered; skipping."

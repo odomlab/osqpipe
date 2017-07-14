@@ -85,7 +85,17 @@ def delete_alignment(aln, deltype):
   files.
   '''
   aln     = Alignment.objects.get(id=aln.id) # Reload passed object within transaction.
-  deltype = Filetype.objects.get(id=deltype.id) # Reload passed object within transaction.
+  if deltype is not None:
+    deltype = Filetype.objects.get(id=deltype.id) # Reload passed object within transaction.
+
+  for qc in aln.alignmentqc_set.all():
+    for fobj in qc.alnqcfile_set.all():
+      LOGGER.info("Dropping Alignment qcfile '%s'", fobj.filename)
+      if not TEST_MODE:
+        fobj.delete()
+    LOGGER.info("Dropping Alignment QC %d", qc.id)
+    if not TEST_MODE:
+      qc.delete()
   
   # get alnfiles
   for alnfile in aln.alnfile_set.all():
