@@ -1,4 +1,6 @@
 #!/bin/env python
+#
+# $id$
 
 import os
 import sys

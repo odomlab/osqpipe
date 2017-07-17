@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ANALYSIS_SET>
+  <ANALYSIS alias="TODO: UNIQUE NAME FOR ASSEMBLY"
+	    center_name="TODO: CENTER NAME">
+    <TITLE>TODO: a descriptive title for the analysis shown in search results</TITLE>
+    <DESCRIPTION>TODO: a detained description of the analysis</DESCRIPTION>
+    <STUDY_REF refname="TODO: STUDY ALIAS OF RELEVANT STUDY OBJECT"
+	       refcenter="TODO: CENTER NAME"/>
+    <SAMPLE_REF refname="TODO: SAMPLE ALIAS OF RELEVANT SAMPLE OBJECT"
+		refcenter="TODO: CENTER NAME"/>
+    <ANALYSIS_TYPE>
+      <SEQUENCE_ASSEMBLY>
+	<NAME>TODO: UNIQUE NAME FOR ASSEMBLY</NAME>
+	<PARTIAL>TODO: TRUE or FALSE</PARTIAL>
+	<COVERAGE>TODO: NUMERIC SEQUENCING COVERAGE</COVERAGE>
+	<PROGRAM>TODO: ASSEMBLY PROGRAM</PROGRAM>
+	<PLATFORM>TODO: SEQUENCING PLATFORM</PLATFORM>
+      </SEQUENCE_ASSEMBLY>
+    </ANALYSIS_TYPE>
+    <FILES>
+      <FILE filename="TODO: FILENAME1"
+	    filetype="TODO: CHOOSE FROM CONTROLLED VOCABULARY AT END OF XML"
+	    checksum_method="MD5" checksum="TODO: CHECKSUM1"/>
+    </FILES>
+    <ANALYSIS_ATTRIBUTES>
+      <ANALYSIS_ATTRIBUTE>
+	<TAG>TODO: add any tag and value pairs</TAG>
+	<VALUE>TODO: add any tag and value pairs</VALUE>
+      </ANALYSIS_ATTRIBUTE>
+    </ANALYSIS_ATTRIBUTES>
+  </ANALYSIS>
+</ANALYSIS_SET>
+<!--
+    Controlled vocabulary for filetype:
+    "contig_fasta"
+    "contig_flatfile"
+    "scaffold_fasta"
+    "scaffold_flatfile"
+    "scaffold_agp"
+    "chromosome_fasta"
+    "chromosome_flatfile"
+    "chromosome_agp"
+    "chromosome_list"
+    "unlocalised_contig_list"
+    "unlocalised_scaffold_list"
+-->

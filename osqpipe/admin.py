@@ -396,6 +396,12 @@ class TissueAdmin(admin.ModelAdmin):
   search_fields = ('name', 'description')
 
 #############################################
+@admin.register(Condition)
+class ConditionAdmin(admin.ModelAdmin):
+  list_display = ('__unicode__', 'description')
+  search_fields = ('name', 'description')
+
+#############################################
 @admin.register(DoseUnit)
 class DoseUnitAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'description')

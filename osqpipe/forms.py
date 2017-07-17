@@ -32,6 +32,7 @@ class LibrarySearchForm(forms.Form):
 
   genome     = forms.CharField(required=False, label='Requested genome')
   factor     = forms.CharField(required=False)
+  condition  = forms.CharField(required=False)
   antibody   = forms.CharField(required=False)
   genomicsid = forms.CharField(required=False, label='Genomics SLX ID')
   flowcell   = forms.CharField(required=False, label='Flowcell ID')

@@ -5,7 +5,7 @@
 """ Run Data Download from Edinburgh """
 __author__ = "Margus Lukk"
 __date__ = "13 July 2016"
-__version__ = "0.2"
+__version__ = "1.0"
 
 import sys
 import os
@@ -295,9 +295,9 @@ class ed_data_handler(object):
         try:
             lane = Lane.objects.get(flowcell=flowcell, flowlane=flowlane, library=lib)
             LOGGER.info("Lane for flowcell=%s, flowlane=%s, library=%s found (id=%d)" % (flowcell, flowlane, lib.code, lane.id))
-        except Lane.DoesNotExist, _err:
+        except Lane.DoesNotExist, _err:            
             LOGGER.info("No lane with flowcell=%s, flowlane=%s, library=%s." % (flowcell, flowlane, lib.code))
-            # Collect facility information 
+            # Collect facility information
             try:
                 facobj = Facility.objects.get(code=facility)
             except Facility.DoesNotExist, _err:
@@ -443,7 +443,6 @@ class ed_data_handler(object):
             self.edfiles[edstem].repstem = repstem
 
             LOGGER.info("%s\t%s\t%d\t%s\t%s", edstem, lane.status.code, lane.id, repstem, self.edfiles[edstem].genome)
-            print "%s\t%s\t%d\t%s\t%s" % (edstem, lane.status.code, lane.id, repstem, self.edfiles[edstem].genome)
 
             # print "communicateStatus.py --laneid %d --status complete" % lane.id
 
@@ -482,9 +481,9 @@ class ed_data_handler(object):
                 continue
             # Submit download job
             if jobids:
-                jobid = submitter.submit_command(cmd=cmd, mem=10000, auto_requeue=False, depend_jobs=[jobids[tnr]])
+                jobid = submitter.submit_command(cmd=cmd, mem=1000, auto_requeue=False, depend_jobs=[jobids[tnr]])
             else:
-                jobid = submitter.submit_command(cmd=cmd, mem=10000, auto_requeue=False)
+                jobid = submitter.submit_command(cmd=cmd, mem=1000, auto_requeue=False)
             LOGGER.info("Setting up downloads for %s ... (jobid=%s)", edstem, jobid)
             newids.append(int(jobid))
             tnr += 1
@@ -582,7 +581,6 @@ class ed_data_handler(object):
             repstem = self.edfiles[edstem].repstem
             bam_path = os.path.join(self.workdir, repstem + '.bam')
             self._ed_is_file_on_disk(bam_path, 'LANE_BAM')
-
 
     def ed_process(self, print_commands_only=False):
         '''Process files that have been labeled as downloaded'''
