@@ -29,7 +29,7 @@ class QCReport(object):
       rep.insert_into_repository()
   '''
   __slots__ = ('target', 'workdir', 'output_files', 'program_name', 'path',
-               'program_params', '_dbprog', '_delete_workdir')
+               'program_params', '_dbprog', '_delete_workdir', 'move_files')
 
   data_process     = models.Model # for the benefit of pylint
   target_name      = None
