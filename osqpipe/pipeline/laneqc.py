@@ -10,7 +10,7 @@ from shutil import rmtree, move, copy
 from pkg_resources import Requirement, resource_filename
 
 from django.db import transaction, models
-from ..models import Program, LaneQC, QCfile, Filetype, Lanefile, DataProvenance
+from ..models import Program, LaneQC, QCfile, Filetype, Lanefile, DataProvenance, Datafile, DataProcess
 from osqutil.progsum import ProgramSummary
 from osqutil.utilities import checksum_file, call_subprocess, rezip_file, set_file_permissions
 from osqutil.config import Config
@@ -31,9 +31,9 @@ class QCReport(object):
   __slots__ = ('target', 'workdir', 'output_files', 'program_name', 'path',
                'program_params', '_dbprog', '_delete_workdir', 'move_files')
 
-  data_process     = models.Model # for the benefit of pylint
+  data_process     = DataProcess # for the benefit of pylint
   target_name      = None
-  data_file        = models.Model # for the benefit of pylint
+  data_file        = Datafile    # for the benefit of pylint
   file_target_name = None
   
   def __init__(self, target, program_name, path=None, program_params='',
