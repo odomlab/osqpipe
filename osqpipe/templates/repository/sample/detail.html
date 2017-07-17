@@ -6,8 +6,9 @@
 
 {% block content %}
   {% if sample %}
-  <h2></h2>
+  <h2>Sample Details</h2>
   
+  <div class="sampledetail">
   <table class="horizontal">
     <tr><th>Sample Name: </th><td>{{ sample.name }}</td></tr>
     <tr><th>From Individual: </th><td>{{ sample.source }}</td></tr>
@@ -18,14 +19,37 @@
     {% endfor %}
     <tr><th>Notes: </th><td>{{ sample.comment }}</td></tr>
   </table>
+  </div>
 
-  <h2>Libraries</h2>
+  <h2>Source Individual</h2>
 
+  <div class="samplesource">
+  <table class="horizontal">
+    <tr><th>Source Name: </th><td>{{ sample.source.name }}</td></tr>
+    <tr><th>Strain: </th><td>{{ sample.source.strain }}</td></tr>
+    <tr><th>Species: </th><td>{{ sample.source.species }}</td></tr>
+    <tr><th>Sex: </th><td>{{ sample.source.sex }}</td></tr>
+    <tr><th>Date of Birth: </th><td>{{ sample.source.date_of_birth }}</td></tr>
+    <tr><th>Date of Death: </th><td>{{ sample.source.date_of_death }}</td></tr>
+    <tr><th>Mother: </th><td>{{ sample.source.mother }}</td></tr>
+    <tr><th>Father: </th><td>{{ sample.source.father }}</td></tr>
+    <tr><th>Treatments: </th><td>
+    {% for treat in sample.source.sourcetreatment_set.all|sortby:"date" %}
+      {{ treat.date }}: {{ treat.agent }}</br>
+    {% endfor %}</td></tr>
+    <tr><th>Notes: </th><td>{{ sample.source.comment }}</td></tr>
+  </table>
+  </div>
+
+  <h2>Sample Libraries</h2>
+
+  <div class="samplelibs">
     {% for lib in sample.library_set.all|sortby:"code" %}
     <table class="horizontal">
       <tr><th>Library code: </th><td><a href="{% url "library-detail" slug=lib.code %}">{{ lib.code }}</a></td></tr>
     </table>
     {% endfor %}
+  </div>
 
   {% else %}
   <p>No sample provided.</p>

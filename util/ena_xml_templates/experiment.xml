@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EXPERIMENT_SET xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:noNamespaceSchemaLocation="ftp://ftp.sra.ebi.ac.uk/meta/xsd/sra_1_5/SRA.experiment.xsd">
+  <EXPERIMENT alias="TODO: UNIQUE NAME FOR EXPERIMENT" center_name="TODO: ACCOUNT CENTER_NAME">
+    <TITLE>TODO: TITLE OF EXPERIMENT</TITLE>
+    <STUDY_REF refname="TODO: STUDY ALIAS OF RELEVANT STUDY OBJECT"/>
+    <DESIGN>
+      <DESIGN_DESCRIPTION>TODO: DETAILS ABOUT THE SETUP AND GOALS OF THE EXPERIMENT AS SUPPLIED BY INVESTIGATOR</DESIGN_DESCRIPTION>
+      <SAMPLE_DESCRIPTOR refname="TODO: SAMPLE ALIAS OF RELEVANT SAMPLE OBJECT"/>
+      <LIBRARY_DESCRIPTOR>
+	<LIBRARY_NAME>TODO: NAME OF LIBRARY</LIBRARY_NAME>
+	<LIBRARY_STRATEGY>TODO: CHOOSE FROM CONTROLLED VOCABULARY AT END OF XML</LIBRARY_STRATEGY>
+	<LIBRARY_SOURCE>TODO: CHOOSE FROM CONTROLLED VOCABULARY AT END OF XML </LIBRARY_SOURCE>
+	<LIBRARY_SELECTION>TODO: CHOOSE FROM CONTROLLED VOCABULARY AT END OF XML </LIBRARY_SELECTION>
+	<LIBRARY_LAYOUT>
+	  <PAIRED/> <!-- The element accepted under the LIBRARY_LAYOUT is either <PAIRED/> or <SINGLE/> -->
+	</LIBRARY_LAYOUT>	  
+	<LIBRARY_CONSTRUCTION_PROTOCOL>TODO: PROTOCOL BY WHICH THE LIBRARY WAS CONSTRUCTED</LIBRARY_CONSTRUCTION_PROTOCOL>
+      </LIBRARY_DESCRIPTOR>
+    </DESIGN>
+    <PLATFORM>
+      <ILLUMINA>
+	<INSTRUMENT_MODEL>TODO: CHOOSE FROM CONTROLLED VOCABULARY AT END OF XML </INSTRUMENT_MODEL>
+      </ILLUMINA>
+    </PLATFORM>
+    <PROCESSING/>
+  </EXPERIMENT> <!-- If you are submitting more than one experiment, replicate the block <EXPERIMENT> to </EXPERIMENT> here, as many times as necessary. -->
+</EXPERIMENT_SET>
+     <!-- Controlled vocabulary for LIBRARY_LAYOUT
+          SINGLE
+          PAIRED
+     -->
+     <!-- Controlled vocabulary for PLATFORM
+          LS454
+          ILLUMINA
+          COMPLETE_GENOMICS
+          PACBIO_SMRT
+          ION_TORRENT
+          OXFORD_NANOPORE
+          CAPILLARY
+     -->
+     <!--Controlled vocabulary for LS454 INSTRUMENT_MODEL:
+         454 GS
+         454 GS 20454 GS FLX
+         454 GS FLX+
+         454 GS FLX Titanium
+         454 GS Junior
+         unspecified
+     -->
+     <!-- Controlled vocabulary for ILLUMINA INSTRUMENT_MODEL:
+          Illumina Genome Analyzer
+          Illumina Genome Analyzer II
+          Illumina Genome Analyzer IIx
+          Illumina HiSeq 2500
+          Illumina HiSeq 2000
+          Illumina HiSeq 1500
+          Illumina HiSeq 1000
+          Illumina MiSeq
+          Illumina HiScanSQ
+          HiSeq X Ten
+          NextSeq 500
+          unspecified
+     -->
+     <!-- Controlled vocabulary for COMPLETE_GENOMICS INSTRUMENT_MODEL:
+          Complete Genomics
+          unspecified
+     -->
+     <!-- Controlled vocabulary for PACBIO_SMRT INSTRUMENT_MODEL:
+          PacBio RS
+          PacBio RS II
+          unspecified
+     -->
+     <!-- Controlled vocabulary for ION_TORRENT INSTRUMENT_MODEL:
+          Ion Torrent PGM
+          Ion Torrent Proton
+          unspecified
+     -->
+     <!-- Controlled vocabulary for OXFORD_NANOPORE INSTRUMENT_MODEL:
+          MinION
+          GridION
+          unspecified
+     -->
+     <!-- Controlled vocabulary for CAPILLARY INSTRUMENT_MODEL:
+          AB 3730xL Genetic Analyzer
+          AB 3730 Genetic Analyzer
+          AB 3500xL Genetic Analyzer
+          AB 3500 Genetic Analyzer
+          AB 3130xL Genetic Analyzer
+          AB 3130 Genetic Analyzer
+          AB 310 Genetic Analyzer
+     -->
+     <!-- Controlled vocabulary for LIBRARY STRATEGY (description in parentheses):
+          WGS (Random sequencing of the whole genome)
+          WGA (whole genome amplification to replace some instances of RANDOM)
+          WXS (Random sequencing of exonic regions selected from the genome)
+          RNA-Seq (Random sequencing of whole transcriptome)
+          miRNA-Seq (for micro RNA and other small non-coding RNA sequencing)
+          ncRNA-Seq(Non-coding RNA)
+          WCS (Random sequencing of a whole chromosome or other replicon isolated
+          from a genome)
+          CLONE (Genomic clone based (hierarchical) sequencing)
+          POOLCLONE (Shotgun of pooled clones (usually BACs and Fosmids))
+          AMPLICON (Sequencing of overlapping or distinct PCR or RT-PCR products)
+          CLONEEND (Clone end (5', 3', or both) sequencing)
+          FINISHING (Sequencing intended to finish (close) gaps in existing coverage)
+          ChIP-Seq (Direct sequencing of chromatin immunoprecipitates)
+          MNase-Seq (Direct sequencing following MNase digestion)
+          DNase-Hypersensitivity (Sequencing of hypersensitive sites, or segments of
+          open chromatin that are more readily cleaved by DNaseI)
+          Bisulfite-Seq (Sequencing following treatment of DNA with bisulfite to
+          convert cytosine residues to uracil depending on methylation status)
+          EST (Single pass sequencing of cDNA templates)
+          FL-cDNA (Full-length sequencing of cDNA templates)
+          CTS (Concatenated Tag Sequencing)
+          MRE-Seq (Methylation-Sensitive Restriction Enzyme Sequencing strategy)
+          MeDIP-Seq (Methylated DNA Immunoprecipitation Sequencing strategy)
+          MBD-Seq (Direct sequencing of methylated fractions sequencing strategy)
+          Tn-Seq (for gene fitness determination through transposon seeding)
+          VALIDATION (CGHub special request: Independent experiment to re-evaluate putative variants.
+          Micro RNA sequencing strategy designed to capturepost-transcriptional RNA elements and include non-coding functional elements)
+          FAIRE-seq (Formaldehyde-Assisted Isolation of Regulatory Elements)
+          SELEX (Systematic Evolution of Ligands by EXponential enrichment (SELEX) is an
+          in vitro strategy to analyze RNA sequences that perform an activity of interest, most
+          commonly high affinity binding to a ligand)
+          RIP-Seq (Direct sequencing of RNA immunoprecipitates (includes CLIP-Seq, HITS-CLIP and PAR-CLI))
+          ChiA-PET (Direct sequencing of proximity-ligated chromatin immunoprecipitates)
+          RAD-Seq (Restriction site Associated DNA Sequencing is a method for sampling the genomes of multiple individuals in a population
+          using NGS)
+          OTHER (Library strategy not listed)
+     -->
+     <!-- Controlled vocabulary for LIBRARY SOURCE (description in parentheses):
+          GENOMIC (Genomic DNA (includes PCR products from genomic DNA))
+          TRANSCRIPTOMIC (Transcription products or non genomic DNA (EST, cDNA, RT-PCR,
+          screened libraries))
+          METAGENOMIC (Mixed material from metagenome)
+          METATRANSCRIPTOMIC (Transcription products from community targets)
+          SYNTHETIC (Synthetic DNA)
+          VIRAL RNA (Viral RNA)
+          OTHER (Other, unspecified, or unknown library source material)
+     -->
+     <!-- Controlled vocabulary for LIBRARY SELECTION (description in parentheses):
+          RANDOM (Random selection by shearing or other method)
+          PCR (Source material was selected by designed primers)
+          RANDOM PCR (Source material was selected by randomly generated primers)
+          RT-PCR (Source material was selected by reverse transcription PCR)
+          HMPR (Hypo-methylated partial restriction digest)
+          MF (Methyl Filtrated)
+          repeat fractionation (replaces: CF-S, CF-M, CF-H, CF-T)
+          size fractionation
+          MSLL (Methylation Spanning Linking Library)
+          cDNA (complementary DNA)
+          ChIP (Chromatin immunoprecipitation)
+          MNase (Micrococcal Nuclease (MNase) digestion)
+          DNase (Deoxyribonuclease (MNase) digestion)
+          Hybrid Selection (Selection by hybridization in array or solution)
+          Reduced Representation (Reproducible genomic subsets, often generated by
+          restriction fragment size selection, containing a
+          manageable number of loci to facilitate re-sampling)
+          Restriction Digest (DNA fractionation using restriction enzymes)
+          5-methylcytidine antibody (Selection of methylated DNA fragments using an
+          antibody raised against 5-methylcytosine or
+          5-methylcytidine (m5C))
+          MBD2 protein methyl-CpG binding domain (Enrichment by methyl-CpG binding domain)
+          CAGE (Cap-analysis gene expression)
+          RACE (Rapid Amplification of cDNA Ends)
+          MDA (Multiple displacement amplification)
+          padlock probes capture method (to be used in conjuction with Bisulfite-Seq)
+          Inverse rRNA selection (Remove the ribosomal transcripts by inverse selection: you capture them by annealing with specific oligos,
+          also bound to beads, and then discard that)
+          Oligo-dT (Select primarily messenger RNA, which conveniently is polyadenylated so these transcripts can be captured with oligo-dT beads)
+          other (Other library enrichment, screening, or selection process)
+          unspecified (Library enrichment, screening, or selection is not specified)
+     -->

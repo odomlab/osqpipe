@@ -346,6 +346,23 @@ div.alignment {
     margin-bottom: 40px;
 }
 
+div.sampledetail {
+    background-color: #fffadc;
+    margin-bottom: 40px;
+}
+
+div.samplesource {
+    background-color: #ffeecb;
+    margin-top: 10px;
+    margin-bottom: 40px;
+}
+
+div.samplelibs {
+    background-color: #ffeaba;
+    margin-top: 10px;
+    margin-bottom: 40px;
+}
+
 table.fullwidth {
     width: 100%;
 }

@@ -112,7 +112,7 @@ def _create_archive_dir_on_host(fobj):
     cmd += [ '%s@%s' % (arch.host_user, arch.host) ]
   else:
     cmd += [ arch.host ]
-  cmd += [ 'mkdir', bash_quote(folder) ]
+  cmd += [ 'mkdir', bash_quote(folder), '&& chmod 750', bash_quote(folder)]
 
   subproc = Popen(cmd, stdout=PIPE, stderr=PIPE)
   (stdout, stderr) = subproc.communicate()

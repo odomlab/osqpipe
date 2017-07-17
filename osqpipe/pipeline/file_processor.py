@@ -162,6 +162,14 @@ class GenericFileProcessor(object):
     self.facility = facility
     self.make_lane(facility)
 
+    # We query this just once, and early, because we often get errors
+    # when querying the upstream LIMS.
+    if self.facility != 'SAN':
+      lims = Lims()
+      self.lims_fc = lims.load_flowcell(self.flowcell)
+    else:
+      self.lims_fc = None
+
     if self.library.paired != self.paired:
       LOGGER.warning("Library paired/single-end annotation disagrees"
                      + " with number of files being processed.")
@@ -411,22 +419,18 @@ class GenericFileProcessor(object):
     '''
     Retrieve lane metadata from our upstream LIMS.
     '''
-    lims_fc = None
-    if self.facility != 'SAN':
-      lims = Lims()
-      lims_fc = lims.load_flowcell(self.flowcell)
-    if lims_fc == None: # Typically Sanger pipeline
+    if self.lims_fc == None: # Typically Sanger pipeline
       if self.lane.rundate is None:
         self.lane.rundate = date(2008, 1, 1)
       return
-    self.lane.rundate = lims_fc.finish_date
+    self.lane.rundate = self.lims_fc.finish_date
 
     # This will already raise an error if machine not found, no
     # further try-catch required. Also, coding it like this allowed me
     # to figure out why it was failing (Machine was not being
     # imported). Don't just catch all exceptions, be specific.
-    self.lane.machine = Machine.objects.get(code__iexact=str(lims_fc.instrument))
-    lims_lane = lims_fc.get_sample_lane(self.flowlane, self.libcode)
+    self.lane.machine = Machine.objects.get(code__iexact=str(self.lims_fc.instrument))
+    lims_lane = self.lims_fc.get_sample_lane(self.flowlane, self.libcode)
     if lims_lane != None:
       self.lane.usersampleid = lims_lane.user_sample_id
       self.lane.genomicssampleid = lims_lane.genomics_sample_id
@@ -437,11 +441,7 @@ class GenericFileProcessor(object):
     Dummy method to fill in as much metadata we can for lanes without
     a functional fastq file.
     '''
-    lims_fc = None
-    if self.facility != 'SAN':
-      lims = Lims()
-      lims_fc = lims.load_flowcell(self.flowcell)
-    if lims_fc == None: # Typically Sanger pipeline
+    if self.lims_fc == None: # Typically Sanger pipeline
       if self.lane.rundate is None:
         self.lane.rundate = date(2008, 1, 1)
       if self.lane.machine is None:
@@ -451,12 +451,12 @@ class GenericFileProcessor(object):
       self.lane.seqsamplepf  = ''
       self.lane.seqsamplebad = ''
       return
-    lims_lane = lims_fc.get_sample_lane(self.flowlane, self.libcode)
+    lims_lane = self.lims_fc.get_sample_lane(self.flowlane, self.libcode)
     self.lane.usersampleid = lims_lane.user_sample_id
     self.lane.genomicssampleid = lims_lane.genomics_sample_id
-    self.lane.rundate = lims_fc.finish_date
-    self.lane.machine = Machine.objects.get(code__iexact=str(lims_fc.instrument))
-    self.lane.runnumber = lims_fc.run_number
+    self.lane.rundate = self.lims_fc.finish_date
+    self.lane.machine = Machine.objects.get(code__iexact=str(self.lims_fc.instrument))
+    self.lane.runnumber = self.lims_fc.run_number
     self.lane.flowlane = self.flowlane
     self.lane.seqsamplepf = ''
     self.lane.seqsamplebad = ''
@@ -477,7 +477,7 @@ class GenericFileProcessor(object):
     Start the alignment of our fastq files against the specified
     genome.
     '''
-    if 'noalign' in self.options:
+    if 'noalign' in self.options or self.library.libtype.code == 'race':
       LOGGER.info("Skipping alignment.")
       return
 
@@ -537,7 +537,8 @@ class GenericFileProcessor(object):
     try:
       mgafiles = fetch_mga(self.flowcell,
                            self.flowlane,
-                           "", fnsuffix)
+                           "", fnsuffix,
+                           lims_fc = self.lims_fc)
     except Exception, _err:
       LOGGER.error("Unable to retrieve MGA files. Skipping!")
       return
@@ -1061,6 +1062,10 @@ class FileProcessingManager(object):
                  '.export': ChIPExportFileProc,
                  '.qseq': ChIPQseqFileProc,
                  '.map': ChIPMaqFileProc},
+      'ssdnaseq': {'.fq': ChIPFastqFileProc,
+                 '.export': ChIPExportFileProc,
+                 '.qseq': ChIPQseqFileProc,
+                 '.map': ChIPMaqFileProc},
       'hic': {'.fq': ChIPFastqFileProc,
               '.export': ChIPExportFileProc,
               '.qseq': ChIPQseqFileProc,
@@ -1084,8 +1089,12 @@ class FileProcessingManager(object):
       'chartseq': {'.fq': ChIPFastqFileProc,
                    '.export': ChIPExportFileProc,
                    '.qseq': ChIPQseqFileProc,
-                   '.map': ChIPMaqFileProc}
-      }
+                   '.map': ChIPMaqFileProc},
+      'race': {'.fq': ChIPFastqFileProc,
+               '.export': ChIPExportFileProc,
+               '.qseq': ChIPQseqFileProc,
+               '.map': ChIPMaqFileProc}
+    }
 
   def process_sanger_bam(self, fname, metadata, code, library):
     '''

@@ -23,7 +23,7 @@ django.setup()
 from osqutil.config import Config
 from osqpipe.models import Library
 
-from osqpipe.pipeline.library import LibraryHandler
+from osqpipe.pipeline.library import LibraryHandler, AnnotationMismatchError
 
 class InventoryImporter(object):
 
@@ -93,14 +93,14 @@ class InventoryImporter(object):
     for rownum in range(shobj.nrows):
       yield shobj.row(rownum)
 
-  def import_work_sheet(self, path, sheet='DO_list'):
+  def import_work_sheet(self, path, sheet='DO_list', minlib=None):
 
-    rows = self.get_work_sheet_iterator(path, sheet)
+    row_iter = self.get_work_sheet_iterator(path, sheet)
     header = []
 
     # Detect the header row.
     space_re = re.compile(' ')
-    for row in rows:
+    for row in row_iter:
       rowvals = [ space_re.sub('', unicode(x.value).lower().strip()) for x in row ]
       if 'libraryid' in rowvals:
         header = rowvals
@@ -123,8 +123,23 @@ class InventoryImporter(object):
       if colname not in known:
         LOGGER.warning("Unrecognised column in input: %s", colname)
 
+    # If desired, skip over most of the file without running expensive database queries.
+    if minlib is not None:
+      codere = re.compile('(\w+)(\d+)')
+      minmo = codere.match(minlib)
+      if minmo is None:
+        raise ValueError("Starting library code does not fit our standard format (\w+\d+).")
+      for row in row_iter:
+        code = row[header.index('libraryid')]
+        libmo = codere.match(code)
+        if libmo is None:
+          raise ValueError("Library code in sheet does not fit our standard format (\w+\d+).")
+        if minmo.group(1) == libmo.group(1) and minmo.group(2) >= libmo.group(2):
+          self.import_data_row([x.value for x in row], header)
+          break
+
     # Read in the rest of the file.
-    for row in rows:
+    for row in row_iter:
       self.import_data_row([x.value for x in row], header)
 
   @staticmethod
@@ -223,7 +238,7 @@ class InventoryImporter(object):
           adapter = 'NXT_N' + barcode
 
         elif re.search(r'\b(?:thruplex)\b', prottag):
-          if int(barcode) < 20:
+          if int(barcode) < 150:
             adapter = 'iPCRtagT' + barcode
           elif ( int(barcode) > 500 and int(barcode) < 509 )\
                or ( int(barcode) > 700 and int(barcode) < 713 ):
@@ -327,6 +342,10 @@ class InventoryImporter(object):
     else:
       tissue = rowdict['tissue']
 
+    # Condition is occcasionally supplied; if so, we record it.
+    if 'condition' in rowdict and rowdict['condition'] != '':
+      optvals['condition'] = rowdict['condition']
+
     # Munge the barcode/barcodetype/protocol info into an adapter string.
     try: # Test New vs. Old column naming, in case we ever switch back.
 
@@ -351,12 +370,15 @@ class InventoryImporter(object):
       return
 
     # We handle fuzzy matching in the LibraryHandler class.
-    self.libhandler.add(libtype = rowdict['assaytype'],
-                        code    = libcode,
-                        genome  = rowdict['genome'],
-                        tissue  = tissue,
-                        projcodes = projcodes,
-                        opts    = optvals)
+    try:
+      self.libhandler.add(libtype = rowdict['assaytype'],
+                          code    = libcode,
+                          genome  = rowdict['genome'],
+                          tissue  = tissue,
+                          projcodes = projcodes,
+                          opts    = optvals)
+    except AnnotationMismatchError, err:
+      LOGGER.error("Annotation mismatch error for %s (skipping): %s", libcode, err)
 
 
 if __name__ == '__main__':
@@ -381,6 +403,9 @@ if __name__ == '__main__':
                       help='(Optional) Log file name to store output'
                       + ' (appends to an existing file).')
 
+  PARSER.add_argument('--start-from', dest='minlib', type=str, required=False,
+                      help='(Optional) Library code from which to commence import (to save time).')
+
   ARGS = PARSER.parse_args()
 
   if ARGS.logfile:
@@ -391,4 +416,4 @@ if __name__ == '__main__':
 
   IMP = InventoryImporter(test_mode=ARGS.test_mode)
 
-  IMP.import_work_sheet(path=os.path.realpath(ARGS.dir), sheet=ARGS.sheet)
+  IMP.import_work_sheet(path=os.path.realpath(ARGS.dir), sheet=ARGS.sheet, minlib=ARGS.minlib)
