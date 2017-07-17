@@ -15,7 +15,7 @@ from osqutil.utilities import parse_incoming_fastq_name, checksum_file, \
     munge_cruk_emails, unzip_file, rezip_file, is_zipped
 from .upstream_lims import Lims
 from osqutil.config import Config
-from ..models import Library, Lane, Status, LibraryNameMap, User, Adapter
+from ..models import Library, Lane, Status, LibraryNameMap, User, Adapter, Facility, Machine
 
 from osqpipe.pipeline.smtp import send_email
 
@@ -221,12 +221,40 @@ class FlowCellProcess(object):
               LOGGER.info("File does not require demultiplexing: %s", fname)
               self.output_files.append(fname)
 
-    for fname in output_files:
-      if fname not in failed_fnames:
-        (code, flowcell, flowlane, flowpair) = parse_incoming_fastq_name(fname, ext='.fq')
-        lane = Lane.objects.get(flowcell=flowcell, flowlane=flowlane, library__code=code)
-        lane.status = downloaded
-        lane.save()
+    for fname in self.output_files:
+      if fname not in failed_fnames:               
+        (code, flowcell, flowlane, flowpair) = parse_incoming_fastq_name(os.path.basename(fname), ext='.fq.gz')
+        LOGGER.info("Changing code=%s, flowcell=%s, flowlane=%s, flowpair=%s to 'downloaded'", code, flowcell, flowlane, flowpair)
+        try:
+          lane = Lane.objects.get(flowcell=flowcell, flowlane=flowlane, library__code=code)
+          lane.status = downloaded
+          lane.save()
+        except Lane.DoesNotExist, _err:
+          try:
+            lib = Library.objects.search_by_name(code)
+          except Library.DoesNotExist, _err:
+            LOGGER.error("No library %s. Unable to register lane for the library.", code)
+            continue
+          LOGGER.info("Registering lane for %s.", fname)
+          facobj = Facility.objects.get(code='CRI')
+          machine_obj = Machine.objects.get(code__iexact=str('Unknown'))
+          lane = Lane(facility = facobj,
+                      library  = lib,
+                      flowcell = flowcell,
+                      flowlane = flowlane,
+                      lanenum  = Lane.objects.next_lane_number(lib),
+                      status   = downloaded,
+
+                      rundate =	'2008-01-01',
+		      paired = False,
+		      genomicssampleid = '',
+                      usersampleid = code,
+                      runnumber = '',
+                      seqsamplepf = '',
+                      seqsamplebad = '',
+                      failed = False,
+                      machine = machine_obj)
+          lane.save()
 
     if len(failed_fnames) > 0:
       subject = "[PIPELINE] cs_processFlowcell %s: File download failed!" % flowcell
