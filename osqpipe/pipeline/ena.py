@@ -9,8 +9,9 @@ from subprocess import Popen, PIPE
 import xml.etree.ElementTree as ET
 
 import django
-from osqpipe.models import Lane, Lanefile, Library, SourceTreatment, ExternalRecord, ExternalRepository, Characteristic, Sample
-from osqpipe.models import Machine
+from osqpipe.models import Lane, Lanefile, Library, SourceTreatment, \
+  ExternalRecord, ExternalRepository, Characteristic, Sample, Machine
+from osqpipe.pipeline.external_record import ExternalRecordManager
 
 from logging import INFO, DEBUG
 from osqutil.setup_logs import configure_logging
@@ -371,7 +372,7 @@ class EnaXmlCreator(object):
       today = datetime.date.today()
       self.release_date_str = today.replace(year=today.year + 2)
     else:
-      self.release_date_str = datetime.strptime(ARGS.release_date , '%Y-%m-%d')
+      self.release_date_str = datetime.strptime(release_date_str , '%Y-%m-%d')
     
     # read annotations from repository
     self.a = EnaAnnotation(lane, self.external_repository, target_dir=self.target_dir)
@@ -891,10 +892,9 @@ class EnaSubmitter(object):
     '''Submits data and meta-data for all lanes not yet been submitted for a project.'''
 
     # Find lanes of a project with no association to external repository 'EBI ENA'  
-    try:
-      lanes = Lane.objects.filter(library__projects__name=project).exclude(external_records__repository__name=self.external_repository)
-    except Lane.DoesNotExist:
-      LOGGER.error("No lanes for library code=%d!", libcode)
+    lanes = Lane.objects.filter(library__projects__name=project).exclude(external_records__repository__name=self.external_repository)
+    if lanes.count() == 0:
+      LOGGER.error("No unsubmitted lanes for project name=%d!", project)
       sys.exit(1)
 
     # Submit data for one lane at the time

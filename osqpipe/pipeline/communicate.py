@@ -5,22 +5,15 @@
 
 import sys
 import os
-import socket
 import django
 from datetime import date
 
 from osqutil.config import Config
-from osqutil.utilities import call_subprocess, parse_repository_filename
+from osqutil.utilities import call_subprocess, parse_repository_filename, run_in_communication_host
 from osqpipe.models import Lane, Status, Library, Facility, Machine
 from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
 LOGGER = configure_logging(level=INFO)
-
-def get_my_ip():
-    return socket.gethostbyname(socket.getfqdn())
-
-def get_my_hostname():
-    return socket.gethostname()
 
 class CommunicateStatus(object):
     '''This class is used for communicating lane status back to repository. Communication may happen either directly or over ssh.'''
@@ -31,124 +24,100 @@ class CommunicateStatus(object):
         
         self.conf = Config()
         
-        self.ssh = False
-        my_name = get_my_hostname()
-
-        # if my_host name is different from the hostname where the communication should take place, use different host name
-        if  my_name != self.conf.communicationhost:
-            self.ssh = True
-            self.user = self.conf.user
-            self.host = self.conf.communicationhost
-
     def setLaneStatus(self, lane_id, status):
-        if self.ssh:
-            # cmd = 'communicateStatus.py --lane %d --status %s' % (lane_id, status)
-            cmd = '~/git-root/trunk/pipeline/package/osqpipe/pipeline/communicate.py --lane %d --status %s' % (lane_id, status)
-            self.communicateOverSsh(cmd)
-        else:            
-            try:
-                status_obj = Status.objects.get(code=status)
-            except Status.DoesNotExist, _err:
-                raise SystemExit("Status '%s' does not exist!\n" % status)
-            try:
-                lane = Lane.objects.get(id=lane_id)
-            except Lane.DoesNotExist, _err:
-                raise SystemExit("No lane with id %d!\n" % lane_id)
-            lane.status = status_obj
-            lane.save()
-            LOGGER.info("Lane %d status changed to \'%s\'\n" % (lane_id, lane.status.code))
-        
-    def communicateOverSsh(self, cmd):
+        try:
+            status_obj = Status.objects.get(code=status)
+        except Status.DoesNotExist, _err:
+            raise SystemExit("Status '%s' does not exist!\n" % status)
+        try:
+            lane = Lane.objects.get(id=lane_id)
+        except Lane.DoesNotExist, _err:
+            raise SystemExit("No lane with id %d!\n" % lane_id)
+        lane.status = status_obj
+        lane.save()
+        LOGGER.info("Lane %d status changed to \'%s\'" % (lane_id, lane.status.code))
 
-        ssh_cmd = 'ssh %s@%s %s' % (self.user, self.host, cmd)
-        call_subprocess(ssh_cmd, path=self.conf.hostpath, shell=True)
 
+    # NB! Following function is currently not used and needs work on Machine object side!
     def setLaneStatusByFlowcell(self, library, flowcell, flowlane, facility, status):
         '''Changes status of the lane matching the library/flowcell/flowlane combination.'''
-        if self.ssh:
-            # cmd = 'communicateStatus.py --library %s --flowcell %s --flowlane %s --facility %s --status %s' % (library, flowcell, flowlane, facility, status)
-            cmd = '~/git-root/trunk/pipeline/package/osqpipe/pipeline/communicate.py --library %s --flowcell %s --flowlane %s --facility %s --status %s' % (library, flowcell, flowlane, facility, status)
-            self.communicateOverSsh(cmd)
-        else:
-            # 1. Get lane_id matching library/flowcell/flowlane
-            try:
-                lib = Library.objects.search_by_name(library)
-            except Library.DoesNotExist, _err:
-                raise SystemExit("No library %s in repository." % library)
-            # 2. Find lane and create one if not found
-            try:
-                lane = Lane.objects.get(flowcell=flowcell, flowlane=flowlane, library=lib)
-                # 3. Set lane status
-                self.setLaneStatus(int(lane.id), status)
-            except Lane.DoesNotExist, _err:
-                LOGGER.info("No lane with flowcell=%s, flowlane=%s, library=%s. Creating new lane." % (flowcell, flowlane, library))
-                # 3. Create new lane and set status at the same time.
-                # NB! Some values set here on default e.g. rundate, info about parity from lib.paired, machine etc. are set to the best of knowledge
-                #     and expected to be corrected later by other processes.
-                try:
-                    facobj = Facility.objects.get(code=facility)
-                except Facility.DoesNotExist, _err:
-                    raise SystemExit("No facility %s in repository." % facility)
-                if facility == 'EDG':
-                    try:
-                        machine_obj = Machine.objects.get(code='EdinburghX10')                    
-                    except Machine.DoesNotExist, _err:
-                        raise SystemExit("No machine %s in repository." % 'EdinburghX10')
-                else:
-                    try:
-                        machine_obj = Machine.objects.get(code='Unknown')
-                    except Machine.DoesNotExist, _err:
-                        raise SystemExit("No machine %s in repository." % 'Unknown')
-                try:
-                    status_obj = Status.objects.get(code=status)
-                except Status.DoesNotExist, _err:
-                    raise SystemExit("Status '%s' does not exist!\n" % status)
-                
-                lane = Lane(library  = lib,
-                            flowcell = flowcell,
-                            
-                            rundate  = '2008-01-01', # Default. The value should 
-
-                            lanenum  = Lane.objects.next_lane_number(lib),
-                            flowlane = int(flowlane),
-                            paired = lib.paired,
-
-                            facility = facobj,
-                            seqsamplepf = '',
-                            seqsamplebad = '',
-
-                            failed = False, 
-
-                            machine = machine_obj,
-                            status  = status_obj)
-                lane.save()
-        
-    def setLaneStatusByFilename(self, fname, status):
-        '''Changes status of the lane matching the library/facility/lanenum info extracted from the file name.'''
-        if self.ssh:
-            # cmd = 'communicateStatus.py --filename %s --status %s' % (fname, status)
-            cmd = '~/git-root/trunk/pipeline/package/osqpipe/pipeline/communicate.py --filename %s --status %s' % (fname, status)
-            self.communicateOverSsh(cmd)
-        else:
-            # 1. Get lane_id matching library/facility/lanenum
-            (library, facility, lanenum, pipeline) = parse_repository_filename(fname)
-            # 2. Find lane and create one if not found
-            try:                
-                lib = Library.objects.search_by_name(library)
-            except Library.DoesNotExist, _err:
-                raise SystemExit("No library %s in repository." % library)
+        # 1. Get lane_id matching library/flowcell/flowlane
+        try:
+            lib = Library.objects.search_by_name(library)
+        except Library.DoesNotExist, _err:
+            raise SystemExit("No library %s in repository." % library)
+        # 2. Find lane and create one if not found
+        try:
+            lane = Lane.objects.get(flowcell=flowcell, flowlane=flowlane, library=lib)
+            # 3. Set lane status
+            self.setLaneStatus(int(lane.id), status)
+        except Lane.DoesNotExist, _err:
+            LOGGER.info("No lane with flowcell=%s, flowlane=%s, library=%s. Creating new lane." % (flowcell, flowlane, library))
+            # 3. Create new lane and set status at the same time.
+            # NB! Some values set here on default e.g. rundate, info about parity from lib.paired, machine etc. are set to the best of knowledge
+            #     and expected to be corrected later by other processes.
             try:
                 facobj = Facility.objects.get(code=facility)
             except Facility.DoesNotExist, _err:
                 raise SystemExit("No facility %s in repository." % facility)
-            try:                
-                lane = Lane.objects.get(library=lib, facility = facobj, lanenum = lanenum)
-                # 3. Set lane status
-                self.setLaneStatus(int(lane.id), status)
-            except Lane.DoesNotExist, _err:
-                raise SystemExit("No lane code=%s, facility=%s, lanenum=%d." % (lib.code, facility, lanenum))
+            if facility == 'EDG':
+                try:
+                    machine_obj = Machine.objects.get(code='EdinburghX10')                    
+                except Machine.DoesNotExist, _err:
+                    raise SystemExit("No machine %s in repository." % 'EdinburghX10')
+            else:
+                try:
+                    machine_obj = Machine.objects.get(code='Unknown')
+                except Machine.DoesNotExist, _err:
+                    raise SystemExit("No machine %s in repository." % 'Unknown')
+            try:
+                status_obj = Status.objects.get(code=status)
+            except Status.DoesNotExist, _err:
+                raise SystemExit("Status '%s' does not exist!\n" % status)
+                
+            lane = Lane(library  = lib,
+                        flowcell = flowcell,
+                            
+                        rundate  = '2008-01-01', # Default. The value should 
+                        
+                        lanenum  = Lane.objects.next_lane_number(lib),
+                        flowlane = int(flowlane),
+                        paired = lib.paired,
+
+                        facility = facobj,
+                        seqsamplepf = '',
+                        seqsamplebad = '',
+
+                        failed = False, 
+                        
+                        machine = machine_obj,
+                        status  = status_obj)
+            lane.save()
+        
+    def setLaneStatusByFilename(self, fname, status):
+        '''Changes status of the lane matching the library/facility/lanenum info extracted from the file name.'''
+        # 1. Get lane_id matching library/facility/lanenum
+        (library, facility, lanenum, pipeline) = parse_repository_filename(fname)
+        # 2. Find lane and create one if not found
+        try:                
+            lib = Library.objects.search_by_name(library)
+        except Library.DoesNotExist, _err:
+            raise SystemExit("No library %s in repository." % library)
+        try:
+            facobj = Facility.objects.get(code=facility)
+        except Facility.DoesNotExist, _err:
+            raise SystemExit("No facility %s in repository." % facility)
+        try:                
+            lane = Lane.objects.get(library=lib, facility = facobj, lanenum = lanenum)
+            # 3. Set lane status
+            self.setLaneStatus(int(lane.id), status)
+        except Lane.DoesNotExist, _err:
+            raise SystemExit("No lane code=%s, facility=%s, lanenum=%d." % (lib.code, facility, lanenum))
             
 if __name__ == '__main__':
+
+    run_in_communication_host(sys.argv)
+
     import argparse
     
     PARSER = argparse.ArgumentParser(
