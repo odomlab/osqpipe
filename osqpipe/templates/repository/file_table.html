@@ -13,7 +13,7 @@
           <td>{{ file.archive|yesno:"Y," }}</td>
           <td><a class="tooltip" href="{% url "file-download" cls=file|to_class_name|lower pk=file.pk %}">{{ file.filename|truncatechars:48 }}
 	        <span class="tooltip-classic">{{ file.filename.split|join:"&nbsp;" }}</span></a></td>
-          <td>{{ file.filetype }}</td>
+          <td>{{ file.filetype|truncatechars:7 }}</td>
           <td>{{ file.date }}</td>
           <td class="monospace">{{ file.checksum }}</td>
           <td><a class="tooltip static" href="#">{{ file.description|truncatechars:15 }}<span class="tooltip-classic">{{ file.description }}</span></a></td>

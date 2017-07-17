@@ -31,6 +31,20 @@ class AlignmentAdmin(admin.ModelAdmin):
   lane_link.allow_tags = True
 
 #############################################
+@admin.register(AlignmentQC)
+class AlignmentQCAdmin(admin.ModelAdmin):
+  # FIXME provenance here also
+  list_display = ('__unicode__', 'alignment_link')
+  search_fields = ('alignment__lane__library__code',)
+  readonly_fields = ('alignment',)
+  fields = ('alignment',)
+
+  def alignment_link(self, obj):
+    url = reverse('admin:osqpipe_alignment_change', args=(obj.alignment.pk,))
+    return '<a href="%s">%s</a>' % (url, obj.alignment)
+  alignment_link.allow_tags = True
+
+#############################################
 @admin.register(Alnfile)
 class AlnfileAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'alignment_link', 'filetype')
@@ -326,6 +340,22 @@ class QCfileAdmin(admin.ModelAdmin):
   laneqc_link.allow_tags = True
 
 #############################################
+@admin.register(AlnQCfile)
+class AlnQCfileAdmin(admin.ModelAdmin):
+  list_display       = ('__unicode__', 'alignmentqc_link', 'filetype')
+
+  search_fields   = ('filename', 'filetype__name')
+  readonly_fields = ('alignmentqc', 'date')
+  
+  fields = ('filename', 'checksum', 'filetype',
+            'alignmentqc', 'date', 'description')
+
+  def alignmentqc_link(self, obj):
+    url = reverse('admin:osqpipe_alignmentqc_change', args=(obj.alignmentqc.pk,))
+    return '<a href="%s">%s</a>' % (url, obj.alignmentqc)
+  alignmentqc_link.allow_tags = True
+
+#############################################
 @admin.register(HistologyImagefile)
 class HistologyImagefileAdmin(admin.ModelAdmin):
   list_display       = ('__unicode__', 'sample_link', 'filetype')
@@ -362,6 +392,12 @@ class SexAdmin(admin.ModelAdmin):
 #############################################
 @admin.register(Tissue)
 class TissueAdmin(admin.ModelAdmin):
+  list_display = ('__unicode__', 'description')
+  search_fields = ('name', 'description')
+
+#############################################
+@admin.register(Condition)
+class ConditionAdmin(admin.ModelAdmin):
   list_display = ('__unicode__', 'description')
   search_fields = ('name', 'description')
 

@@ -45,7 +45,7 @@ for d in os.listdir('.'):
                                             filetype__code='fq')
         fns = [ x.repository_file_path for x in lanefiles ]
 
-        with LaneFastQCReport(lane=lane,
+        with LaneFastQCReport(target=lane,
                               path=CONFIG.hostpath,
                               workdir=os.path.abspath(d)) as rep:
   

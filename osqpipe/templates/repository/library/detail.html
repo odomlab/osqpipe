@@ -9,8 +9,10 @@
 {% block title %} Library {{ library }} Summary {% endblock %}
 
 {% block content %}
+<div class="library">
 {% if library %}
 
+  <div class="librarydetail">
   <div class="project_picker">
     <form action="" method="post">{% csrf_token %}
       {{ form.as_p }}
@@ -35,6 +37,7 @@
         {% else %}{{ library.sample.source.name }}{% if library.sample.source.species %}&nbsp;(<i>{{library.sample.source.species}}</i>){% endif %}
 	<br/>(sample <a href="{% url "sample-detail" pk=library.sample.pk %}">{{ library.sample.name }}</a>){% endif %}</td></tr>
     <tr><th>Factor: </th><td>{{ library.factor }}</td></tr>
+    <tr><th>Condition: </th><td>{{ library.condition }}</td></tr>
     <tr><th>Library type: </th><td>{{ library.libtype }}</td></tr>
     <tr><th>Barcode: </th><td>{{ library.barcode }}</td></tr>
     <tr><th>Linkerset: </th><td>{{ library.linkerset }}</td></tr>
@@ -52,11 +55,13 @@
   <input type="submit" value="Edit Notes"/>
   </form>
   </div>
+  </div>
 
   <h2>Sequencing Lanes</h2>
-  
+
+  <div class="seqlane_list">
   {% if library.lane_set.all.count > 0 %}
-  <table>
+  <table class="fullwidth">
     <tr>
       <th>Lane</th>
       <th>Facility</th>
@@ -88,11 +93,15 @@
   {% else %}
     No Sequencing Lanes found.
   {% endif %}
+  </div>
 
   <h2>Multi-Library Merged Alignments</h2>
+
+  <div class="mergedaln_list">
   {% if merged_alignments.count > 0 %}
 
-    {% for maln in merged_alignments|sortby:"genome" %}
+  {% for maln in merged_alignments|sortby:"genome" %}
+    <div class="mergedaln">
     <table class="horizontal">
       <tr><th>Aligned Genome: </th>      <td>{% with gen=maln.genome %}
         {{ gen }} (<i>{{ gen.species.scientific_name }}</i>; {{ gen.species.common_name }}; version: {{ gen.version }})
@@ -104,13 +113,18 @@
     {% with files=maln.mergedalnfile_set.all|sortby:"filetype.name" %}
       {% include "repository/file_table.html" %}
     {% endwith %}
+    </div>
     
     {% endfor %}
   {% else %}
+    <div class="mergedaln">
     No Merged Alignments found.
+    </div>
   {% endif %}
+  </div>
 
   <h2>Histology Images</h2>
+  <div class="histologyimages">
   {% if histology_images.count > 0 %}
     {% with files=histology_images|sortby:"filetype.name" %}
       {% include "repository/file_table.html" %}
@@ -126,8 +140,10 @@
   {% else %}
     No Histology Images found.
   {% endif %}
-
+  </div>
+	 
 {% else %}
   <p>No library provided.</p>
 {% endif %}
+</div>
 {% endblock %}    

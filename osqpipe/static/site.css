@@ -15,6 +15,14 @@ h2 {
     font-size: 14pt;
 }
 
+h3 {
+    font-size: 12pt;
+}
+
+h4 {
+    font-size: 10pt;
+}
+
 .footer {
     font-size: 9pt;
 }
@@ -125,13 +133,13 @@ th.col_checksum {
     width: 19em;
 }
 th.col_filetype {
-    width: 5em;
+    width: 4em;
 }
 th.col_date {
-    width: 7em;
+    width: 6em;
 }
 th.col_description {
-    width: 10em;
+    width: 6em;
 }
 
 /* Pagination block styles */
@@ -296,4 +304,65 @@ span.current-page {
 
 .library_table input {
     float: right;
+}
+
+div.librarydetail {
+    background-color: #fffadc;
+    margin-bottom: 40px;
+}
+
+div.seqlane_list {
+    background-color: #ffeecb;
+    margin-top: 10px;
+    margin-bottom: 40px;
+}
+
+div.mergedaln {
+    background-color: #ffeaba;
+    margin-top: 10px;
+    margin-bottom: 40px;
+}
+
+div.histologyimages {
+    background-color: #ffeaba;
+    margin-top: 10px;
+    margin-bottom: 40px;
+}
+
+div.lanedetail {
+    background-color: #fffadc;
+    margin-bottom: 20px;
+}
+
+div.laneqc {
+    background-color: #ffeecb;
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+div.alignment {
+    background-color: #ffeaba;
+    margin-top: 10px;
+    margin-bottom: 40px;
+}
+
+div.sampledetail {
+    background-color: #fffadc;
+    margin-bottom: 40px;
+}
+
+div.samplesource {
+    background-color: #ffeecb;
+    margin-top: 10px;
+    margin-bottom: 40px;
+}
+
+div.samplelibs {
+    background-color: #ffeaba;
+    margin-top: 10px;
+    margin-bottom: 40px;
+}
+
+table.fullwidth {
+    width: 100%;
 }

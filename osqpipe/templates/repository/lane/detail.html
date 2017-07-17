@@ -8,16 +8,18 @@
                   lane {{ lane.name }} {% endblock %}
 
 {% block content %}
-  {% if lane %}
+<div class="lane">
+{% if lane %}
   <h2></h2>
   
+  <div class="lanedetail">
   <table class="horizontal">
     <tr><th>Status: </th><td style="color: {{ lane.status.colour }}; background-color: black;"><b><span>{{ lane.status }}</span></b></td></tr>
     <tr><th>Facility: </th><td>{{ lane.facility.name }}</td></tr>
     <tr><th>Flowcell: </th><td>{{ lane.flowcell }}</td></tr>
     <tr><th>Flowlane: </th><td>{{ lane.flowlane }}</td></tr>
     <tr><th>Genomics ID: </th><td>{{ lane.genomicssampleid }}</td></tr>
-    <tr><th>Machine: </th><td>{{ lane.machine }}</td></tr>
+    <tr><th>Machine: </th><td>{{ lane.machine }} ({{ lane.machine.platform }})</td></tr>
     <tr><th>Genomics Run No.: </th><td>{{ lane.runnumber }}</td></tr>
     <tr><th>Run Date: </th><td>{{ lane.rundate }}</td></tr>
     <tr><th>Reads Passed PF: </th><td>{{ lane.total_passedpf|intcomma }}</td></tr>
@@ -35,12 +37,14 @@
 
     {% with files=lane.lanefile_set.all|sortby:"filetype.name" %}
       {% include "repository/file_table.html" %}
-    {% endwith %}
+  {% endwith %}
+  </div>
 
-  <h2>Lane Quality Assessment</h2>
+  <div class="laneqc">
+  <h3>Lane Quality Assessment</h3>
     {% if lane.laneqc_set.count > 0 %}
       {% for qc in lane.laneqc_set.all %}
-      <h3>{% for prov in qc.provenance.all|sortby:"rank_index" %}{{ prov.program }}{% if prov.parameters %} {{ prov.parameters }}{% endif %}; {% endfor %}</h3>
+      <h4>{% for prov in qc.provenance.all|sortby:"rank_index" %}{{ prov.program }}{% if prov.parameters %} {{ prov.parameters }}{% endif %}; {% endfor %}</h4>
         {% if qc.qc_values.count > 0 %}
           <table class="horizontal">
             <caption>Summary:</caption>
@@ -54,10 +58,13 @@
     {% else %}
       No QC files available yet.
     {% endif %}
+  </div>
 
+  <div class="alignment_list">
   <h2>Alignments</h2>
 
-    {% for aln in lane.alignment_set.all|sortby:"genome" %}
+  {% for aln in lane.alignment_set.all|sortby:"genome" %}
+    <div class="alignment">
     <table class="horizontal">
       <tr><th>Aligned Genome: </th>      <td>{% with gen=aln.genome %}
         {{ gen }} (<i>{{ gen.species.scientific_name }}</i>; {{ gen.species.common_name }}; version: {{ gen.version }})
@@ -76,9 +83,24 @@
       {% include "repository/file_table.html" %}
     {% endwith %}
     
+    <h3>Alignment Quality Assessment</h3>
+    {% if aln.alignmentqc_set.count > 0 %}
+      {% for qc in aln.alignmentqc_set.all %}
+        <h4>{% for prov in qc.provenance.all|sortby:"rank_index" %}{{ prov.program }}{% if prov.parameters %} {{ prov.parameters }}{% endif %}; {% endfor %}</h4>
+        {% with files=qc.alnqcfile_set.all|sortby:"filetype.name" %}
+          {% include "repository/file_table.html" %}
+        {% endwith %}
+      {% endfor %}
+    {% else %}
+      No Alignment QC files available yet.
+    {% endif %}
+    </div>	
+
     {% endfor %}
 
+  </div>
   {% else %}
   <p>No library lane provided.</p>
   {% endif %}
+</div>
 {% endblock %}    

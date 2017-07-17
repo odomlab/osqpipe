@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RUN_SET  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	  xsi:noNamespaceSchemaLocation="ftp://ftp.sra.ebi.ac.uk/meta/xsd/sra_1_5/SRA.run.xsd">
+  <RUN alias="TODO: UNIQUE NAME FOR RUN" center_name="TODO: ACCOUNT CENTER_NAME" run_center="TODO: ACCOUNT CENTER_NAME" run_date="2008-07-02T10:00:00">
+    <EXPERIMENT_REF refname="TODO: EXPERIMENT ALIAS OF RELEVANT EXPERIMENT OBJECT"/>
+    <DATA_BLOCK member_name="TODO: FOR DEMULTIPLEXED DATA ONLY (see note below)">
+    <FILES>
+      <FILE filename="TODO: FILENAME1" filetype="TODO: CHOOSE FROM CONTROLLED VOCABULARY AT END OF XML" checksum_method="MD5" checksum="TODO: CHECKSUM1"/>
+    </FILES>
+    </DATA_BLOCK>
+  </RUN> <!-- If you are submitting more than one run, replicate the block <RUN> to </RUN> here, as many times as necessary. -->
+</RUN_SET>
+<!-- member_name should be the name (usually sample alias) given in the
+     experiment xml of a pooled experiment. For experiments without a pool,
+     the member_name attribute in run.xml should be removed. -->
+<!-- run_center is optional but should be used if sequencing was carried out
+     elsewhere. It should use an acronym/abbreviation from a controlled vocabulary.
+     Please contact us for this acronym if unsure. Delete run_center element if
+     not needed. -->
+<!-- run_date uses a strict format. Please make sure the time stamp is included,
+     even if it is zeroes (i.e., T00:00:00). -->
+<!--
+    Controlled vocabulary for filetype:
+    "srf"
+    "sff"
+    "fastq"
+    "cram"
+    "bam"
+    "PacBio_HDF5"
+    "OxfordNanopore_native"
+    "CompleteGenomics_native (filename must point to the whole data package)"
+-->

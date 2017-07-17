@@ -382,9 +382,7 @@ class AlignmentHandler(object):
     # transaction-embedded method below.
     self._save_to_repository(processed, chksums, aln, final_status)
 
-    # In case we want to set lane.status (kept for compatibility;
-    # probably defunct though).
-    return lane
+    return aln
 
   def add_bam_to_lane(self, bam, lane, tc1=False, chrom_sizes=None):
     '''

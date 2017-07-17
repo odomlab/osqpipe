@@ -85,7 +85,7 @@ def compute_fast_qcforRepository(code, facility, replicate):
   lane = Lane.objects.get(library__code=code, facility__code=facility, lanenum=replicate)
 
   if lane.laneqc_set.filter(provenance__program__program='fastqc').count() == 0:
-    with LaneFastQCReport(lane=lane, path=conf.hostpath) as qcrep:
+    with LaneFastQCReport(target=lane, path=conf.hostpath) as qcrep:
       qcrep.insert_into_repository()
   else:
     raise StandardError("Lane already has a FastQC report.")

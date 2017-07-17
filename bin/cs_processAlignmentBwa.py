@@ -28,6 +28,7 @@ from osqutil.utilities import call_subprocess, \
 from osqutil.config import Config
 from osqpipe.models import Filetype, Genome, Library, \
     Status, Lane
+from osqpipe.pipeline.alignmentqc import AlignmentCrossCorrReport
 
 from osqutil.samtools import BamToBedConverter, count_bam_reads, identify_bwa_algorithm
 from osqpipe.pipeline.alignment import AlignmentHandler
@@ -323,8 +324,18 @@ class AlignProcessingManager(object):
     hnd     = AlignmentHandler(prog=aligner, progvers=alignvers,
                                params=params, genome=genome)
     fstatus = Status.objects.get(code='complete', authority=None)
-    lane    = hnd.add(bedgz + bgrgz + wigsgz + bigwigs + [in_fn],
+    aln     = hnd.add(bedgz + bgrgz + wigsgz + bigwigs + [in_fn],
                       final_status=fstatus)
+
+    # For ChIP-seq and similar, we generate a cross-correlation plot
+    # PDF and text output here.
+    if aln.lane.library.libtype.code in self.conf.xcor_libtypes:
+      try:
+        with AlignmentCrossCorrReport(target=aln,
+                                      path=self.conf.hostpath) as qcrep:
+          qcrep.insert_into_repository()
+      except Exception, err:
+        LOGGER.warning("Cross-correlation report generation failed: %s", err)
 
     # Occasionally we process a bam file we're confident is completely
     # transferred but where we've forgotten to create a bam.done file. Such

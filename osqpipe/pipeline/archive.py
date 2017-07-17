@@ -16,7 +16,7 @@ from shutil import copy2
 
 from django.db import transaction
 from ..models import ArchiveLocation, Lanefile, Alnfile, \
-    QCfile, Peakfile, MergedAlnfile, Datafile
+    QCfile, AlnQCfile, Peakfile, MergedAlnfile, Datafile
 from osqutil.utilities import checksum_file, bash_quote
 
 from osqutil.config import Config
@@ -112,7 +112,7 @@ def _create_archive_dir_on_host(fobj):
     cmd += [ '%s@%s' % (arch.host_user, arch.host) ]
   else:
     cmd += [ arch.host ]
-  cmd += [ 'mkdir', bash_quote(folder) ]
+  cmd += [ 'mkdir', bash_quote(folder), '&& chmod 750', bash_quote(folder)]
 
   subproc = Popen(cmd, stdout=PIPE, stderr=PIPE)
   (stdout, stderr) = subproc.communicate()
@@ -217,13 +217,16 @@ def _find_file(fname):
         fobj = QCfile.objects.get(filename=fname)
       except QCfile.DoesNotExist:
         try:
-          fobj = Peakfile.objects.get(filename=fname)
-        except Peakfile.DoesNotExist:
+          fobj = AlnQCfile.objects.get(filename=fname)
+        except AlnQCfile.DoesNotExist:
           try:
-            fobj = MergedAlnfile.objects.get(filename=fname)
-          except MergedAlnfile.DoesNotExist:
-            raise StandardError(\
-              "Datafile %s not found in repository." % fname)
+            fobj = Peakfile.objects.get(filename=fname)
+          except Peakfile.DoesNotExist:
+            try:
+              fobj = MergedAlnfile.objects.get(filename=fname)
+            except MergedAlnfile.DoesNotExist:
+              raise StandardError(\
+                "Datafile %s not found in repository." % fname)
 
   return fobj
 

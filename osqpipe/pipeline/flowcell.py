@@ -15,7 +15,7 @@ from osqutil.utilities import parse_incoming_fastq_name, checksum_file, \
     munge_cruk_emails, unzip_file, rezip_file, is_zipped
 from .upstream_lims import Lims
 from osqutil.config import Config
-from ..models import Library, Lane, Status, LibraryNameMap, User
+from ..models import Library, Lane, Status, LibraryNameMap, User, Adapter
 
 from .fetch_fastq import FQFileFetcher
 
@@ -36,11 +36,11 @@ class FlowCellProcess(object):
   '''Main class used for processing flowcells.'''
 
   __slots__ = ('test_mode', 'db_library_check', 'demux_prog', 'conf', 'ready',
-               'lims', '_demux_files', 'output_files')
+               'lims', '_demux_files', 'output_files', 'trust_lims_adapters')
 
   def __init__(self, test_mode=False,
                db_library_check=True, demux_prog='demuxIllumina',
-               force_primary=False, lims=None):
+               force_primary=False, lims=None, trust_lims_adapters=None):
 
     self.conf             = Config()
     self.test_mode        = test_mode
@@ -60,6 +60,10 @@ class FlowCellProcess(object):
       LOGGER.error("Remote LIMS access broken... cannot continue.")
       sys.exit("LIMS not running.")
     self.lims = lims
+
+    # If adapters not already entered in repository, this option will
+    # load these metadata from the upstream LIMS:
+    self.trust_lims_adapters = trust_lims_adapters
 
     if self.test_mode:
       LOGGER.setLevel(DEBUG)
@@ -135,7 +139,8 @@ class FlowCellProcess(object):
 
     # get list of new lanes from flow cell
     if fcq is None:
-      fcq = FlowCellQuery(flowcell, flowlane, lims=self.lims)
+      fcq = FlowCellQuery(flowcell, flowlane, lims=self.lims,
+                          trust_lims_adapters=self.trust_lims_adapters)
 
     flowlanes = set()
     if fcq.lims_fc.analysis_status not in self.ready:
@@ -222,9 +227,10 @@ class FlowCellQuery(object):
   '''Main query class.'''
 
   __slots__ = ('verbose', 'lims_fc', 'lib_status', 'lane_library',
-               'lane_demuxed', 'lims', 'quiet')
+               'lane_demuxed', 'lims', 'quiet', 'trust_lims_adapters')
 
-  def __init__(self, flowcell_id, flow_lane=None, verbose=False, lims=None, quiet=False):
+  def __init__(self, flowcell_id, flow_lane=None, verbose=False, lims=None,
+               quiet=False, trust_lims_adapters=None):
     LOGGER.setLevel(INFO)
 
     # Will output debugging info:
@@ -232,6 +238,10 @@ class FlowCellQuery(object):
 
     # Will suppress regular INFO-level output:
     self.quiet   = quiet
+
+    # If adapters not already entered in repository, this option will
+    # load these metadata from the upstream LIMS:
+    self.trust_lims_adapters = trust_lims_adapters
 
     # Map libcode to status
     self.lib_status   = {}
@@ -309,8 +319,19 @@ class FlowCellQuery(object):
         if lib.adapter2 is not None:
           repo_adapter += "-%s" % lib.adapter2.sequence
         if lims_adapter.upper() != repo_adapter.upper():
-          LOGGER.warn("Adapter in LIMS (%s) does not agree with adapter in repository (%s)."
-                      + " Proceed with caution.", lims_adapter, repo_adapter)
+          if lims_adapter != '' and repo_adapter == '' and self.trust_lims_adapters is not None:
+            LOGGER.warn("Adapters in LIMS (%s) being automatically entered into repository.",
+                        lims_adapter)
+            adpts = lims_adapter.split('-')
+            lib.adapter = Adapter.objects.get(protocol__icontains=self.trust_lims_adapters,
+                                              sequence__iexact=adpts[0])
+            if len(adpts) == 2:
+              lib.adapter2 = Adapter.objects.get(protocol__icontains=self.trust_lims_adapters,
+                                                 sequence__iexact=adpts[1])
+            lib.save()
+          else:
+            LOGGER.warn("Adapter in LIMS (%s) does not agree with adapter in repository (%s)."
+                        + " Proceed with caution.", lims_adapter, repo_adapter)
       except KeyError: # No adapter recorded in LIMS.
         pass
 
@@ -345,9 +366,22 @@ class FlowCellQuery(object):
                              lims_fc.finish_date))
       except AttributeError, _err:
         print "%s UNK %s" % (flowcell_id, lims_fc.finish_date)
+
+    # Lately the LIMS has been failing to link our users' email
+    # addresses to every occurrence of their sample in a given
+    # flowcell. This can lead to lanes not being processed. So here we
+    # first survey the flowcell for all likely samples and then
+    # download based on that key.
+    oursamples = set()
     for lane in lims_fc.iter_lanes():
       if flowlane_num == None or lane.lane == int(flowlane_num):
         if any([x.lower() in emails for x in lane.user_emails]):
+          oursamples.add(lane.genomics_sample_id)
+
+    # Actually query data for our samples.
+    for lane in lims_fc.iter_lanes():
+      if flowlane_num == None or lane.lane == int(flowlane_num):
+        if lane.genomics_sample_id in oursamples:
           self.check_lane(lane, lims_fc)
 
     return lims_fc

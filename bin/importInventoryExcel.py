@@ -23,7 +23,7 @@ django.setup()
 from osqutil.config import Config
 from osqpipe.models import Library
 
-from osqpipe.pipeline.library import LibraryHandler
+from osqpipe.pipeline.library import LibraryHandler, AnnotationMismatchError
 
 class InventoryImporter(object):
 
@@ -93,14 +93,14 @@ class InventoryImporter(object):
     for rownum in range(shobj.nrows):
       yield shobj.row(rownum)
 
-  def import_work_sheet(self, path, sheet='DO_list'):
+  def import_work_sheet(self, path, sheet='DO_list', minlib=None):
 
-    rows = self.get_work_sheet_iterator(path, sheet)
+    row_iter = self.get_work_sheet_iterator(path, sheet)
     header = []
 
     # Detect the header row.
     space_re = re.compile(' ')
-    for row in rows:
+    for row in row_iter:
       rowvals = [ space_re.sub('', unicode(x.value).lower().strip()) for x in row ]
       if 'libraryid' in rowvals:
         header = rowvals
@@ -123,8 +123,23 @@ class InventoryImporter(object):
       if colname not in known:
         LOGGER.warning("Unrecognised column in input: %s", colname)
 
+    # If desired, skip over most of the file without running expensive database queries.
+    if minlib is not None:
+      codere = re.compile('(\w+)(\d+)')
+      minmo = codere.match(minlib)
+      if minmo is None:
+        raise ValueError("Starting library code does not fit our standard format (\w+\d+).")
+      for row in row_iter:
+        code = row[header.index('libraryid')]
+        libmo = codere.match(code)
+        if libmo is None:
+          raise ValueError("Library code in sheet does not fit our standard format (\w+\d+).")
+        if minmo.group(1) == libmo.group(1) and minmo.group(2) >= libmo.group(2):
+          self.import_data_row([x.value for x in row], header)
+          break
+
     # Read in the rest of the file.
-    for row in rows:
+    for row in row_iter:
       self.import_data_row([x.value for x in row], header)
 
   @staticmethod
@@ -163,6 +178,37 @@ class InventoryImporter(object):
 
     return optvals
 
+  def _munge_truseq_neb_barcode_info(self, rowdict, barcode):
+    '''
+    Specialised method to handle some of the niceties surrounding
+    TruSeq adapter parsing. This method is designed to handle rows for
+    which the protocol contains \b(truseq|neb)\b.
+    '''
+    adapter = linkerset = None
+
+    prottag = rowdict['protocol'].lower()
+
+    # TruSeq adapters have standard names in the repository.
+    if rowdict['assaytype'].lower() in ('smrnaseq', 'rip-smrnaseq'):
+      adapter = 'smRNA_TS_' + barcode   # smRNAseq
+
+      # Often, linkerset is not given but it's easily guessed.
+      if 'linkerset' not in rowdict or rowdict['linkerset'] == '':
+        linkerset = 'TruSeqSmRNAIndex' + barcode
+
+    elif ( int(barcode) > 500 and int(barcode) < 509 )\
+         or ( int(barcode) > 700 and int(barcode) < 713 ):
+      adapter = 'TS_D' + barcode   # dual indexing adapter set.
+
+    else:
+      adapter = 'TS_' + barcode    # not smRNAseq
+
+      if int(barcode) > 12 and rowdict['protocol'].lower() == 'neb':
+        LOGGER.error('NEB barcode index greater than 12 used; confirm sequences match TruSeq!')
+        raise ValueError()
+
+    return (adapter, linkerset)
+
   def munge_barcode_info(self, rowdict, libcode, code_column='barcode', optional=False):
 
     adapter = linkerset = None
@@ -186,31 +232,13 @@ class InventoryImporter(object):
           adapter = 'TSLT_%d' % int(barcode)
 
         elif re.search(r'\b(?:truseq|neb)\b', prottag):
-
-          # TruSeq adapters have standard names in the repository.
-          if rowdict['assaytype'].lower() in ('smrnaseq', 'rip-smrnaseq'):
-            adapter = 'smRNA_TS_' + barcode   # smRNAseq
-
-            # Often, linkerset is not given but it's easily guessed.
-            if 'linkerset' not in rowdict or rowdict['linkerset'] == '':
-              linkerset = 'TruSeqSmRNAIndex' + barcode
-
-          elif ( int(barcode) > 500 and int(barcode) < 509 )\
-               or ( int(barcode) > 700 and int(barcode) < 713 ):
-            adapter = 'TS_D' + barcode   # dual indexing adapter set.
-
-          else:
-            adapter = 'TS_' + barcode    # not smRNAseq
-
-            if int(barcode) > 12 and rowdict['protocol'].lower() == 'neb':
-              LOGGER.error('NEB barcode index greater than 12 used; confirm sequences match TruSeq!')
-              raise ValueError()
+          (adapter, linkerset) = self._munge_truseq_neb_barcode_info(rowdict, barcode)
 
         elif re.search(r'\b(?:nextera|nextera ?xt)\b', prottag):
           adapter = 'NXT_N' + barcode
 
         elif re.search(r'\b(?:thruplex)\b', prottag):
-          if int(barcode) < 20:
+          if int(barcode) < 150:
             adapter = 'iPCRtagT' + barcode
           elif ( int(barcode) > 500 and int(barcode) < 509 )\
                or ( int(barcode) > 700 and int(barcode) < 713 ):
@@ -239,10 +267,15 @@ class InventoryImporter(object):
 
           adapter = 'XT_' + barcode
 
-        else:
-          LOGGER.error('Uncertain which adapter scheme (e.g. TruSeq) has been used: %s',
-                       libcode)
-          raise ValueError()
+        elif 'barcodetype' in rowdict:
+          # In some cases we can fall back to barcodetype
+          bctag = rowdict['barcodetype'].lower()
+          if re.search(r'\b(?:truseq|neb)\b', bctag):
+            (adapter, linkerset) = self._munge_truseq_neb_barcode_info(rowdict, barcode)
+          else:
+            LOGGER.error('Uncertain which adapter scheme (e.g. TruSeq) has been used: %s',
+                         libcode)
+            raise ValueError()
           
       else:
         LOGGER.error('Protocol not specified in spreadsheet for library %s', libcode)
@@ -309,6 +342,10 @@ class InventoryImporter(object):
     else:
       tissue = rowdict['tissue']
 
+    # Condition is occcasionally supplied; if so, we record it.
+    if 'condition' in rowdict and rowdict['condition'] != '':
+      optvals['condition'] = rowdict['condition']
+
     # Munge the barcode/barcodetype/protocol info into an adapter string.
     try: # Test New vs. Old column naming, in case we ever switch back.
 
@@ -333,12 +370,15 @@ class InventoryImporter(object):
       return
 
     # We handle fuzzy matching in the LibraryHandler class.
-    self.libhandler.add(libtype = rowdict['assaytype'],
-                        code    = libcode,
-                        genome  = rowdict['genome'],
-                        tissue  = tissue,
-                        projcodes = projcodes,
-                        opts    = optvals)
+    try:
+      self.libhandler.add(libtype = rowdict['assaytype'],
+                          code    = libcode,
+                          genome  = rowdict['genome'],
+                          tissue  = tissue,
+                          projcodes = projcodes,
+                          opts    = optvals)
+    except AnnotationMismatchError, err:
+      LOGGER.error("Annotation mismatch error for %s (skipping): %s", libcode, err)
 
 
 if __name__ == '__main__':
@@ -363,6 +403,9 @@ if __name__ == '__main__':
                       help='(Optional) Log file name to store output'
                       + ' (appends to an existing file).')
 
+  PARSER.add_argument('--start-from', dest='minlib', type=str, required=False,
+                      help='(Optional) Library code from which to commence import (to save time).')
+
   ARGS = PARSER.parse_args()
 
   if ARGS.logfile:
@@ -373,4 +416,4 @@ if __name__ == '__main__':
 
   IMP = InventoryImporter(test_mode=ARGS.test_mode)
 
-  IMP.import_work_sheet(path=os.path.realpath(ARGS.dir), sheet=ARGS.sheet)
+  IMP.import_work_sheet(path=os.path.realpath(ARGS.dir), sheet=ARGS.sheet, minlib=ARGS.minlib)
