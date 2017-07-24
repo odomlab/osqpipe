@@ -57,6 +57,21 @@ class QCReport(object):
       if self.move_files == False:
         raise StandardError("Not moving files from temporary directory to be deleted does not make sense!")        
 
+    # This checks that the specified program exists, and where it
+    # yields some kind of meaningful version info will record that.
+    progdata = ProgramSummary(program_name, path=path)
+    
+    # This is a little vulnerable to correct version parsing by
+    # progsum.
+    try:
+      self._dbprog = Program.objects.get(program = progdata.program,
+                                         version = progdata.version,
+                                         current = True)
+    except Program.DoesNotExist, _err:
+      raise StandardError(("Unable to find current %s program (version %s)"
+                           + " record in the repository")
+                          % (progdata.program, progdata.version))
+      
   def __enter__(self):
     if self.workdir is None:
       self.workdir = mkdtemp(dir=CONFIG.tmpdir)
@@ -73,43 +88,18 @@ class QCReport(object):
 
   @transaction.atomic
   def insert_into_repository(self, move_files=True):
-
-    '''Insert self.output_files into the database.'''    
+    '''Insert self.output_files into the database.'''
 
     if len(self.output_files) == 0:
       self.generate()
-          
-    try:
-      laneqc = LaneQC.objects.get(lane = self.lane)
-    except LaneQC.DoesNotExist, _err:
-      LOGGER.info("Creating LaneQC object for %d", self.lane.id)
-      laneqc = LaneQC.objects.create(lane = self.lane)
 
-    # This checks that the specified program exists, and where it
-    # yields some kind of meaningful version info will record that.
-    LOGGER.info("Collecting information about \"%s\"", self.program_name)
-    progdata = ProgramSummary(self.program_name, path=self.path)
+    params = { self.target_name : self.target }
+    qcobj  = self.data_process.objects.create(**params)
+    DataProvenance.objects.create(program      = self._dbprog,
+                                  parameters   = self.program_params,
+                                  rank_index   = 1,
+                                  data_process = qcobj)
 
-    # This is a little vulnerable to correct version parsing by
-    # progsum.
-    try:
-      self._dbprog = Program.objects.get(program = progdata.program,
-                                         version = progdata.version,
-                                         current = True)
-    except Program.DoesNotExist, _err:
-      raise StandardError(("Unable to find current %s program (version %s)"
-                           + " record in the repository")
-                          % (progdata.program, progdata.version))
-    try:
-      dpo = DataProvenance.objects.get(program = self._dbprog,
-                                       parameters   = self.program_params,
-                                       rank_index   = 1,
-                                       data_process = laneqc)
-    except DataProvenance.DoesNotExist, _err:      
-      DataProvenance.objects.create(program      = self._dbprog,
-                                    parameters   = self.program_params,
-                                    rank_index   = 1,
-                                    data_process = laneqc)
     for (fname, checksum) in zip(self.output_files, self.output_md5s):
       LOGGER.info("Inserting %s", fname)
       # Note: this will fail if multiple types match.
@@ -119,8 +109,9 @@ class QCReport(object):
         fpath = fname
       else:
         fpath = os.path.join( self.workdir, fname )
-
-      checksum = checksum_file(fpath)
+        
+      if checksum is None or checksum == '':
+        checksum = checksum_file(fpath)
 
       fparms = { self.file_target_name : qcobj,
                  'filename'            : os.path.split(fname)[1],
@@ -130,18 +121,20 @@ class QCReport(object):
 
       fobj.save()
 
-      if move_files:
+      if move_files:      
         # Zip up the file if necessary.
         if ftype.gzip and os.path.splitext(fname)[1] != CONFIG.gzsuffix:
           fpath = rezip_file(fpath)
         if self.move_files:
           dest    = fobj.repository_file_path
-          #destdir = os.path.dirname(dest)
-          #if not os.path.exists(destdir):
-          #  os.makedirs(destdir)
-          #move(fpath, dest)
-          #set_file_permissions(CONFIG.group, dest)
-          transfer_file(fpath, "%s@%s:%s" % (CONFIG.user, CONFIG.datahost, dest))
+          # destdir = os.path.dirname(dest)
+          # if not os.path.exists(destdir):
+          #    os.makedirs(destdir)
+          # move(fpath, dest)
+          # set_file_permissions(CONFIG.group, dest)
+          if os.path.isabs(dest):
+            dest = os.path.split(dest)[0] + '/'
+          transfer_file(fpath, "%s@%s:%s" % (CONFIG.user, CONFIG.datahost, dest)) # note that transfer_file sets destination file permissions as in CONF
 
   def __exit__(self, exctype, excvalue, traceback):
     if self._delete_workdir:

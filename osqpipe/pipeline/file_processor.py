@@ -490,6 +490,9 @@ class GenericFileProcessor(object):
     # FIXME we ought to remove 'incoming' as hardcoded here.
     repo_incoming = os.path.join(CONFIG.repositorydir, 'incoming')
 
+    # FIXME - just testing if providing full path might help with files being pulled correctly
+    # FIXME - 
+    
     # If RNA-Seq, align using tophat2. If not, use our default bwa.
     if self.library.libtype.code == 'rnaseq':
       aligner = FastqTophatAligner(test_mode=self.test_mode,
@@ -602,6 +605,8 @@ class GenericFileProcessor(object):
         # move(disk_fname, dest)
         # set_file_permissions(CONFIG.group, dest)
         transfer_file(disk_fname, "%s@%s:%s" % (CONFIG.user, CONFIG.datahost, dest))
+        # note that transfer_file exists should the the transfer fail, hence unlinking the file should be safe.
+        os.unlink(disk_fname)
 
         # Get the read length directly from the fastq file.
         if fobj.filetype.code == 'fq':
@@ -610,7 +615,7 @@ class GenericFileProcessor(object):
           except IOError:       # no file.
             LOGGER.warning("Unable to detect read length from fastq file.")
           except StopIteration: # no data in file.
-            LOGGER.warning("Unable to detect read length from fastq file.")
+            LOGGER.warning("Unable to detect read length from fastq file.")            
 
   def clean_up(self):
     '''

@@ -141,10 +141,15 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     assert(bwa_algorithm in ('aln', 'mem'))
     paired_sanity_check(filenames, is_paired)
 
-    # NB! Copying files to cluster is not any more necessary. This is taken care by --fileshost flag below.
+    # by lukk01:
+    # NB! Copying files to cluster is not any more necessary as long s the hostflag = '--fileshost %s' is uncommented below.
+    # However, this would be a pull rather than push and we should then pull from the archive for process_file.py
+    # It would requre, though, re-writing of data processing and alignment orders in process_file.py. Just a throught.
+    #
+    
     # First, copy the files across and uncompress on the server.
-    # LOGGER.info("Copying files to the cluster.")
-    # destnames = self.job.transfer_data(filenames, destnames)
+    LOGGER.info("Copying files to the cluster.")
+    destnames = self.job.transfer_data(filenames, destnames)
 
     # Next, create flag for cleanup
     cleanupflag = '--cleanup' if cleanup else ''
@@ -164,7 +169,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     hostflag = ''
     filehost = gethostname()
     if filehost != self.conf.cluster:
-      hostflag  = '--fileshost %s' % filehost
+      # hostflag  = '--fileshost %s' % filehost
       cpflag = '--rcp %s:%s' % (self.conf.datahost, self.finaldir)
     else:
       # the files are already in host. Override cleanup to prevent source files to be deleted.
