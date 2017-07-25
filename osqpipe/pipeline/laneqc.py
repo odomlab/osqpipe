@@ -100,7 +100,13 @@ class QCReport(object):
                                   rank_index   = 1,
                                   data_process = qcobj)
 
-    for (fname, checksum) in zip(self.output_files, self.output_md5s):
+    for i in range(len(self.output_files)):
+      fname = self.output_files[i]
+      if len(self.output_md5s) != len(self.output_files):
+        checksum = None
+      else:
+        checksum = self.output_md5s[i]
+        
       LOGGER.info("Inserting %s", fname)
       # Note: this will fail if multiple types match.
       ftype = Filetype.objects.guess_type(fname)

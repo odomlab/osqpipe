@@ -339,6 +339,7 @@ class AlignmentHandler(object):
       # set_file_permissions(self.conf.group, destname)
       LOGGER.debug("mv %s %s@%s:%s", fname, self.conf.user, self.conf.datahost, destname)
       transfer_file(fname, "%s@%s:%s" % (self.conf.user, self.conf.datahost, destname))
+      os.unlink(fname)
 
     if final_status is not None:
       aln.lane.status = final_status
