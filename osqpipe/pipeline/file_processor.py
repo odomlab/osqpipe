@@ -788,6 +788,32 @@ class IClipFastqFileProc(GenericFileProcessor):
     self.collect_lane_info("-f")
     return Status.objects.get(code='alignment', authority=None)
 
+###############################################################################
+  
+class TenXFastqFileProc(GenericFileProcessor):
+  '''
+  Processor for TenX fastq files.
+  '''
+  def post_process(self):
+    '''
+    Convert to phred scoring if required, trim fastq, collect
+    metadata. Currently we just store the fastq and send them out to
+    collaborators for processing with their custom pipeline.
+    '''
+    self.outfiles = self.files[:]
+    if self.options.get('convert', False):
+      self.convert_solexa2phred()
+    else:
+      LOGGER.info("Assuming quality values in Sanger format.")
+    if 'trimhead' in self.options or 'trimtail' in self.options:
+      tfiles = self.trim_fastq()
+    else:
+      tfiles = self.outfiles[:]
+    for fname in tfiles:
+      set_file_permissions(CONFIG.group, fname)
+    self.collect_lims_info()
+    self.collect_lane_info("-f")
+    return Status.objects.get(code='completed', authority=None)
 
 ###############################################################################
 
@@ -1081,6 +1107,8 @@ class FileProcessingManager(object):
                    '.qseq': MiRQseqFileProc},
       'mnaseseq': {'.fq': MNaseFastqFileProc},
       'iclipseq': {'.fq': IClipFastqFileProc},
+      '10X_Chromium_Genome': {'.fq': TenXFastqFileProc},
+      '10X_single-cell_RNAseq': {'.fq': TenXFastqFileProc},
       'bisulphite': {'.qseq': BisulphiteFileProc,
                      '.fq': BisulphiteFastqFileProc},
       'bisulph-smrna': {'.fq': MiRFastqFileProc, # Frye lab. Obsolete?
