@@ -40,7 +40,8 @@ class FlowCellProcess(object):
 
   def __init__(self, test_mode=False,
                db_library_check=True, demux_prog='demuxIllumina',
-               force_primary=False, lims=None, trust_lims_adapters=None):
+               force_primary=False, force_all=None,
+               lims=None, trust_lims_adapters=None):
 
     self.conf             = Config()
     self.test_mode        = test_mode
@@ -48,9 +49,13 @@ class FlowCellProcess(object):
     self.demux_prog       = demux_prog
     self.ready            = 'COMPLETE'
 
+    if force_all:
+      self.ready = (self.ready, 'PRIMARY COMPLETE', 'INCOMPLETE')
+
     # This may now be obsolete with the transition to Genologics LIMS.
-    if force_primary:
+    elif force_primary:
       self.ready = (self.ready, 'PRIMARY COMPLETE')
+
 
     self._demux_files    = {}
     self.output_files    = []
