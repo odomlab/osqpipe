@@ -322,7 +322,7 @@ class GenericFileProcessor(object):
       (base, ext, isgz) = stem_filename(fname)
       try:
         (_libcode, _flowcell, _flowlane, flowpair)\
-            = parse_incoming_fastq_name(base + ext)
+            = parse_incoming_fastq_name(base, ext='')
         if self.paired:
           newfn = "%s_%s%02dp%s%s" % (self.library.filename_tag,
                                       facility,
@@ -349,6 +349,7 @@ class GenericFileProcessor(object):
         newnames.append(newfn)
 
       except StandardError, _err:
+        LOGGER.warn("Unable to rename file to standard naming scheme: %s", fname)
         newnames.append(fname)
     self.files = newnames
 
@@ -531,7 +532,7 @@ class GenericFileProcessor(object):
     '''
     # assuming the first outfile has ".fq" suffix
     (fnsuffix, ext, _isgz) = stem_filename(self.outfiles[0])
-    assert(ext == '.fq')
+    assert(ext in ('.fq', '.tar'))
     fnsuffix += ".mga"
 
     try:
@@ -788,6 +789,26 @@ class IClipFastqFileProc(GenericFileProcessor):
     self.collect_lane_info("-f")
     return Status.objects.get(code='alignment', authority=None)
 
+###############################################################################
+  
+class TenXFastqTarFileProc(GenericFileProcessor):
+  '''
+  Processor for TenX fastq tarballs.
+  '''
+  def post_process(self):
+    '''
+    Currently we just store the fastq tarballs and send them out to
+    collaborators for processing with the 10X Genomics pipeline
+    (longranger and similar).
+    '''
+    # N.B. if we end up running a lot of these we can probably get
+    # longranger running on the cluster.
+    
+    self.outfiles = self.files[:]
+    for fname in self.outfiles:
+      set_file_permissions(CONFIG.group, fname)
+    self.collect_lims_info()
+    return Status.objects.get(code='complete', authority=None)
 
 ###############################################################################
 
@@ -1081,6 +1102,8 @@ class FileProcessingManager(object):
                    '.qseq': MiRQseqFileProc},
       'mnaseseq': {'.fq': MNaseFastqFileProc},
       'iclipseq': {'.fq': IClipFastqFileProc},
+      '10X_Chromium_Genome': {'.tar': TenXFastqTarFileProc},
+      '10X_single-cell_RNAseq': {'.tar': TenXFastqTarFileProc},
       'bisulphite': {'.qseq': BisulphiteFileProc,
                      '.fq': BisulphiteFastqFileProc},
       'bisulph-smrna': {'.fq': MiRFastqFileProc, # Frye lab. Obsolete?
@@ -1272,6 +1295,14 @@ class FileProcessingManager(object):
         code = LibraryNameMap.objects.get(limsname=code).libname
       except LibraryNameMap.DoesNotExist, _err:
         pass
+      library = self.retrieve_library(code)
+
+    elif ftype == '.tar':
+      if len(fns) != 1:
+        raise ValueError("Currently no support for importing multiple tarballs at once for a sequencing lane.")
+      fname = fns[0]
+      LOGGER.debug("Processing tarball (10X Genomics?): %s", fname)
+      code = get_filename_libcode(fname)
       library = self.retrieve_library(code)
 
     else:

@@ -179,5 +179,8 @@ class ExternalRecordManager(object):
         
         if self.receipt_type == 'EXPERIMENT':
             self.add_library_obj(code=alias)
+            self.obj_type = 'library'
+            
         if self.receipt_type == 'SAMPLE':
             self.add_sample_obj(sample_name=alias)
+            self.obj_type = 'sample'
