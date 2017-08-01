@@ -74,7 +74,8 @@ class FQFileFetcher(object):
     # This regex supports both old and new naming conventions.
     fnpat = re.compile( # FIXME see parse_incoming_fastq_name
       r"SLX\-\d+\.[\.\w-]+\.s_\d+\.r_(\d+).fq.gz$"
-      + r"|s_\d+(?:_(\d+))?_sequence.txt.gz$")
+      + r"|s_\d+(?:_(\d+))?_sequence.txt.gz$"
+      + r"|s_\d+\.(tar)$")  # 10X_FASTQ_TAR
     matchobj = fnpat.search(filename)
 
     if matchobj is None:
@@ -83,12 +84,15 @@ class FQFileFetcher(object):
       return
 
     flowpair = 1
+    fastqtar = False
     if matchobj.group(1) is not None:  # New naming
       stype = int(matchobj.group(1))
       if stype > 1: # it's a paired-end-style name
         flowpair = stype
     elif matchobj.group(2) is not None: # Old naming
       flowpair = int(matchobj.group(1))
+    elif matchobj.group(3) == 'tar':   # 10X FASTQ tar file, probably.
+      fastqtar = True
     else:
       LOGGER.error("FASTQ file name regex gave unexpected"
                    + " results; probable error in regex code.")
@@ -111,6 +115,9 @@ class FQFileFetcher(object):
                                     lfile.lane.flowcell.fcid,
                                     lfile.lane.lane,
                                     flowpair)
+
+    if fastqtar: # s/.fq$/.tar/
+      dst = os.path.splitext(dst)[0] + '.tar'
 
     # If the final file has already been downloaded we skip the download.
     target = os.path.join(self.destination, dst)

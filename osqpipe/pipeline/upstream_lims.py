@@ -215,6 +215,8 @@ class LimsLane(object):
     '''
     # Introspect to find cached FASTQ file location URIs.
     files = self.files.get('FASTQ', [])
+    if len(files) == 0:
+      files = self.files.get('10X_FASTQ_TAR')
     demux = []
     for (libcode, filelist) in self.samples.iteritems():
       for dfile in filelist:
@@ -536,6 +538,7 @@ class Lims(object):
         re.compile(r'^FASTQ Checksum$')     : 'FASTQ_MD5',
         re.compile(r'^MGA$')                : 'LANE_MGA',
         re.compile(r'^FASTQ R\d+$')         : 'FASTQ',
+        re.compile(r'^10X FASTQ TAR$')      : '10X_FASTQ_TAR',
       }
       for file_elem in lanelib.findall('./file'):
 
@@ -573,7 +576,9 @@ class Lims(object):
       # by a hyphen; we do not handle that here, but in the calling
       # code.
       adapterdict = {}
-      wanted = re.compile(r'^FASTQ R\d+$')
+      wanted = { 'FASTQ'         : re.compile(r'^FASTQ R\d+$'),
+                 '10X_FASTQ_TAR' : re.compile(r'^10X FASTQ TAR$') }
+
       for sample_elem in lanelib.findall('./sample'):
 
         try: # Don't record samples which are definitely not ours.
@@ -590,17 +595,18 @@ class Lims(object):
           if name_elem is None:
             continue
           fdesig = name_elem.text
-          if wanted.search(fdesig) is not None:
-            LOGGER.debug('Found demultiplexed FASTQ file %s', fdesig)
-            md5elem = file_elem.find('./checksum')
-            md5sum  = None if md5elem is None else md5elem.text
-            uri     = file_elem.find('./url').text
-            lims_id = file_elem.attrib['fileLimsId'] if 'fileLimsId' in file_elem.attrib else None
-            newfile = LimsLaneFile(uri=uri,
-                                   filetype='FASTQ',
-                                   md5sum=md5sum,
-                                   lims_id=lims_id)
-            demux_list.append(newfile)
+          for ( ftag, fregex ) in wanted.iteritems():
+            if fregex.search(fdesig) is not None:
+              LOGGER.debug('Found demultiplexed %s file %s', ftag, fdesig)
+              md5elem = file_elem.find('./checksum')
+              md5sum  = None if md5elem is None else md5elem.text
+              uri     = file_elem.find('./url').text
+              lims_id = file_elem.attrib['fileLimsId'] if 'fileLimsId' in file_elem.attrib else None
+              newfile = LimsLaneFile(uri=uri,
+                                     filetype=ftag,
+                                     md5sum=md5sum,
+                                     lims_id=lims_id)
+              demux_list.append(newfile)
         try:
           sample_adapter = sample_elem.find('./reagentLabel/sequence').text
           adapterdict[libcode.lower()] = sample_adapter
@@ -634,7 +640,7 @@ class Lims(object):
       demux_fastq.append(all(samples_demuxed))
 
       # Record whether this lane has a lane-level FASTQ file.
-      lane_fastq.append(any([ lfile.filetype == 'FASTQ'
+      lane_fastq.append(any([ lfile.filetype in ('FASTQ', '10X_FASTQ_TAR')
                               for fdict in ldict['files'].values()
                               for lfile in fdict ]))
 
