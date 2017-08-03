@@ -44,8 +44,8 @@ def confirm_complete(flowcell, bwa_algorithm,
                        libcode, flowcell, flowlane)
         complete = False
         continue
-      if lane.lanefile_set.filter(filetype__code='fq').count() == 0:
-        LOGGER.warning("Lane has no fastq files: %s %s:%s",
+      if lane.lanefile_set.filter(filetype__code__in=('fq','tar')).count() == 0:
+        LOGGER.warning("Lane has no fastq files or tarballs: %s %s:%s",
                        libcode, flowcell, flowlane)
         complete = False
         continue
