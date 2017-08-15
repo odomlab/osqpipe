@@ -118,6 +118,7 @@ class RepositoryDumper(object):
       ('Sex',                    lambda x: str(_helper_optional_value(x.library.sample.source.sex))),
       ('Tissue/Cell Line',       lambda x: x.library.sample.tissue.name),
       ('Strain',                 lambda x: _helper_optional_value(x.library.sample.source.strain, 'name')),
+      ('Sample ID',              lambda x: _helper_optional_value(x.library.sample.name)),
       ('Individual',             lambda x: _helper_optional_value(x.library.sample.source.name)),
       ('Condition',              lambda x: _helper_optional_value(x.library.condition, 'name')),
       ('Library Type',           lambda x: x.library.libtype.name),
@@ -162,7 +163,7 @@ class RepositoryDumper(object):
     '''
     return self.separator.join([ elem[1](lane) for elem in self.mapping ])
 
-  def dump_to_file(self, outfile):
+  def dump_to_file(self, outfile, project=None):
     '''
     Dumps everything to the specified output file.
     '''
@@ -193,6 +194,10 @@ class RepositoryDumper(object):
                             .exclude(passedpf__isnull=True)\
                             .order_by('library__extra__code_text_prefix',
                                       'library__extra__code_numeric_suffix')
+
+      if project is not None:
+        lanes = lanes.filter(library__projects__code=project)
+
       for lane in lanes:
         lanestr = self.laneobj_to_string(lane)
         outfh.write(lanestr + "\n")
@@ -206,8 +211,11 @@ if __name__ == '__main__':
   PARSER.add_argument('-o', '--output', dest='output', type=str, required=True,
                       help='The name of the output file.')
 
+  PARSER.add_argument('-p', '--project', dest='project', type=str, required=False,
+                      help='A project code by which to filter the output.')
+
   ARGS = PARSER.parse_args()
 
   DUMPER = RepositoryDumper()
 
-  DUMPER.dump_to_file(ARGS.output)
+  DUMPER.dump_to_file(ARGS.output, ARGS.project)
