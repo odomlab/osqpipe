@@ -111,7 +111,7 @@ function toggleAll(name, newClass) {
             <td>&nbsp;</td>
             <td>&nbsp;</td>
             <td>{% for file in lane.lanefile_set.all|sortby:"filetype" %}
-                  {% if file.filetype|lower in linked_filetypes %}
+                  {% if file.filetype|lower in lane_linked_filetypes %}
                     <a href="{% url "file-download" cls=file|to_class_name|lower pk=file.pk %}">{{file.filetype}}</a>
                   {% endif %}
                 {% endfor %}
@@ -130,7 +130,7 @@ function toggleAll(name, newClass) {
             <td><a class="tooltip static" href="#">{{ aln.mapped_percent|floatformat:"0" }}%<span class="tooltip-classic">All&nbsp;aligned&nbsp;reads</span></a>
                (<a class="tooltip static" href="#">{{ aln.munique_percent|floatformat:"0" }}%<span class="tooltip-classic">Uniquely&nbsp;aligned&nbsp;reads</span></a>)</td>
             <td>{% for file in aln.alnfile_set.all|sortby:"filetype" %}
-                  {% if file.filetype|lower in linked_filetypes %}
+                  {% if file.filetype|lower in aln_linked_filetypes %}
                     <a href="{% url "file-download" cls=file|to_class_name|lower pk=file.pk %}">{{file.filetype}}</a>
                   {% endif %}
                 {% endfor %}

@@ -137,7 +137,8 @@ class LibraryListView(FilterMixin, FormListView):
   def get_context_data(self, *args, **kwargs):
     '''Add extra context to control the view.'''
     context = super(LibraryListView, self).get_context_data(*args, **kwargs)
-    context['linked_filetypes'] = ('fasta', 'fastq', 'bam')
+    context['lane_linked_filetypes'] = ('fasta', 'fastq', 'tar')
+    context['aln_linked_filetypes'] = ('bam',)
     context['project_code']     = self.kwargs['project']
     return context
 
