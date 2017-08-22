@@ -641,6 +641,7 @@ class Lims(object):
 
       # Record whether this lane has a lane-level FASTQ file.
       lane_fastq.append(any([ lfile.filetype in ('FASTQ', '10X_FASTQ_TAR')
+                              and not re.search('lostreads\.fq\.gz$', lfile.uri)
                               for fdict in ldict['files'].values()
                               for lfile in fdict ]))
 
