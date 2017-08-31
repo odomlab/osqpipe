@@ -273,7 +273,7 @@ span.current-page {
 
 .project_picker {
     float: right;
-    padding-right: 7em;
+    padding-right: 3em;
 }
 
 .project_picker select {
