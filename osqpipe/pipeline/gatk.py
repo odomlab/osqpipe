@@ -46,7 +46,7 @@ def retrieve_readgroup_alignment(rgroup, genome=None, bamfilter=False):
     alns = alns.filter(alnfile__filetype__code='bam')
 
   if alns.count() > 1:
-    raise ValueError("Multiple Alignments match read group and genome parameters. Maybe filter by bam file presence also?")
+    raise ValueError("Multiple Alignments match read group and genome parameters. Maybe filter by genome or bam file presence?")
   elif alns.count() == 0:
     raise Alignment.DoesNotExist("No Alignments found to match read group and genome parameters.")
   else:
@@ -387,7 +387,7 @@ class GATKPreprocessor(ClusterJobManager):
 
     self.gatk_preprocess_bam(merged_fn, bams[0].alignment, wait=wait)
 
-  def gatk_preprocess_bam(self, merged_fn, aln=None, wait=True):
+  def gatk_preprocess_bam(self, merged_fn, aln=None, wait=True, genome=None):
     '''
     An alternative entry point which can be used if, say, one's
     pipeline has crashed and one doesn't want to wait for the bam file
@@ -400,7 +400,7 @@ class GATKPreprocessor(ClusterJobManager):
     if aln is None:
       with AlignmentFile(filename=merged_fn) as bamhandle:
         rgroups = bamhandle.header.get('RG', [])
-      aln = retrieve_readgroup_alignment(rgroups[0])
+      aln = retrieve_readgroup_alignment(rgroups[0], genome=genome)
 
     lib = aln.lane.library
 
