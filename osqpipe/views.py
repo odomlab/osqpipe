@@ -137,7 +137,8 @@ class LibraryListView(FilterMixin, FormListView):
   def get_context_data(self, *args, **kwargs):
     '''Add extra context to control the view.'''
     context = super(LibraryListView, self).get_context_data(*args, **kwargs)
-    context['linked_filetypes'] = ('fasta', 'fastq', 'bam')
+    context['lane_linked_filetypes'] = ('fasta', 'fastq', 'tar')
+    context['aln_linked_filetypes'] = ('bam',)
     context['project_code']     = self.kwargs['project']
     return context
 
@@ -312,6 +313,12 @@ class LibraryDetailView(FormMixin, MyDetailView):
     # (i.e., is a lab member) before allowing any changes.
     if default not in allowed:
       messages.error(request, "You are not authorised to change library project assignments.")
+      return
+
+    # Attempts to alter frozen projects will fail in the Model layer,
+    # but we provide a user-friendly message here.
+    if any([ proj.is_frozen for proj in wanted if proj not in current ]):
+      messages.error(request, "Attempted to modify a data-frozen project. No changes were made.")
       return
 
     try:

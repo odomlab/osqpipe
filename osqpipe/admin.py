@@ -320,7 +320,7 @@ class ProjectAdminForm(forms.ModelForm):
 class ProjectAdmin(admin.ModelAdmin):
   form          = ProjectAdminForm
   list_display  = ('name', 'code', 'description')
-  fields        = ('name', 'code', 'lab',
+  fields        = ('name', 'code', 'lab', 'is_frozen',
                    'shortnames', 'filtered', 'description', 'people')
 
 #############################################
