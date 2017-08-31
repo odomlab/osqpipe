@@ -995,13 +995,13 @@ def protect_frozen_m2m(sender, instance, action, reverse, model, pk_set, **kwarg
     # instance can be either Project or Library.
     if reverse:
 
+      # instance is project; model is library.
+      if instance.is_frozen:
+        raise ValidationError("Attempt to change a frozen project instance.")
+
+    else:
+
       # instance is library; model is project.
       for pkid in list(pk_set):
         if model.objects.get(id=pkid).is_frozen:
           raise ValidationError("Attempt to change a frozen project instance.")
-
-    else:
-
-      # instance is project; model is library.
-      if instance.is_frozen:
-        raise ValidationError("Attempt to change a frozen project instance.")
