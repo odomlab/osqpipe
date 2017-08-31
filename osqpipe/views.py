@@ -314,6 +314,12 @@ class LibraryDetailView(FormMixin, MyDetailView):
       messages.error(request, "You are not authorised to change library project assignments.")
       return
 
+    # Attempts to alter frozen projects will fail in the Model layer,
+    # but we provide a user-friendly message here.
+    if any([ proj.is_frozen for proj in wanted if proj not in current ]):
+      messages.error(request, "Attempted to modify a data-frozen project. No changes were made.")
+      return
+
     try:
 
       # Add new project assignments. Test that the user is a member of
