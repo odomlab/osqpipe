@@ -317,7 +317,10 @@ class LibraryDetailView(FormMixin, MyDetailView):
 
     # Attempts to alter frozen projects will fail in the Model layer,
     # but we provide a user-friendly message here.
-    if any([ proj.is_frozen for proj in wanted if proj not in current ]):
+    currset = set(current)
+    wantset = set(wanted)
+    diffs   = (currset - wantset) | (wantset - currset)
+    if any([ proj.is_frozen for proj in list(diffs) ]):
       messages.error(request, "Attempted to modify a data-frozen project. No changes were made.")
       return
 

@@ -294,6 +294,13 @@ span.current-page {
     margin-top: 2em;
 }
 
+.project_picker h6 {
+    float:right;
+    text-align: right;
+    display: inline-block;
+    width: 100%;
+}
+
 .library_table {
     width: 30em;
 }
