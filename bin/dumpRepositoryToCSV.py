@@ -48,6 +48,14 @@ def helper_aln_genomes(lane):
               for aln in lane.alignment_set.all() ]
   return _helper_listing_to_string(listing)
 
+def helper_source_treatments(lane):
+  '''
+  Return a string listing the treatments applied to the source in this lane.
+  '''
+  listing = [ "%s" % (treatment,)
+              for treatment in lane.library.sample.source.sourcetreatment_set.all() ]
+  return _helper_listing_to_string(listing)
+
 def helper_aln_programs(lane):
   '''
   Return a string listing the available programs (and versions) used
@@ -121,6 +129,7 @@ class RepositoryDumper(object):
       ('Sample ID',              lambda x: _helper_optional_value(x.library.sample.name)),
       ('Individual',             lambda x: _helper_optional_value(x.library.sample.source.name)),
       ('Condition',              lambda x: _helper_optional_value(x.library.condition, 'name')),
+      ('Treatments',             lambda x: helper_source_treatments(x)),
       ('Library Type',           lambda x: x.library.libtype.name),
       ('Library ChIP Factor',    lambda x: _helper_optional_value(x.library.factor, 'name')),
       ('Library ChIP Antibody',  lambda x: str(_helper_optional_value(x.library.antibody))),
