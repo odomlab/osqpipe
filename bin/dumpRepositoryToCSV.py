@@ -56,6 +56,15 @@ def helper_source_treatments(lane):
               for treatment in lane.library.sample.source.sourcetreatment_set.all() ]
   return _helper_listing_to_string(listing)
 
+def helper_sample_characteristics(lane, category):
+  '''
+  Return a string listing the Characteristics with the specified
+  category linked to the sample in this lane.
+  '''
+  listing = [ u"%s" % (char.value,)
+              for char in lane.library.sample.characteristics.filter(category=category) ]
+  return _helper_listing_to_string(listing)
+
 def helper_aln_programs(lane):
   '''
   Return a string listing the available programs (and versions) used
@@ -120,7 +129,7 @@ class RepositoryDumper(object):
     # contents).
     self.mapping = [
       ('Library',                lambda x: x.library.code),
-#      ('Experiment',             lambda x: x.library.chipsample),
+      ('Experiment',             lambda x: x.library.chipsample),
       ('Facility',               lambda x: x.facility.code),
       ('Lane Number',            lambda x: str(x.lanenum)),
 
@@ -131,6 +140,7 @@ class RepositoryDumper(object):
       ('Individual',             lambda x: _helper_optional_value(x.library.sample.source.name)),
       ('Condition',              lambda x: _helper_optional_value(x.library.condition, 'name')),
       ('Treatments',             lambda x: helper_source_treatments(x)),
+      ('Diagnosis',              lambda x: helper_sample_characteristics(x, 'Diagnosis')),
       ('Library Type',           lambda x: x.library.libtype.name),
       ('Library ChIP Factor',    lambda x: _helper_optional_value(x.library.factor, 'name')),
       ('Library ChIP Antibody',  lambda x: str(_helper_optional_value(x.library.antibody))),
