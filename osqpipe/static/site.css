@@ -273,7 +273,7 @@ span.current-page {
 
 .project_picker {
     float: right;
-    padding-right: 7em;
+    padding-right: 3em;
 }
 
 .project_picker select {
@@ -292,6 +292,13 @@ span.current-page {
 .project_picker p {
     margin-bottom: 0em;
     margin-top: 2em;
+}
+
+.project_picker h6 {
+    float:right;
+    text-align: right;
+    display: inline-block;
+    width: 100%;
 }
 
 .library_table {

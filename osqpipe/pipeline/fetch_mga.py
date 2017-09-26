@@ -36,7 +36,7 @@ LOGGER = configure_logging('fetch_mga')
 
 TEST_MODE = False
 
-def fetch_mga (flowcell, flowlane, destination, nameprefix, lims_fc):
+def fetch_mga (flowcell, flowlane, destination, nameprefix, lims_fc=None):
   """Fetches MGA report from Genologics LIMS. Returns PDF report."""
   mgafiles = []
   flowlane = int(flowlane)

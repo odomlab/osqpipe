@@ -89,7 +89,8 @@ if __name__ == '__main__':
 
   if ARGS.mergedbam is not None:
     PROC.gatk_preprocess_bam(ARGS.mergedbam,
-                             wait=ARGS.waitoncluster)
+                             wait=ARGS.waitoncluster,
+                             genome=ARGS.genome)
 
   elif ARGS.freebam is not None:
     PROC.gatk_preprocess_free_bamfile(ARGS.freebam, genome=ARGS.genome,

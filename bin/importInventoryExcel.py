@@ -125,16 +125,17 @@ class InventoryImporter(object):
 
     # If desired, skip over most of the file without running expensive database queries.
     if minlib is not None:
-      codere = re.compile('(\w+)(\d+)')
+      codere = re.compile('([a-z]+)(\d+)', re.I)
       minmo = codere.match(minlib)
       if minmo is None:
-        raise ValueError("Starting library code does not fit our standard format (\w+\d+).")
+        raise ValueError("Starting library code does not fit our standard format ([a-z]+\d+): %s" % minlib)
       for row in row_iter:
-        code = row[header.index('libraryid')]
+        rowdict = dict(zip(header, [ x.value for x in row ]))
+        code  = rowdict['libraryid']
         libmo = codere.match(code)
         if libmo is None:
-          raise ValueError("Library code in sheet does not fit our standard format (\w+\d+).")
-        if minmo.group(1) == libmo.group(1) and minmo.group(2) >= libmo.group(2):
+          raise ValueError("Library code in sheet does not fit our standard format ([a-z]+\d+): %s" % code)
+        if libmo.group(1).lower() == minmo.group(1).lower() and int(libmo.group(2)) >= int(minmo.group(2)):
           self.import_data_row([x.value for x in row], header)
           break
 

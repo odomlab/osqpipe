@@ -27,15 +27,15 @@ def helper_list_filetypes(lane):
   listing = []
   if any([ lf.filetype.code == 'fq'
            for lf in lane.lanefile_set.all() ]):
-    listing += ['fastq']
+    listing += [u'fastq']
   if any([ alf.filetype.code == 'bam'
            for aln in lane.alignment_set.all()
            for alf in aln.alnfile_set.all() ]):
-    listing += ['bam']
+    listing += [u'bam']
   if any([ qcf.filetype.code == 'pdf'
            for lqc in lane.laneqc_set.all()
            for qcf in lqc.qcfile_set.all() ]):
-    listing += ['fastqc']
+    listing += [u'fastqc']
 
   return _helper_listing_to_string(listing)
 
@@ -44,8 +44,25 @@ def helper_aln_genomes(lane):
   Return a string listing the available genomes (and versions) used
   for alignments to this lane.
   '''
-  listing = [ "%s(%s)" % (aln.genome.code, aln.genome.version)
+  listing = [ u"%s(%s)" % (aln.genome.code, aln.genome.version)
               for aln in lane.alignment_set.all() ]
+  return _helper_listing_to_string(listing)
+
+def helper_source_treatments(lane):
+  '''
+  Return a string listing the treatments applied to the source in this lane.
+  '''
+  listing = [ u"%s" % (treatment,)
+              for treatment in lane.library.sample.source.sourcetreatment_set.all() ]
+  return _helper_listing_to_string(listing)
+
+def helper_sample_characteristics(lane, category):
+  '''
+  Return a string listing the Characteristics with the specified
+  category linked to the sample in this lane.
+  '''
+  listing = [ u"%s" % (char.value,)
+              for char in lane.library.sample.characteristics.filter(category=category) ]
   return _helper_listing_to_string(listing)
 
 def helper_aln_programs(lane):
@@ -55,7 +72,7 @@ def helper_aln_programs(lane):
   '''
   listing = []
   for aln in lane.alignment_set.all():
-    listing += [ "%s(%s)" % (prov.program.program, prov.program.version)
+    listing += [ u"%s(%s)" % (prov.program.program, prov.program.version)
                  for prov in aln.provenance.all().order_by('rank_index') ]
   return _helper_listing_to_string(listing)
 
@@ -73,9 +90,9 @@ def helper_max_mapped_percent(lane, attr='mapped_percent'):
   '''
   percs = [ getattr(aln, attr) for aln in lane.alignment_set.all() ]
   if len(percs) == 0:
-    return 'NA'
+    return u'NA'
   else:
-    return max(percs)
+    return unicode(max(percs))
 
 def _helper_listing_to_string(listing):
   '''
@@ -83,18 +100,18 @@ def _helper_listing_to_string(listing):
   appropriately.
   '''
   if len(listing) == 0:
-    listing = ['NA']
+    listing = [u'NA']
 
-  return ",".join(listing)
+  return u','.join(listing)
 
 def _helper_optional_value(value, attr=None):
   if value is not None:
     if attr is not None:
-      return getattr(value, attr)
+      return unicode(getattr(value, attr))
     else:
-      return value
+      return unicode(value)
   else:
-    return 'NA'
+    return u'NA'
 
 class RepositoryDumper(object):
   '''
@@ -112,14 +129,18 @@ class RepositoryDumper(object):
     # contents).
     self.mapping = [
       ('Library',                lambda x: x.library.code),
+      ('Experiment',             lambda x: x.library.chipsample),
       ('Facility',               lambda x: x.facility.code),
       ('Lane Number',            lambda x: str(x.lanenum)),
 
       ('Sex',                    lambda x: str(_helper_optional_value(x.library.sample.source.sex))),
       ('Tissue/Cell Line',       lambda x: x.library.sample.tissue.name),
       ('Strain',                 lambda x: _helper_optional_value(x.library.sample.source.strain, 'name')),
+      ('Sample ID',              lambda x: _helper_optional_value(x.library.sample.name)),
       ('Individual',             lambda x: _helper_optional_value(x.library.sample.source.name)),
       ('Condition',              lambda x: _helper_optional_value(x.library.condition, 'name')),
+      ('Treatments',             lambda x: helper_source_treatments(x)),
+      ('Diagnosis',              lambda x: helper_sample_characteristics(x, 'Diagnosis')),
       ('Library Type',           lambda x: x.library.libtype.name),
       ('Library ChIP Factor',    lambda x: _helper_optional_value(x.library.factor, 'name')),
       ('Library ChIP Antibody',  lambda x: str(_helper_optional_value(x.library.antibody))),
@@ -142,7 +163,7 @@ class RepositoryDumper(object):
       ('Max Percent Uniquely Mapped', lambda x:\
          str(helper_max_mapped_percent(x, 'munique_percent'))),
 
-      ('Marked As Failed',       lambda x: 'YES' if x.library.bad else 'no'),
+      ('Marked As Failed',       lambda x: u'YES' if x.library.bad else u'no'),
       ('Comment',                lambda x: _helper_optional_value(x.library.comment)),
       ('Accessions',             lambda x: helper_public_accessions(x)),
       ]
@@ -198,8 +219,8 @@ class RepositoryDumper(object):
         lanes = lanes.filter(library__projects__code=project)
 
       for lane in lanes:
-        lanestr = self.laneobj_to_string(lane)
-        outfh.write(lanestr + "\n")
+        lanestr = self.laneobj_to_string(lane) + u'\n'
+        outfh.write(lanestr.encode('utf-8'))
 
 if __name__ == '__main__':
 

@@ -121,7 +121,7 @@ class ExternalRecordManager(object):
         try:
             self.obj = Sample.objects.get(library__code=code)
         except Sample.DoesNotExist:
-            LOGGER.error("No sample with name \"%s\".", sample_name)
+            LOGGER.error("No sample for library code \"%s\".", code)
             sys.exit(1)
             self.obj_type = 'sample'
 
@@ -179,5 +179,8 @@ class ExternalRecordManager(object):
         
         if self.receipt_type == 'EXPERIMENT':
             self.add_library_obj(code=alias)
+            self.obj_type = 'library'
+            
         if self.receipt_type == 'SAMPLE':
             self.add_sample_obj(sample_name=alias)
+            self.obj_type = 'sample'

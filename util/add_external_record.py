@@ -2,9 +2,17 @@
 #
 # $id$
 
-import os
 import sys
-from ExternalRecordManager import ExternalRecordManager
+
+from osqutil.setup_logs import configure_logging
+from logging import INFO
+LOGGER = configure_logging(level=INFO)
+
+import django
+django.setup()
+
+from osqpipe.models import Lane
+from osqpipe.pipeline.external_record import ExternalRecordManager
 
 if __name__ == '__main__':
   

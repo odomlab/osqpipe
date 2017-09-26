@@ -8,9 +8,10 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 
-# This stanza to manage REST API authentication tokens (see below).
+# This stanza to manage REST API authentication tokens (see
+# below). Also the project-library ManyToManyField relationship (m2m_changed).
 from django.conf import settings
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, m2m_changed
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 
@@ -268,6 +269,7 @@ class Project(ControlledVocab):
   filtered     = models.BooleanField(default=True)
   lab          = models.CharField(max_length=32)
   people       = models.ManyToManyField(User, db_table='project_users')
+  is_frozen    = models.BooleanField(default=False)
   # libraries relationship dealt with below.
 
   _controlled_field = 'code'
@@ -977,3 +979,29 @@ class LibraryExtra(models.Model):
 def create_auth_token(sender, instance=None, created=False, **kwargs):
   if created:
     Token.objects.create(user=instance)
+
+####################################################################################
+# Manage the project-library relationship for projects which are data-frozen.
+
+@receiver(m2m_changed, sender=Library.projects.through)
+def protect_frozen_m2m(sender, instance, action, reverse, model, pk_set, **kwargs):
+  '''
+  Signal receiver to monitor data-frozen projects and prevent
+  addition or removal of libraries.
+  '''
+  # We trigger exceptions before addition/removal/clearance, not after.
+  if action in ('pre_add', 'pre_remove', 'pre_clear'):
+
+    # instance can be either Project or Library.
+    if reverse:
+
+      # instance is project; model is library.
+      if instance.is_frozen:
+        raise ValidationError("Attempt to change a frozen project instance.")
+
+    else:
+
+      # instance is library; model is project.
+      for pkid in list(pk_set):
+        if model.objects.get(id=pkid).is_frozen:
+          raise ValidationError("Attempt to change a frozen project instance.")

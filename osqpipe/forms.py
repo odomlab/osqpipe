@@ -43,10 +43,19 @@ class LibraryEditForm(forms.Form):
   bad          = forms.BooleanField(required=False, label='Library Failed')
   comment      = forms.CharField(required=False, label='Comments', widget=forms.Textarea)
 
+class LibraryProjectChoiceField(forms.ModelMultipleChoiceField):
+
+  def label_from_instance(self, obj):
+    if hasattr(obj, 'is_frozen') and obj.is_frozen:
+      slug = "%s *"
+    else:
+      slug = "%s"
+    return slug % obj
+
 class LibraryProjectPicker(forms.Form):
 
-  projects = forms.ModelMultipleChoiceField(queryset=Project.objects.none(),
-                                            label='Project membership')
+  projects = LibraryProjectChoiceField(queryset=Project.objects.none(),
+                                       label='Project membership')
 
   # We need to be able to set the project listing based on the
   # logged-in user. See http://stackoverflow.com/a/4880869

@@ -330,7 +330,7 @@ if __name__ == '__main__':
                       + ' download is to be skipped.')
 
   PARSER.add_argument('--filetype', dest='filetype', type=str,
-                      default='fastq', choices=['fastq','bed','bam','mergedbam'],
+                      default='fastq', choices=['fastq','bed','bam','mergedbam','tar'],
                       help='The type of file to download. The default is fastq.')
 
   ARGS = PARSER.parse_args()
