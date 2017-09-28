@@ -333,11 +333,11 @@ class FlowCellQuery(object):
         continue
 
       lib_status = None
-      lane_complete = Status.objects.get(code='complete')
       db_lanes = Lane.objects.filter(flowcell=lims_fc.fcid,
                                     flowlane=lane.lane,
                                     library=lib)
-      if db_lanes.count() == 1 and db_lanes[0].status == lane_complete:
+      # Following if statement needs reivising as the list here is long and some status codes may be missed:
+      if db_lanes.count() == 1 and db_lanes[0].status.code != 'new' and db_lanes[0].status.code != 'downloaded' and db_lanes[0].status.code != 'downloading_failed' and db_lanes[0].status.code != 'failed' and db_lanes[0].status.code != 'downloading data':
         # if db_lane != None:
         db_lane = db_lanes[0]
         db_lib  = db_lane.library
