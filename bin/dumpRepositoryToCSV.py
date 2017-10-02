@@ -129,7 +129,7 @@ class RepositoryDumper(object):
     # contents).
     self.mapping = [
       ('Library',                lambda x: x.library.code),
-      ('Experiment',             lambda x: x.library.chipsample),
+      ('Experiment',             lambda x: _helper_optional_value(x.library.chipsample)),
       ('Facility',               lambda x: x.facility.code),
       ('Lane Number',            lambda x: str(x.lanenum)),
 
