@@ -38,19 +38,20 @@ class FlowCellProcess(object):
   '''Main class used for processing flowcells.'''
 
   __slots__ = ('test_mode', 'db_library_check', 'demux_prog', 'conf', 'ready',
-               'lims', '_demux_files', 'output_files', 'trust_lims_adapters')
+               'lims', '_demux_files', 'output_files', 'trust_lims_adapters','force_download')
 
   def __init__(self, test_mode=False,
                db_library_check=True, demux_prog='demuxIllumina',
                force_primary=False, force_all=None,
-               lims=None, trust_lims_adapters=None):
+               lims=None, trust_lims_adapters=None, force_download=False):
 
     self.conf             = Config()
     self.test_mode        = test_mode
     self.db_library_check = db_library_check
     self.demux_prog       = demux_prog
     self.ready            = 'COMPLETE'
-
+    self.force_download = force_download
+    
     if force_all:
       self.ready = (self.ready, 'PRIMARY COMPLETE', 'INCOMPLETE')
 
@@ -58,7 +59,7 @@ class FlowCellProcess(object):
     elif force_primary:
       self.ready = (self.ready, 'PRIMARY COMPLETE')
 
-
+      
     self._demux_files    = {}
     self.output_files    = []
     if lims is None:
@@ -192,7 +193,7 @@ class FlowCellProcess(object):
 
       # retrieve file
       fetcher = FQFileFetcher(destination=path, lims=self.lims,
-                              test_mode=self.test_mode, unprocessed_only=True)
+                              test_mode=self.test_mode, unprocessed_only=True, force_download=self.force_download)
       fetcher.fetch(flowcell, flowlane)
 
       if self.test_mode:

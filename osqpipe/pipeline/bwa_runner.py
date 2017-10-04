@@ -541,7 +541,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
               (num_threads, outfnfull, outfnfullout, outfnfullout))
 
     # We generate verbose logging here to better monitor file transfers.
-    cmd += (" && scp -v -i %s %s %s@%s:%s"
+    cmd += (" && scp -v -c aes128-cbc -i %s %s %s@%s:%s"
             % (self.conf.althostsshkey,
                outfnfull,
                self.conf.user,

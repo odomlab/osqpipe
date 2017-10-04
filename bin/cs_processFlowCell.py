@@ -43,12 +43,16 @@ if __name__ == '__main__':
                       help='Start processing a flow cell which is only PRIMARY COMPLETE,'
                       + ' not SECONDARY COMPLETE. It is the user\'s responsibility to ensure'
                       + ' that the LIMS files are ready to be copied across.')
-
+    
   PARSER.add_argument('--force-all', dest='forceAll',
                       action='store_true',
                       help='Start processing a flow cell which is still INCOMPLETE.'
                       + ' Once again, it is the user\'s responsibility to ensure'
                       + ' that the LIMS files are ready to be copied across.')
+
+  PARSER.add_argument('--force-download', dest='forceDownload',
+                      action='store_true',
+                      help='Force download even if flowcell has already been processed.')
 
   PARSER.add_argument('-d', '--destination-dir', dest='destdir', type=str,
                       help='Select a different destination directory for downloads'
@@ -68,7 +72,8 @@ if __name__ == '__main__':
                          db_library_check = ARGS.checkForLibInDB,
                          force_primary    = ARGS.forcePrimary,
                          force_all        = ARGS.forceAll,
-                         trust_lims_adapters = ARGS.trustAdapt)
+                         trust_lims_adapters = ARGS.trustAdapt,
+                         force_download   = ARGS.forceDownload)
 
   PROC.run(ARGS.flowCell, ARGS.flowLane, destdir = ARGS.destdir)
 
