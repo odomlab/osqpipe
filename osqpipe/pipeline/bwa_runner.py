@@ -370,6 +370,100 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
 
 ##############################################################################
 
+class StarClusterJobSubmitter(AlignmentJobRunner):
+  '''
+  Class representing the submission of a STAR job to the
+  cluster. This class works similarly to BwaClusterJobSubmitter.
+  '''
+  def __init__(self, *args, **kwargs):
+    self.job = ClusterJobSubmitter(*args, **kwargs)
+    super(StarClusterJobSubmitter, self).__init__(*args, **kwargs)
+
+  def submit(self, filenames, is_paired=False, destnames=None, cleanup=True,
+              *args, **kwargs):
+    '''
+    Actually submit the job. The optional destnames argument can be
+    used to name files on the cluster differently to the source. This
+    is occasionally useful.
+    '''
+    paired_sanity_check(filenames, is_paired)
+
+    # First, copy the files across and uncompress on the server. We
+    # remove commas here because otherwise tophat is a little too keen
+    # to split on them (quoting doesn't work).
+    LOGGER.info("Copying files to the cluster.")
+    destnames = [ re.sub(',+', '_', os.path.basename(fname)) for fname in filenames ]
+    destnames = self.job.transfer_data(filenames, destnames)
+
+    # Next, create flag for cleanup
+    if cleanup:
+      cleanupflag = '--cleanup'
+    else:
+      cleanupflag = ''
+
+    if self.samplename:
+      sampleflag = '--sample %s' % self.samplename
+    else:
+      sampleflag = ''
+
+    # This now searches directly on the cluster.
+    progpath = self.job.find_remote_executable('cs_runStarWithSplit.py',
+                                               path=self.conf.clusterpath)
+
+    # Next, submit the actual jobs on the actual cluster.
+    fnlist = " ".join([ quote(x) for x in destnames ])
+    cmd = ("python %s --loglevel %d %s --rcp %s:%s %s %s %s"
+           % (progpath,
+              LOGGER.getEffectiveLevel(),
+              cleanupflag,
+              self.conf.datahost,
+              self.finaldir,
+              sampleflag,
+              self.genome,
+              fnlist))
+
+    LOGGER.info("Submitting STAR job to cluster.")
+    self.job.submit_command(cmd, *args, **kwargs)
+
+  @classmethod
+  def build_genome_index_path(cls, genome, *args, **kwargs):
+
+    # Import here rather than main file as otherwise cluster operations fail.
+    from ..models import Program
+
+    conf = Config()
+
+    # Get information about default aligner, check that the program is
+    # in path and try to predict its version.
+    alignerinfo = ProgramSummary('STAR',
+                                 ssh_host=conf.cluster,
+                                 ssh_port=conf.clusterport,
+                                 ssh_user=conf.clusteruser,
+                                 ssh_path=conf.clusterpath)
+    indexdir = None
+
+    # Check that the version of aligner has been registered in
+    # repository.
+    try:
+      Program.objects.get(program=alignerinfo.program,
+                          version=alignerinfo.version,
+                          current=True)
+      indexdir = "%s_%s" % ('STAR', alignerinfo.version)
+
+    except Program.DoesNotExist, _err:
+      sys.exit(("""Aligner "%s" version "%s" found at path "%s" """
+               % (alignerinfo.program, alignerinfo.version, alignerinfo.path))
+               + "not recorded as current in repository! Quitting.")
+
+    # Build path to STAR genome dir. Note that STAR takes dir name only without indexdir.fa suffix in the end.
+    gpath = genome_fasta_path(genome, indexdir=indexdir, genomedir=conf.clustergenomedir)
+    # A bit of an ugly hack here: Remove indexdir.fa suffix from gpath created by genome_fasta_path
+    gpath = os.path.split(gpath)[0]
+    
+    return gpath
+
+##############################################################################
+
 class BwaDesktopJobSubmitter(AlignmentJobRunner):
 
   '''An alternative means of submitting an alignment job to a remote

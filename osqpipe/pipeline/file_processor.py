@@ -19,7 +19,7 @@ from osqutil.utilities import parse_incoming_fastq_name, call_subprocess, \
 from osqutil.config import Config
 from ..models import Filetype, Library, Lane, Lanefile, Facility, \
     Status, LibraryNameMap, Machine
-from .fastq_aligner import FastqBwaAligner, FastqTophatAligner
+from .fastq_aligner import FastqBwaAligner, FastqTophatAligner, FastqStarAligner
 from .upstream_lims import Lims
 from .fetch_mga import fetch_mga
 from .laneqc import LaneFastQCReport
@@ -119,7 +119,7 @@ class GenericFileProcessor(object):
   def __init__(self, fname, fname2, paired, facility,
                options=None, notes=None, test_mode=False,
                libcode=None, flowcell=None, flowlane=None,
-               bwa_algorithm=None):
+               bwa_algorithm=None, aligner=None):
     self.test_mode = test_mode
     self.incoming = fname
     self.paired = paired
@@ -133,6 +133,7 @@ class GenericFileProcessor(object):
     self.notes = notes
     self.library = None
     self.bwa_algorithm = bwa_algorithm
+    self.aligner = aligner
 
     if options is None:
       options = {}
@@ -496,9 +497,14 @@ class GenericFileProcessor(object):
     
     # If RNA-Seq, align using tophat2. If not, use our default bwa.
     if self.library.libtype.code == 'rnaseq':
-      aligner = FastqTophatAligner(test_mode=self.test_mode,
-                                   samplename=self.library.sample.name,
-                                   finaldir=repo_incoming)
+      if self.aligner == 'star':
+        aligner = FastqStarAligner(test_mode=self.test_mode,
+                                     samplename=self.library.sample.name,
+                                     finaldir=repo_incoming)
+      else:
+        aligner = FastqTophatAligner(test_mode=self.test_mode,
+                                     samplename=self.library.sample.name,
+                                     finaldir=repo_incoming)        
       if nocc is not None:
         LOGGER.warning("Unsupported attempt to run tophat2 with read reallocation.")
     else:

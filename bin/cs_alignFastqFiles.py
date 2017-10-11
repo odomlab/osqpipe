@@ -13,7 +13,7 @@ LOGGER = configure_logging(level=INFO)
 import django
 django.setup()
 
-from osqpipe.pipeline.fastq_aligner import FastqBwaAligner, FastqTophatAligner
+from osqpipe.pipeline.fastq_aligner import FastqBwaAligner, FastqTophatAligner, FastqStarAligner
 
 if __name__ == '__main__':
 
@@ -43,7 +43,7 @@ if __name__ == '__main__':
                       + ' in bam file. The bwa default is 3.')
 
   PARSER.add_argument('-a', '--aligner', dest='aligner', type=str,
-                      choices=('bwa', 'tophat'), default='bwa',
+                      choices=('bwa', 'tophat', 'star'), default='bwa',
                       help='The aligner program to use.')
 
   PARSER.add_argument('--algorithm', type=str, dest='algorithm', choices=('aln', 'mem'),
@@ -71,6 +71,9 @@ if __name__ == '__main__':
                           bwa_algorithm=ARGS.algorithm)
   elif ARGS.aligner == 'tophat':
     BWA = FastqTophatAligner(test_mode=ARGS.testMode,
+                             samplename=ARGS.sample)
+  elif ARGS.aligner == 'star':
+    BWA = FastqStarAligner(test_mode=ARGS.testMode,
                              samplename=ARGS.sample)
   else:
     raise ValueError("Unrecognised aligner requested: %s" % ARGS.aligner)

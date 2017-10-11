@@ -10,7 +10,7 @@ import os
 from ..models import Library, Genome, Filetype
 from osqutil.config import Config
 from osqutil.utilities import determine_readlength
-from .bwa_runner import BwaClusterJobSubmitter, BwaDesktopJobSubmitter, TophatClusterJobSubmitter
+from .bwa_runner import BwaClusterJobSubmitter, BwaDesktopJobSubmitter, TophatClusterJobSubmitter, StarClusterJobSubmitter
 
 from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
@@ -257,3 +257,57 @@ class FastqTophatAligner(FastqAligner):
 
     LOGGER.info("Jobs submitted.")
 
+class FastqStarAligner(FastqAligner):
+  '''
+  Class used to handle alignments using the STAR external
+  binary. This is currently coded to use STAR running on a cluster via
+  the StarClusterJobSubmitter class.
+  '''
+  def _call_aligner(self, filepaths, genome, destnames=None,
+                    nocc=None, cleanup=True, *args, **kwargs):
+    '''
+    Method used to dispatch cs_runStarWithSplit.py processes on the
+    cluster.
+    '''
+    if nocc is not None:
+      LOGGER.warning("Unsupported nocc argument passed to FastqStarAligner.")
+
+    if len(filepaths) == 1:
+      LOGGER.info("Launching single-end sequencing alignment.")
+      paired = False
+    elif len(filepaths) == 2:
+      LOGGER.info("Launching paired-end sequencing alignment.")
+      paired = True
+    else:
+      raise ValueError("Wrong number of files passed to aligner.")
+
+    if destnames is None:
+      destnames = [os.path.basename(x) for x in filepaths]
+
+    # The alternative alignment host mechanism is currently
+    # unsupported for STAR alignments (for lack of development time).
+    num_threads = 1
+    try:
+      althost = self.conf.althost
+      assert(althost != '')
+    except AttributeError, _err:
+      althost = None
+    if althost is None:
+      jobclass = StarClusterJobSubmitter
+    else:
+      raise ValueError("Currently unable to run STAR jobs via the"
+                       + " alternative alignment host mechanism.")
+
+    # Build path to genome index on the alignment host/cluster.
+    genome_path = jobclass.build_genome_index_path(genome)
+
+    bsub = jobclass(test_mode=self.test_mode,
+                    genome=genome_path,
+                    samplename=self.samplename,
+                    finaldir=self.finaldir,
+                    num_threads=num_threads)
+    bsub.submit(filenames=filepaths, auto_requeue=False,
+                destnames=destnames,
+                is_paired=paired, cleanup=cleanup)
+
+    LOGGER.info("Jobs submitted.")

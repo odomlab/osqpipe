@@ -13,7 +13,7 @@ LOGGER = configure_logging(level=INFO)
 import django
 django.setup()
 
-from osqpipe.pipeline.fastq_aligner import FastqBwaAligner, FastqTophatAligner
+from osqpipe.pipeline.fastq_aligner import FastqBwaAligner, FastqTophatAligner, FastqStarAligner
 from osqpipe.models import Library
 
 if __name__ == '__main__':
@@ -47,7 +47,7 @@ if __name__ == '__main__':
                       help='Specifies number of non-unique read occurrences to keep'
                       + ' in bam file. The bwa default is 3.')
 
-  PARSER.add_argument('--algorithm', type=str, dest='algorithm', choices=('aln', 'mem'),
+  PARSER.add_argument('--algorithm', type=str, dest='algorithm', choices=('aln', 'mem', 'tophat', 'star'),
                       help='The bwa algorithm to use (aln or mem). The default behaviour'
                       + ' is to pick the algorithm based on the read length in the fastq files.')
 
@@ -57,8 +57,12 @@ if __name__ == '__main__':
   # tailor this to other aligners in future.
   library = Library.objects.get(code=ARGS.library)
   if library.libtype.code == 'rnaseq':
-    BWA = FastqTophatAligner(test_mode=ARGS.testMode,
+    if algorithm == 'star':
+      BWA = FastqStarAligner(test_mode=ARGS.testMode,
                              samplename=library.sample.name)
+    else:
+      BWA = FastqTophatAligner(test_mode=ARGS.testMode,
+                               samplename=library.sample.name)
   else:
     BWA = FastqBwaAligner(test_mode=ARGS.testMode,
                           samplename=library.sample.name,
@@ -70,6 +74,3 @@ if __name__ == '__main__':
             genome  = ARGS.genome,
             nocleanup = ARGS.nocleanup,
             nocc = ARGS.nocc)
-  
-
-
