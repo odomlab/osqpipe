@@ -78,11 +78,15 @@ class AlignmentJobRunner(object):
   subclasses must instantiate a RemoteJobRunner class in the 'job' slot
   prior to calling the base __init__ method.
   '''
-  __slots__ = ('finaldir', 'genome', 'job', 'conf', 'samplename')
+
+  # ML: Note that slot 'aligner' has been introduced only for the sake of 'star' aligner
+  # as the method for checking presence for reference genome index is different.
+  # We may want to find better way of dealing with this.
+  __slots__ = ('finaldir', 'genome', 'job', 'conf', 'samplename', 'aligner')
 
   job = None
   
-  def __init__(self, genome, finaldir='.', samplename=None, *args, **kwargs):
+  def __init__(self, genome, finaldir='.', samplename=None, aligner=None, *args, **kwargs):
 
     # A little programming-by-contract, as it were.
 #    if not all( hasattr(self, x) for x in ('job')):
@@ -95,7 +99,11 @@ class AlignmentJobRunner(object):
 
     # Check if genome exists.
     LOGGER.info("Checking if specified genome file exists.")
-    cmd = ("if [ -f %s ]; then echo yes; else echo no; fi" % genome)
+    cmd = None
+    if aligner is not None and aligner=='star':
+      cmd = ("if [ -d %s ]; then echo yes; else echo no; fi" % genome)
+    else:
+      cmd = ("if [ -f %s ]; then echo yes; else echo no; fi" % genome)
     LOGGER.debug(cmd)
 
     if not self.job.test_mode:

@@ -305,7 +305,7 @@ class FastqStarAligner(FastqAligner):
                     genome=genome_path,
                     samplename=self.samplename,
                     finaldir=self.finaldir,
-                    num_threads=num_threads)
+                    num_threads=num_threads, aligner='star')
     bsub.submit(filenames=filepaths, auto_requeue=False,
                 destnames=destnames,
                 is_paired=paired, cleanup=cleanup)
