@@ -1046,10 +1046,10 @@ class FileProcessingManager(object):
   GenericFileProcessor subclasses.
   '''
   __slots__ = ('options', 'facility', 'force_paired_end',
-               'libtype2class', 'test_mode', 'bwa_algorithm')
+               'libtype2class', 'test_mode', 'bwa_algorithm', 'aligner')
 
   def __init__(self, options=None, facility='CRI', force_paired_end=None,
-               bwa_algorithm=None, test_mode=False):
+               bwa_algorithm=None, test_mode=False, aligner=None):
     
     self.test_mode = test_mode
     if not options:
@@ -1058,6 +1058,7 @@ class FileProcessingManager(object):
     self.facility = facility
     self.force_paired_end = force_paired_end
     self.bwa_algorithm    = bwa_algorithm
+    self.aligner = aligner
     if self.test_mode:
       LOGGER.setLevel(DEBUG)
     else:
@@ -1214,7 +1215,7 @@ class FileProcessingManager(object):
                                                facility=self.facility,
                                                bwa_algorithm=self.bwa_algorithm,
                                                notes=notes,
-                                               test_mode=self.test_mode)
+                                               test_mode=self.test_mode, aligner=self.aligner)
     else:
       LOGGER.warning(
         "No class for libtype '%s' and extension '%s'.  Skipping.",
