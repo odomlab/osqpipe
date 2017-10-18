@@ -208,6 +208,11 @@ class AlignProcessingManager(object):
     if genome is None:
       genome = lib.genome.code
 
+    # Exit here in case we have rnaseq library and no info whether tophat or star align was used.
+    if lib.libtype.code == 'rnaseq' and aligner is None:
+      LOGGER.error("Aligner not specified. Use '--aligner tophat' or '--aligner star'")
+      sys.exit("Aligner not specified!")
+
     # The actual database loading code is currently set to raise an
     # error in such cases. An earlier warning would be nice, though.
     if not re.search(genome, in_fn):
@@ -218,19 +223,25 @@ class AlignProcessingManager(object):
     # Set aligner, later passed as argument to AlignmentHandler.
     if aligner is None:
 
-      if lib.libtype.code == 'rnaseq': # See TophatAlignmentManager
-
-        aligner = [ 'bowtie2', 'tophat2', 'samtools' ]
-        params  = [ '', '--no-coverage-search --libtype fr-firststrand', 'view -F 0x100' ]
-
-      else:
+      # If aligner is not specified and we have rnaseq library we should have been exiting by now.
+      if lib.libtype.code != 'rnaseq':
         aligner = self.conf.aligner
         params  = ''
 
     else:
-
+      
       if aligner == 'bwa':
         params = identify_bwa_algorithm(in_fn)
+      elif aligner == 'tophat':
+
+        aligner = [ 'bowtie2', 'tophat2', 'samtools' ]
+        params  = [ '', '--no-coverage-search --libtype fr-firststrand', 'view -F 0x100' ]
+
+      elif aligner == 'star':
+
+        aligner = [ 'STAR', 'samtools' ]
+        params  = [ '--runMode alignReads --readFilesCommand zcat --outSAMtype BAM SortedByCoordinate --quantMode GeneCounts --outSAMunmapped Within KeepPairs --outFilterScoreMinOverLread 0.4 --outFilterMatchNminOverLread 0.4', 'view -F 0x100' ]
+        
       else:
         params = ''
 
@@ -368,7 +379,7 @@ if __name__ == '__main__':
   PARSER.add_argument('-r', '--reallocate', dest='reallocate', action='store_true', required=False,
                       help='Re-allocates non-unique reads. Forces the script to ignore the --aligner option, below.')
 
-  PARSER.add_argument('-a', '--aligner', dest='aligner', type=str, required=False,
+  PARSER.add_argument('-a', '--aligner', dest='aligner', type=str, choices=('bwa', 'tophat', 'star'), default=None, required=False,
                       help='The program used to generate the alignment. The default is bwa.')
 
   PARSER.add_argument('--aligner-version', dest='alignvers', type=str, default=None,
