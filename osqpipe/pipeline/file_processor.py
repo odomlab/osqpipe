@@ -1129,6 +1129,10 @@ class FileProcessingManager(object):
       'race': {'.fq': ChIPFastqFileProc,
                '.export': ChIPExportFileProc,
                '.qseq': ChIPQseqFileProc,
+               '.map': ChIPMaqFileProc},
+      'atacseq': {'.fq': ChIPFastqFileProc,
+               '.export': ChIPExportFileProc,
+               '.qseq': ChIPQseqFileProc,
                '.map': ChIPMaqFileProc}
     }
 
