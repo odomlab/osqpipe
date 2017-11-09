@@ -15,7 +15,7 @@ from tempfile import mkstemp
 
 from osqutil.utilities import parse_incoming_fastq_name, call_subprocess, \
     checksum_file, parse_repository_filename, is_zipped, rezip_file, unzip_file, \
-    set_file_permissions, get_filename_libcode, bash_quote, transfer_file
+    set_file_permissions, get_filename_libcode, bash_quote, transfer_file, dostring_to_dorange
 from osqutil.config import Config
 from ..models import Filetype, Library, Lane, Lanefile, Facility, \
     Status, LibraryNameMap, Machine
@@ -434,7 +434,8 @@ class GenericFileProcessor(object):
     self.lane.machine = Machine.objects.get(code__iexact=str(self.lims_fc.instrument))
     lims_lane = self.lims_fc.get_sample_lane(self.flowlane, self.libcode)
     if lims_lane != None:
-      self.lane.usersampleid = lims_lane.user_sample_id
+      usersampleid = lims_lane.user_sample_id
+      self.lane.usersampleid = dostring_to_dorange(usersampleid)
       self.lane.genomicssampleid = lims_lane.genomics_sample_id
       self.lane.summaryurl = lims_lane.build_summary_url()
 
