@@ -455,7 +455,8 @@ class GenericFileProcessor(object):
       self.lane.seqsamplebad = ''
       return
     lims_lane = self.lims_fc.get_sample_lane(self.flowlane, self.libcode)
-    self.lane.usersampleid = lims_lane.user_sample_id
+    usersampleid = lims_lane.user_sample_id
+    self.lane.usersampleid = dostring_to_dorange(usersampleid)
     self.lane.genomicssampleid = lims_lane.genomics_sample_id
     self.lane.rundate = self.lims_fc.finish_date
     self.lane.machine = Machine.objects.get(code__iexact=str(self.lims_fc.instrument))
@@ -471,7 +472,8 @@ class GenericFileProcessor(object):
     self.lane.qualmeanpf = [0.0]
     self.lane.qualstdevpf = [0.0]
     if lims_lane != None:
-      self.lane.usersampleid = lims_lane.user_sample_id
+      usersampleid = lims_lane.user_sample_id
+      self.lane.usersampleid = dostring_to_dorange(usersampleid)
       self.lane.genomicssampleid = lims_lane.genomics_sample_id
       self.lane.summaryurl = lims_lane.build_summary_url()
 
