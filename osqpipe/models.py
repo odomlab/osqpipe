@@ -676,11 +676,19 @@ class Alignment(DataProcess):
 
   @property
   def mapped_percent(self):
-    return round(100*(float(self.mapped)/self.lane.total_passedpf), 1)
+    if self.lane.total_passedpf == 0:
+      perc = 0
+    else:
+      perc = 100*(float(self.mapped)/self.lane.total_passedpf)
+    return round(perc, 1)
 
   @property
   def munique_percent(self):
-    return round(100*(float(self.munique)/self.lane.total_passedpf), 1)
+    if self.lane.total_passedpf == 0:
+      perc = 0
+    else:
+      perc = 100*(float(self.munique)/self.lane.total_passedpf)
+    return round(perc, 1)
 
   def __unicode__(self):
     provenance = ", ".join([str(x) for x in self.provenance.all().order_by('rank_index')])
