@@ -585,7 +585,7 @@ class ClusterJobManager(object):
   __slots__ = ('namespace', 'submitter', 'runner', 'config',
                'throttle', 'memsize', 'ssh_key', 'local_workdir')
 
-  def __init__(self, namespace=None, throttle=0, memsize=20,
+  def __init__(self, namespace=None, throttle=0, memsize=20, time_limit=48,
                ssh_key=None, local_workdir='.'):
 
     self.config = Config()
@@ -600,6 +600,7 @@ class ClusterJobManager(object):
     self.submitter = ClusterJobSubmitter()
 
     self.memsize   = memsize   # expressed in GB
+    self.time_limit = time_limit
     self.throttle  = throttle
     self.ssh_key   = ssh_key
 

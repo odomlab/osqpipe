@@ -269,7 +269,8 @@ class LastzAligner(ClusterJobManager):
         # more robust on our cluster.
         job_ids.append(self.submitter.submit_command(cmd=cmd,
                                                      mem=self.memsize * 1024,
-                                                     auto_requeue=False))
+                                                     auto_requeue=False,
+                                                     time_limit=self.time_limit))
         lavfiles.append(outfile)
 
         # Reduce the rate of cluster job submission, if desired.
@@ -720,6 +721,10 @@ if __name__ == '__main__':
                       help='The amount of memory, in megabytes, to request on'
                       + ' the cluster (default=5000).')
 
+  PARSER.add_argument('--timelimit', dest='time_limit', type=int, default=48,
+                      help='The length of time, in hours, to allow cluster'
+                      + ' jobs to run for (default=48 hours).')
+
   PARSER.add_argument('--dryrun', dest='dryrun', action='store_true',
                       help='Run the script in dry-run mode. Currently this'
                       + ' simply figures out how many cluster jobs would be run'
@@ -736,6 +741,7 @@ if __name__ == '__main__':
                          linear_gap    = ARGS.linear_gap,
                          throttle      = ARGS.throttle,
                          memsize       = ARGS.memsize,
+                         time_limit    = ARGS.time_limit,
                          resume        = ARGS.resume)
 
   if ARGS.dryrun:
