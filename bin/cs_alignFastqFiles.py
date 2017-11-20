@@ -13,7 +13,7 @@ LOGGER = configure_logging(level=INFO)
 import django
 django.setup()
 
-from osqpipe.pipeline.fastq_aligner import FastqBwaAligner, FastqTophatAligner
+from osqpipe.pipeline.fastq_aligner import FastqBwaAligner, FastqTophatAligner, FastqStarAligner
 
 if __name__ == '__main__':
 
@@ -43,12 +43,25 @@ if __name__ == '__main__':
                       + ' in bam file. The bwa default is 3.')
 
   PARSER.add_argument('-a', '--aligner', dest='aligner', type=str,
-                      choices=('bwa', 'tophat'), default='bwa',
+                      choices=('bwa', 'tophat', 'star'), default='bwa',
                       help='The aligner program to use.')
 
   PARSER.add_argument('--algorithm', type=str, dest='algorithm', choices=('aln', 'mem'),
                       help='The bwa algorithm to use (aln or mem). The default behaviour'
                       + ' is to pick the algorithm based on the read length in the fastq files.')
+
+  PARSER.add_argument('--rcp', type=str, dest='rcp',
+                      help='Remote file copy (rcp) target.')
+
+  PARSER.add_argument('--lcp', type=str, dest='lcp', default=None,
+                      help='Local file copy (lcp) target.')
+  
+  PARSER.add_argument('--no-split', dest='nosplit', action='store_true',
+                      help='Do not split input fastq for distributed parallel alignment.', default=False)
+
+  PARSER.add_argument('--fileshost', dest='fileshost', type=str,
+                      help='Host where the files should be downloaded from.')
+
 
   ARGS = PARSER.parse_args()
 
@@ -59,13 +72,17 @@ if __name__ == '__main__':
   elif ARGS.aligner == 'tophat':
     BWA = FastqTophatAligner(test_mode=ARGS.testMode,
                              samplename=ARGS.sample)
+  elif ARGS.aligner == 'star':
+    BWA = FastqStarAligner(test_mode=ARGS.testMode,
+                             samplename=ARGS.sample)
   else:
     raise ValueError("Unrecognised aligner requested: %s" % ARGS.aligner)
   
   BWA.align_standalone(filepaths=ARGS.files,
                        genome  = ARGS.genome,
                        nocleanup = ARGS.nocleanup,
-                       nocc = ARGS.nocc)
-  
-
-
+                       nocc = ARGS.nocc,
+                       nosplit=ARGS.nosplit,
+                       rcp=ARGS.rcp,
+                       lcp=ARGS.lcp,
+                       fileshost=ARGS.fileshost)

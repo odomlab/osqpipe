@@ -231,6 +231,8 @@ class LibraryHandler(object):
     keys['genome'] = genome
     keys['tissue'] = tissue
 
+    print "Adapter=\"%s\"" % keys['adapter']
+    
     # A sensible fallback to make sure samples are treated
     # appropriately.
     indivkey = 'individual'
@@ -258,7 +260,7 @@ class LibraryHandler(object):
         return
 
     keys['genome'] = db_genome
-
+    
     # We allow configurably fuzzy matching for tissue, factor, antibody, strain.
     try:
       keys['tissue'] = self._retrieve_cv(keys['tissue'], Tissue)

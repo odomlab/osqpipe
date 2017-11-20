@@ -78,11 +78,15 @@ class AlignmentJobRunner(object):
   subclasses must instantiate a RemoteJobRunner class in the 'job' slot
   prior to calling the base __init__ method.
   '''
-  __slots__ = ('finaldir', 'genome', 'job', 'conf', 'samplename')
+
+  # ML: Note that slot 'aligner' has been introduced only for the sake of 'star' aligner
+  # as the method for checking presence for reference genome index is different.
+  # We may want to find better way of dealing with this.
+  __slots__ = ('finaldir', 'genome', 'job', 'conf', 'samplename', 'aligner')
 
   job = None
   
-  def __init__(self, genome, finaldir='.', samplename=None, *args, **kwargs):
+  def __init__(self, genome, finaldir='.', samplename=None, aligner=None, *args, **kwargs):
 
     # A little programming-by-contract, as it were.
 #    if not all( hasattr(self, x) for x in ('job')):
@@ -95,7 +99,11 @@ class AlignmentJobRunner(object):
 
     # Check if genome exists.
     LOGGER.info("Checking if specified genome file exists.")
-    cmd = ("if [ -f %s ]; then echo yes; else echo no; fi" % genome)
+    cmd = None
+    if aligner is not None and aligner=='star':
+      cmd = ("if [ -d %s ]; then echo yes; else echo no; fi" % genome)
+    else:
+      cmd = ("if [ -f %s ]; then echo yes; else echo no; fi" % genome)
     LOGGER.debug(cmd)
 
     if not self.job.test_mode:
@@ -132,7 +140,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
 
   def submit(self, filenames,
              is_paired=False, destnames=None, cleanup=True,
-             nocc=None, bwa_algorithm='aln', *args, **kwargs):
+             nocc=None, bwa_algorithm='aln', fileshost=None, nosplit=False, rcp=None, lcp=None, *args, **kwargs):
 
     '''Actually submit the job. The optional destnames argument can be
     used to name files on the cluster differently to the source. This
@@ -141,10 +149,15 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     assert(bwa_algorithm in ('aln', 'mem'))
     paired_sanity_check(filenames, is_paired)
 
-    # NB! Copying files to cluster is not any more necessary. This is taken care by --fileshost flag below.
+    # by lukk01:
+    # NB! Copying files to cluster is not any more necessary as long s the hostflag = '--fileshost %s' is uncommented below.
+    # However, this would be a pull rather than push and we should then pull from the archive for process_file.py
+    # It would requre, though, re-writing of data processing and alignment orders in process_file.py. Just a throught.
+    #
+    
     # First, copy the files across and uncompress on the server.
-    # LOGGER.info("Copying files to the cluster.")
-    # destnames = self.job.transfer_data(filenames, destnames)
+    LOGGER.info("Copying files to the cluster.")
+    destnames = self.job.transfer_data(filenames, destnames)
 
     # Next, create flag for cleanup
     cleanupflag = '--cleanup' if cleanup else ''
@@ -159,18 +172,33 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
     # Whether to run bwa mem or aln.
     algoflag = '--algorithm %s' % bwa_algorithm
 
-    # Check Whether the file is local or needs to be downloaded first.
-    cpflag = '--rcp %s:%s' % (self.conf.datahost, self.finaldir)
+    # Deal with default values for fileshost and rcp/lcp. I.e. figure out if files are located in cluster and results would need to be copied somewhere or not.
+    cpflag = '' 
     hostflag = ''
     filehost = gethostname()
     if filehost != self.conf.cluster:
-      hostflag  = '--fileshost %s' % filehost
+      # hostflag  = '--fileshost %s' % filehost
+      cpflag = '--rcp %s:%s' % (self.conf.datahost, self.finaldir)
     else:
       # the files are already in host. Override cleanup to prevent source files to be deleted.
       LOGGER.info("Input files are local. Overriding --cleanup to prevent files being deleted.")
       cleanupflag = ''
       cpflag = '--lcp %s' % self.finaldir
-    
+
+    # If fileshost has been specified, override default
+    if fileshost is not None:
+      hostflag = '--fileshost %s' % fileshost
+    # If rcp has been specified, override default
+    if rcp is not None:
+      cpflag = '--rcp %s' % rcp
+    # If lcp has been specified, override default
+    if lcp is not None:
+      cpflag = '--lcp %s' % rcp
+    # If nosplit has been set, forward the value
+    splitflag = ''
+    if nosplit is not None:
+      splitflag = '--no-split'
+
     # This now searches directly on the cluster.
     progpath = self.job.find_remote_executable('cs_runBwaWithSplit.py',
                                                path=self.conf.clusterpath)
@@ -187,13 +215,14 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
       ## In the submitted command:
       ##   --rcp       is where cs_runBwaWithSplit_Merge.py eventually copies
       ##                 the reassembled bam file (via scp).
-      cmd = ("python %s --loglevel %d %s %s %s %s %s %s %s %s"
+      cmd = ("python %s --loglevel %d %s %s %s %s %s %s %s %s %s"
              % (progpath,
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
                 hostflag,
                 noccflag,
                 cpflag,
+                splitflag,
                 sampleflag,
                 algoflag,
                 self.genome,
@@ -203,13 +232,14 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
       LOGGER.debug("Running bwa on single-end sequencing input.")
       fnlist = quote(filenames[0])
       # fnlist = quote(destnames[0])
-      cmd = ("python %s --loglevel %d %s %s %s %s %s %s %s %s"
+      cmd = ("python %s --loglevel %d %s %s %s %s %s %s %s %s %s"
              % (progpath,
                 LOGGER.getEffectiveLevel(),
                 cleanupflag,
                 hostflag,
                 noccflag,
                 cpflag,
+                splitflag,
                 sampleflag,
                 algoflag,
                 self.genome,
@@ -344,6 +374,100 @@ class TophatClusterJobSubmitter(AlignmentJobRunner):
     # Tophat/bowtie need the trailing .fa removed.
     gpath = genome_fasta_path(genome, indexdir=indexdir, genomedir=conf.clustergenomedir)
 
+    return gpath
+
+##############################################################################
+
+class StarClusterJobSubmitter(AlignmentJobRunner):
+  '''
+  Class representing the submission of a STAR job to the
+  cluster. This class works similarly to BwaClusterJobSubmitter.
+  '''
+  def __init__(self, *args, **kwargs):
+    self.job = ClusterJobSubmitter(*args, **kwargs)
+    super(StarClusterJobSubmitter, self).__init__(*args, **kwargs)
+
+  def submit(self, filenames, is_paired=False, destnames=None, cleanup=True,
+              *args, **kwargs):
+    '''
+    Actually submit the job. The optional destnames argument can be
+    used to name files on the cluster differently to the source. This
+    is occasionally useful.
+    '''
+    paired_sanity_check(filenames, is_paired)
+
+    # First, copy the files across and uncompress on the server. We
+    # remove commas here because otherwise tophat is a little too keen
+    # to split on them (quoting doesn't work).
+    LOGGER.info("Copying files to the cluster.")
+    destnames = [ re.sub(',+', '_', os.path.basename(fname)) for fname in filenames ]
+    destnames = self.job.transfer_data(filenames, destnames)
+
+    # Next, create flag for cleanup
+    if cleanup:
+      cleanupflag = '--cleanup'
+    else:
+      cleanupflag = ''
+
+    if self.samplename:
+      sampleflag = '--sample %s' % self.samplename
+    else:
+      sampleflag = ''
+
+    # This now searches directly on the cluster.
+    progpath = self.job.find_remote_executable('cs_runStarWithSplit.py',
+                                               path=self.conf.clusterpath)
+
+    # Next, submit the actual jobs on the actual cluster.
+    fnlist = " ".join([ quote(x) for x in destnames ])
+    cmd = ("python %s --loglevel %d %s --rcp %s:%s %s %s %s"
+           % (progpath,
+              LOGGER.getEffectiveLevel(),
+              cleanupflag,
+              self.conf.datahost,
+              self.finaldir,
+              sampleflag,
+              self.genome,
+              fnlist))
+
+    LOGGER.info("Submitting STAR job to cluster.")
+    self.job.submit_command(cmd, *args, **kwargs)
+
+  @classmethod
+  def build_genome_index_path(cls, genome, *args, **kwargs):
+
+    # Import here rather than main file as otherwise cluster operations fail.
+    from ..models import Program
+
+    conf = Config()
+
+    # Get information about default aligner, check that the program is
+    # in path and try to predict its version.
+    alignerinfo = ProgramSummary('STAR',
+                                 ssh_host=conf.cluster,
+                                 ssh_port=conf.clusterport,
+                                 ssh_user=conf.clusteruser,
+                                 ssh_path=conf.clusterpath)
+    indexdir = None
+
+    # Check that the version of aligner has been registered in
+    # repository.
+    try:
+      Program.objects.get(program=alignerinfo.program,
+                          version=alignerinfo.version,
+                          current=True)
+      indexdir = "%s_%s" % ('STAR', alignerinfo.version)
+
+    except Program.DoesNotExist, _err:
+      sys.exit(("""Aligner "%s" version "%s" found at path "%s" """
+               % (alignerinfo.program, alignerinfo.version, alignerinfo.path))
+               + "not recorded as current in repository! Quitting.")
+
+    # Build path to STAR genome dir. Note that STAR takes dir name only without indexdir.fa suffix in the end.
+    gpath = genome_fasta_path(genome, indexdir=indexdir, genomedir=conf.clustergenomedir)
+    # A bit of an ugly hack here: Remove indexdir.fa suffix from gpath created by genome_fasta_path
+    gpath = os.path.split(gpath)[0]
+    
     return gpath
 
 ##############################################################################
@@ -519,7 +643,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
               (num_threads, outfnfull, outfnfullout, outfnfullout))
 
     # We generate verbose logging here to better monitor file transfers.
-    cmd += (" && scp -v -i %s %s %s@%s:%s"
+    cmd += (" && scp -v -c aes128-cbc -i %s %s %s@%s:%s"
             % (self.conf.althostsshkey,
                outfnfull,
                self.conf.user,

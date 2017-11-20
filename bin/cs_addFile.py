@@ -65,7 +65,7 @@ class RepoFileHandler(object):
   functionality left in this script, post-refactor.'''
 
   @staticmethod
-  def run(fns, md5files=False, archive=None):
+  def run(fns, md5files=False, archive=None, md5sums=None):
     '''Main entry point for the class.'''
 
     arc = None
@@ -77,19 +77,25 @@ class RepoFileHandler(object):
         arc_date = datetime.date.today()
       except ArchiveLocation.DoesNotExist, _err:
         raise SystemExit("No ArchiveLocation with name '%s'" % archive)
-      
-    for fname in fns:
+
+    i = 0
+    for fname in fns:      
       # We assume that the file names in the list may correspond to different lanes.
       # Hence, we search lane for each file again.
       lane = get_lane_for_file(fname)
       # Even though fname was already parsed in get_lane_for_file, parse it again as we need the pipeline value
       (code, facility, lanenum, pipeline) = parse_repository_filename(fname)
-      
-      if md5files:
-        chksum = checksum_from_file(fname)
-        if chksum is None:        
-          chksum = checksum_file(fname)          
+
+      # if md5sums have been provided
+      if md5sums is not None:
+        chksum = md5sums[i]
+        i += 1
       else:
+        # if md5sum is available in .md5 file on the file location
+        if md5files:
+          chksum = checksum_from_file(fname)
+      # As a last resort, try to compute md5sum
+      if chksum is None:
         chksum = checksum_file(fname)
       filetype = Filetype.objects.guess_type(fname)
       basefn = os.path.split(fname)[1]
@@ -105,15 +111,20 @@ class RepoFileHandler(object):
       LOGGER.info("Added %s to repository.", basefn)
 
   @staticmethod
-  def add_qc_files(fnames, program_name):
+  def add_qc_files(fnames, program_name, md5sums=None):
+    '''Adds QC files to repository'''
     # Assume first file is representative of lane for all
     l = get_lane_for_file(fnames[0])
 
     LOGGER.info("Inserting QC files for lane=%d", l.id)
 
-    with LaneFastQCReport(lane=l, program_name=program_name, workdir='./', move_files=False) as rep:
+    with LaneFastQCReport(lane=l, program_name=program_name, workdir='/some/dir/', move_files=False) as rep:
+      # set output_files and corresponding md5s
       rep.output_files = fnames
-      rep.insert_into_repository()
+      if md5sums is not None:
+        rep.output_md5s = md5sums
+      # insert records about QC files to repository.
+      rep.insert_into_repository(move_files=False)
 
   @staticmethod          
   def add_lane_summary(fname):
@@ -191,6 +202,7 @@ if __name__ == '__main__':
   PARSER.add_argument('files', metavar='<files>', type=str, nargs='*',
                       help='The list of files.')
   PARSER.add_argument('-m', '--md5sum', dest='md5files', action='store_true', help='Assume pre-computed md5sums available in filename.md5.', default=False)
+  PARSER.add_argument('-M', dest='md5arguments', action='store_true', help='Assumes md5 sum is provided on command line following the file. (e.g. file1 md5sum1 file2 md5sum2 ...)', default=False)
   PARSER.add_argument('-s', '--file_summary', dest='summary_file', type=str, help='File created by summaryFile from a fastq file.', default=None)
   PARSER.add_argument('--archive', dest='archive', type=str, help='Archive (e.g. bamark, ebiark, ark) where the file has been saved. Deafult=none.', default=None)
   PARSER.add_argument('--qcfile', dest='qcfile', action='store_true', help='Files should be inserted as QC files. NB! Function has property of also moving the files to repository at the same time!', default=False)
@@ -202,15 +214,31 @@ if __name__ == '__main__':
     PARSER.print_help()
     sys.exit(1)
 
+  # Check whether to expect md5sums following file names in ARGS.files list
+  md5sums = None
+  if ARGS.md5arguments:
+    fnames = []
+    md5sums = []
+    fname = True
+    for s in ARGS.files:
+      if fname:
+        fnames.append(s)
+        fname = False
+      else:
+        md5sums.append(s)
+        fname = True
+    if len(fnames) == len(md5sums):
+      ARGS.files = fnames
+    
   LOGGER = configure_logging(level=DEBUG)
   django.setup()
 
   HND = RepoFileHandler()
-
+  
   if ARGS.summary_file is not None:
     HND.add_lane_summary(ARGS.summary_file)
   if len(ARGS.files):
     if ARGS.qcfile:      
-      HND.add_qc_files(ARGS.files, ARGS.program_name)
+      HND.add_qc_files(ARGS.files, ARGS.program_name, md5sums=md5sums)
     else:
-      HND.run(ARGS.files, md5files=ARGS.md5files, archive=ARGS.archive)
+      HND.run(ARGS.files, md5files=ARGS.md5files, archive=ARGS.archive, md5sums=md5sums)

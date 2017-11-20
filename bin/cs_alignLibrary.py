@@ -13,7 +13,7 @@ LOGGER = configure_logging(level=INFO)
 import django
 django.setup()
 
-from osqpipe.pipeline.fastq_aligner import FastqBwaAligner, FastqTophatAligner
+from osqpipe.pipeline.fastq_aligner import FastqBwaAligner, FastqTophatAligner, FastqStarAligner
 from osqpipe.models import Library
 
 if __name__ == '__main__':
@@ -47,6 +47,9 @@ if __name__ == '__main__':
                       help='Specifies number of non-unique read occurrences to keep'
                       + ' in bam file. The bwa default is 3.')
 
+  PARSER.add_argument('--aligner', type=str, dest='aligner', choices=('bwa', 'tophat', 'star'), default=None, 
+                      help='Tophat is the default aligner for rnaseq data while bwa is default for all other library types.')
+  
   PARSER.add_argument('--algorithm', type=str, dest='algorithm', choices=('aln', 'mem'),
                       help='The bwa algorithm to use (aln or mem). The default behaviour'
                       + ' is to pick the algorithm based on the read length in the fastq files.')
@@ -57,19 +60,24 @@ if __name__ == '__main__':
   # tailor this to other aligners in future.
   library = Library.objects.get(code=ARGS.library)
   if library.libtype.code == 'rnaseq':
-    BWA = FastqTophatAligner(test_mode=ARGS.testMode,
+    if ARGS.aligner in (None, 'tophat'):                 # The default.
+      BWA = FastqTophatAligner(test_mode=ARGS.testMode,
+                               samplename=library.sample.name)
+    elif ARGS.aligner == 'star':
+      BWA = FastqStarAligner(test_mode=ARGS.testMode,
                              samplename=library.sample.name)
-  else:
+    else:
+      raise StandardError("Unrecognised aligner for %s: %s" % (library.libtype.name, ARGS.aligner))
+  elif ARGS.aligner in (None, 'bwa'):
     BWA = FastqBwaAligner(test_mode=ARGS.testMode,
                           samplename=library.sample.name,
                           bwa_algorithm=ARGS.algorithm)
-  
+  else:
+    raise StandardError("Unrecognised aligner for %s: %s" % (library.libtype.name, ARGS.aligner))
+
   BWA.align(library = ARGS.library,
             facility = ARGS.facility,
             lanenum = ARGS.lanenum,
             genome  = ARGS.genome,
             nocleanup = ARGS.nocleanup,
             nocc = ARGS.nocc)
-  
-
-
