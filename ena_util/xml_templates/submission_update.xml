@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SUBMISSION_SET xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="ftp://ftp.sra.ebi.ac.uk/meta/xsd/sra_1_5/SRA.submission.xsd">
+  <SUBMISSION alias="TODO: UNIQUE NAME FOR SUBMISSION" center_name="TODO: CENTER NAME">
+    <ACTIONS> <!-- <ACTION><ADD source="TODO: STUDY XML FILENAME" schema="study"/></ACTION> -->
+      <ACTION>
+	<MODIFY source="TODO: SAMPLE XML FILENAME" schema="sample"/>
+      </ACTION>
+      <ACTION>
+	<MODIFY source="TODO: EXPERIMENT XML FILENAME" schema="experiment"/>
+      </ACTION>
+      <ACTION>
+	<MODIFY source="TODO: RUN XML FILENAME" schema="run"/>
+      </ACTION>
+      <ACTION>
+	<MODIFY source="TODO: ANALYSIS XML FILENAME" schema="analysis"/>
+      </ACTION><!-- Use ADD actions to refer to the XML files being submitted. --><!-- Remove any ADD actions that are not required (e.g. when referencing previously submitted studies or samples). -->
+      <ACTION> <!-- <RELEASE/> --><!-- Choose ONE action. RELEASE is for immediate public release. HOLD is for an embargo (maximum 2 years). -->
+	<HOLD HoldUntilDate="TODO: hold until date 2010-01-01"/>
+      </ACTION>
+    </ACTIONS>
+  </SUBMISSION>
+</SUBMISSION_SET>
