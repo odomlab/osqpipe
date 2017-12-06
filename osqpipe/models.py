@@ -151,6 +151,23 @@ class Genome(ControlledVocab):
     db_table = u'genome'
     ordering = ['code']
 
+class Restrictome(ControlledVocab):
+  enzyme       = models.CharField(max_length=128)
+  sequence     = models.CharField(max_length=128, null=True, blank=True)
+  filename     = models.CharField(max_length=1024, unique=True)
+  checksum     = models.CharField(max_length=128)
+  filetype     = models.ForeignKey(Filetype, on_delete=models.PROTECT)
+  date         = models.DateField(auto_now_add=True)
+  version      = models.CharField(max_length=255, null=True, blank=True)
+  genome       = models.ForeignKey(Genome, on_delete=models.PROTECT,
+                                   help_text="The genome against which the restrictome was generated.")
+  def __unicode__(self):
+    return "%s %s" % (self.enzyme, self.genome.code)
+
+  class Meta:
+    db_table = u'restrictome'
+    ordering = ['enzyme','genome']
+    
 class Tissue(ControlledVocab):
   name         = models.CharField(max_length=255, unique=True)
   description  = models.TextField(null=True, blank=True)
