@@ -14,7 +14,7 @@ import gzip
 from django.db import transaction
 
 from osqutil.utilities import is_zipped, parse_repository_filename, \
-    checksum_file, rezip_file, set_file_permissions
+    checksum_file, rezip_file, set_file_permissions, transfer_file
 from ..models import Filetype, Lane, Alignment, Alnfile, Facility, \
     Genome, Program, DataProvenance
 from osqutil.samtools import BamToBedConverter
@@ -334,9 +334,12 @@ class AlignmentHandler(object):
 
       # Move files to permanent locations.
       destname = alnfile.repository_file_path
-      LOGGER.debug("mv %s %s", fname, destname)
-      move(fname, destname)
-      set_file_permissions(self.conf.group, destname)
+      # LOGGER.debug("mv %s %s", fname, destname)
+      # move(fname, destname)
+      # set_file_permissions(self.conf.group, destname)
+      LOGGER.debug("mv %s %s@%s:%s", fname, self.conf.user, self.conf.datahost, destname)
+      transfer_file(fname, "%s@%s:%s" % (self.conf.user, self.conf.datahost, destname))
+      os.unlink(fname)
 
     if final_status is not None:
       aln.lane.status = final_status

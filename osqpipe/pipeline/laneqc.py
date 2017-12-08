@@ -12,7 +12,7 @@ from pkg_resources import Requirement, resource_filename
 from django.db import transaction, models
 from ..models import Program, LaneQC, QCfile, Filetype, Lanefile, DataProvenance, Datafile, DataProcess
 from osqutil.progsum import ProgramSummary
-from osqutil.utilities import checksum_file, call_subprocess, rezip_file, set_file_permissions
+from osqutil.utilities import checksum_file, call_subprocess, rezip_file, set_file_permissions, transfer_file
 from osqutil.config import Config
 from osqutil.setup_logs import configure_logging
 
@@ -28,8 +28,9 @@ class QCReport(object):
     with LaneFastQCReport(target=l, program_name='fastqc') as rep:
       rep.insert_into_repository()
   '''
+
   __slots__ = ('target', 'workdir', 'output_files', 'program_name', 'path',
-               'program_params', '_dbprog', '_delete_workdir', 'move_files')
+               'program_params', '_dbprog', '_delete_workdir','output_md5s','move_files')
 
   data_process     = DataProcess # for the benefit of pylint
   target_name      = None
@@ -43,8 +44,9 @@ class QCReport(object):
     self.program_name   = program_name
     self.program_params = program_params
     self.path           = path
-
+    
     self.output_files   = []
+    self.output_md5s    = []
 
     self.move_files = move_files
     
@@ -53,12 +55,12 @@ class QCReport(object):
       self._delete_workdir = False
     else:
       if self.move_files == False:
-        raise StandardError("Not moving files from temporary directory to be deleted does not make sense!")
-        
+        raise StandardError("Not moving files from temporary directory to be deleted does not make sense!")        
+
     # This checks that the specified program exists, and where it
     # yields some kind of meaningful version info will record that.
     progdata = ProgramSummary(program_name, path=path)
-
+    
     # This is a little vulnerable to correct version parsing by
     # progsum.
     try:
@@ -69,7 +71,7 @@ class QCReport(object):
       raise StandardError(("Unable to find current %s program (version %s)"
                            + " record in the repository")
                           % (progdata.program, progdata.version))
-
+      
   def __enter__(self):
     if self.workdir is None:
       self.workdir = mkdtemp(dir=CONFIG.tmpdir)
@@ -85,8 +87,7 @@ class QCReport(object):
     raise NotImplementedError()
 
   @transaction.atomic
-  def insert_into_repository(self):
-
+  def insert_into_repository(self, move_files=True):
     '''Insert self.output_files into the database.'''
 
     if len(self.output_files) == 0:
@@ -99,8 +100,14 @@ class QCReport(object):
                                   rank_index   = 1,
                                   data_process = qcobj)
 
-    for fname in self.output_files:
-
+    for i in range(len(self.output_files)):
+      fname = self.output_files[i]
+      if len(self.output_md5s) != len(self.output_files):
+        checksum = None
+      else:
+        checksum = self.output_md5s[i]
+        
+      LOGGER.info("Inserting %s", fname)
       # Note: this will fail if multiple types match.
       ftype = Filetype.objects.guess_type(fname)
 
@@ -108,8 +115,9 @@ class QCReport(object):
         fpath = fname
       else:
         fpath = os.path.join( self.workdir, fname )
-
-      checksum = checksum_file(fpath)
+        
+      if checksum is None or checksum == '':
+        checksum = checksum_file(fpath)
 
       fparms = { self.file_target_name : qcobj,
                  'filename'            : os.path.split(fname)[1],
@@ -119,16 +127,20 @@ class QCReport(object):
 
       fobj.save()
 
-      # Zip up the file if necessary.
-      if ftype.gzip and os.path.splitext(fname)[1] != CONFIG.gzsuffix:
-        fpath = rezip_file(fpath)
-      if self.move_files:
-        dest    = fobj.repository_file_path
-        destdir = os.path.dirname(dest)
-        if not os.path.exists(destdir):
-          os.makedirs(destdir)
-        move(fpath, dest)
-        set_file_permissions(CONFIG.group, dest)
+      if move_files:      
+        # Zip up the file if necessary.
+        if ftype.gzip and os.path.splitext(fname)[1] != CONFIG.gzsuffix:
+          fpath = rezip_file(fpath)
+        if self.move_files:
+          dest    = fobj.repository_file_path
+          # destdir = os.path.dirname(dest)
+          # if not os.path.exists(destdir):
+          #    os.makedirs(destdir)
+          # move(fpath, dest)
+          # set_file_permissions(CONFIG.group, dest)
+          if os.path.isabs(dest):
+            dest = os.path.split(dest)[0] + '/'
+          transfer_file(fpath, "%s@%s:%s" % (CONFIG.user, CONFIG.datahost, dest)) # note that transfer_file sets destination file permissions as in CONF
 
   def __exit__(self, exctype, excvalue, traceback):
     if self._delete_workdir:
@@ -235,12 +247,14 @@ class LaneFastQCReport(LaneQCReport):
 
       tar.close()
       self.output_files.append(gzarch)
+      self.output_md5s.append(checksum_file(gzarch))
 
       # The text file containing summary results. Useful for analyses.
       resfile = "%s.txt" % bpath
       copy(os.path.join(bpath, 'fastqc_data.txt'), resfile)
       self.output_files.append(resfile)
-
+      self.output_md5s.append(checksum_file(resfile))
+      
       # Generating a PDF for our end-users.
       html = os.path.join(bpath, 'fastqc_report.html')
       pdf  = "%s.pdf" % bpath
@@ -254,4 +268,4 @@ class LaneFastQCReport(LaneQCReport):
               html, pdf ]
       call_subprocess(cmd, path=self.path)
       self.output_files.append(pdf)
-
+      self.output_md5s.append(checksum_file(pdf))

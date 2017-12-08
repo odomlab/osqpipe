@@ -492,6 +492,96 @@ class ed_data_handler(object):
                 newids = []
                 tnr = 0
 
+    def _ed_is_file_on_disk(self, fname, ftype):
+        if not os.path.isfile(fname):
+            print "%s\t%s\tmissing!" % (fname,ftype)
+
+    def ed_inventory(self):
+        '''Check if all released data exists in repository as raw data and qc files'''
+        
+        # Check the project files first
+        self.ed_check()
+
+        django.setup()
+
+        # Fetch archive location in the file system.
+        try:
+            archive = ArchiveLocation.objects.get(name=self.aname)
+        except ArchiveLocation.DoesNotExist, _err:
+            raise SystemExit("Archive location \'%s\' does not exist!" % self.aname)
+
+        for edstem in self.edfiles:
+
+            # Process only data that has been downloaded
+            if self.edfiles[edstem].status != 'downloaded':
+                continue
+
+            # Build full path to repository file names to be created
+            repstem = self.edfiles[edstem].repstem
+            rfastq1 = os.path.join(self.destination, repstem + 'p1.fq')
+            rfastq2 = os.path.join(self.destination, repstem + 'p2.fq')
+            rfastq1_md5 = os.path.join(self.destination, rfastq1 + '.md5')
+            rfastq2_md5 = os.path.join(self.destination, rfastq2 + '.md5')
+            summaryFile = os.path.join(self.destination, rfastq1 + '.summary')
+
+            # Set up directory for archiving the file
+            libcode = repstem.split('_')[0]
+            apath = os.path.join(archive.root_path, libcode)
+            if not os.path.exists(apath):
+                LOGGER.info("No directory for %s" % apath)
+            # Build full path archived files
+            afastq1 = os.path.join(apath, os.path.split(rfastq1)[1] + '.gz')
+            self._ed_is_file_on_disk(afastq1, 'FASTQ')
+            afastq2 = os.path.join(apath, os.path.split(rfastq2)[1] + '.gz')
+            self._ed_is_file_on_disk(afastq2, 'FASTQ')
+            afastq1_md5 = os.path.join(apath, os.path.split(rfastq1_md5)[1])
+            self._ed_is_file_on_disk(afastq1_md5, 'FASTQ_MD5')
+            afastq2_md5 = os.path.join(apath, os.path.split(rfastq1_md5)[1])
+            self._ed_is_file_on_disk(afastq2_md5, 'FASTQ_MD5')
+
+            asummary_file = os.path.join(apath, os.path.split(summaryFile)[1])
+
+            afastq1_qc_pdf = os.path.join(apath, os.path.split(rfastq1)[1] + '_fastqc.pdf')
+            self._ed_is_file_on_disk(afastq1_qc_pdf, 'FASTQC_PDF')
+            afastq1_qc_tar = os.path.join(apath, os.path.split(rfastq1)[1] + '_fastqc.tar.gz')
+            self._ed_is_file_on_disk(afastq1_qc_tar, 'FASTQC_TAR')
+            afastq1_qc_txt = os.path.join(apath, os.path.split(rfastq1)[1] + '_fastqc.txt.gz')
+            self._ed_is_file_on_disk(afastq1_qc_txt, 'FASTQC_TXT')
+            afastq2_qc_pdf = os.path.join(apath, os.path.split(rfastq2)[1] + '_fastqc.pdf')
+            self._ed_is_file_on_disk(afastq2_qc_pdf, 'FASTQC_PDF')
+            afastq2_qc_tar = os.path.join(apath, os.path.split(rfastq2)[1] + '_fastqc.tar.gz')
+            self._ed_is_file_on_disk(afastq2_qc_tar, 'FASTQC_TAR')
+            afastq2_qc_txt = os.path.join(apath, os.path.split(rfastq2)[1] + '_fastqc.txt.gz')
+            self._ed_is_file_on_disk(afastq2_qc_txt, 'FASTQC_TXT')
+
+            # If all files exist both on disk as well as in repository and status is not complete, change status to complete.
+            # cmd += ' && time communicateStatus.py --laneid %d --status complete' % self.edfiles[edstem].laneid
+        
+    def ed_inventory_alignments(self):
+        '''Check if all released data exists in repository as raw data and qc files'''
+        
+        # Check the project files first
+        self.ed_check()
+
+        django.setup()
+
+        # Fetch archive location in the file system.
+        try:
+            archive = ArchiveLocation.objects.get(name=self.aname)
+        except ArchiveLocation.DoesNotExist, _err:
+            raise SystemExit("Archive location \'%s\' does not exist!" % self.aname)
+
+        for edstem in self.edfiles:
+
+            # Process only data that has been downloaded
+            if self.edfiles[edstem].status != 'downloaded':
+                continue
+            
+            # Build full path to aligned file
+            repstem = self.edfiles[edstem].repstem
+            bam_path = os.path.join(self.workdir, repstem + '.bam')
+            self._ed_is_file_on_disk(bam_path, 'LANE_BAM')
+
     def ed_process(self, print_commands_only=False):
         '''Process files that have been labeled as downloaded'''
         
@@ -567,9 +657,9 @@ class ed_data_handler(object):
 
             # Submit command to cluster
             if jobids:
-                jobid = submitter.submit_command(cmd=cmd, mem=1000, auto_requeue=False, depend_jobs=[jobids[tnr]], mincpus=1)
+                jobid = submitter.submit_command(cmd=cmd, mem=6000, auto_requeue=False, depend_jobs=[jobids[tnr]], mincpus=1)
             else:
-                jobid = submitter.submit_command(cmd=cmd, mem=1000, auto_requeue=False, mincpus=1)
+                jobid = submitter.submit_command(cmd=cmd, mem=6000, auto_requeue=False, mincpus=1)
             LOGGER.info("Submitting job with commands \'%s\' (jobid=%s)" % (cmd, jobid))
 
             # Set cleanup
@@ -883,6 +973,8 @@ if __name__ == '__main__':
     PARSER.add_argument('--download', dest='download', action='store_true', help='Download all files for which the lanes are marked \'new\'.', default=False)
     PARSER.add_argument('-t', '--threads', dest='threads', type=int, help='Number of parallel aspera threads. Overrides default (athreads) from configuration.', default=10)
     PARSER.add_argument('--cleanup', dest='cleanup', action='store_true', help='Remove temporary files.', default=False)
+    PARSER.add_argument('--inventory', dest='inventory', action='store_true', help='Check if all data has been archived, QC files present etc.', default=False)
+    PARSER.add_argument('--inventory_lane_bam', dest='inventory_lane_bams', action='store_true', help='Check if all fastq files have lane alignments', default=False)
 
     ARGS = PARSER.parse_args()
     edd = ed_data_handler(ARGS.project, threads=ARGS.threads, aname=ARGS.aname, release=ARGS.release, cleanup=ARGS.cleanup)
@@ -905,6 +997,14 @@ if __name__ == '__main__':
     # Post-process aligned files
     if ARGS.postprocess:
         edd.ed_postprocess(print_commands_only=ARGS.print_commands_only)
+        sys.exit(0)
+
+    if ARGS.inventory:
+        edd.ed_inventory()
+        sys.exit(0)
+
+    if ARGS.inventory_lane_bams:
+        edd.ed_inventory_alignments()
         sys.exit(0)
 
     # Download for only one fastq file

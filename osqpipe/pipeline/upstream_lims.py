@@ -645,7 +645,7 @@ class Lims(object):
                               for fdict in ldict['files'].values()
                               for lfile in fdict ]))
 
-    if all(lane_fastq) or all(demux_fastq):
+    if all([ lane_fastq[n] or demux_fastq[n] for n in range(len(lane_fastq)) ]):
       run['analysis_status'] = 'COMPLETE'
     else:
       run['analysis_status'] = 'INCOMPLETE'

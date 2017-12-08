@@ -11,11 +11,13 @@ import os.path
 import re
 
 from osqutil.utilities import parse_incoming_fastq_name, checksum_file, \
-    build_incoming_fastq_name, call_subprocess, set_file_permissions, \
+    build_incoming_fastq_name, parse_incoming_fastq_name, call_subprocess, set_file_permissions, \
     munge_cruk_emails, unzip_file, rezip_file, is_zipped
 from .upstream_lims import Lims
 from osqutil.config import Config
-from ..models import Library, Lane, Status, LibraryNameMap, User, Adapter
+from ..models import Library, Lane, Status, LibraryNameMap, User, Adapter, Facility, Machine
+
+from osqpipe.pipeline.smtp import send_email
 
 from .fetch_fastq import FQFileFetcher
 
@@ -36,19 +38,20 @@ class FlowCellProcess(object):
   '''Main class used for processing flowcells.'''
 
   __slots__ = ('test_mode', 'db_library_check', 'demux_prog', 'conf', 'ready',
-               'lims', '_demux_files', 'output_files', 'trust_lims_adapters')
+               'lims', '_demux_files', 'output_files', 'trust_lims_adapters','force_download')
 
   def __init__(self, test_mode=False,
                db_library_check=True, demux_prog='demuxIllumina',
                force_primary=False, force_all=None,
-               lims=None, trust_lims_adapters=None):
+               lims=None, trust_lims_adapters=None, force_download=False):
 
     self.conf             = Config()
     self.test_mode        = test_mode
     self.db_library_check = db_library_check
     self.demux_prog       = demux_prog
     self.ready            = 'COMPLETE'
-
+    self.force_download = force_download
+    
     if force_all:
       self.ready = (self.ready, 'PRIMARY COMPLETE', 'INCOMPLETE')
 
@@ -56,7 +59,7 @@ class FlowCellProcess(object):
     elif force_primary:
       self.ready = (self.ready, 'PRIMARY COMPLETE')
 
-
+      
     self._demux_files    = {}
     self.output_files    = []
     if lims is None:
@@ -176,7 +179,8 @@ class FlowCellProcess(object):
     os.chdir(destdir)
 
     downloading = Status.objects.get(code='downloading data')
-
+    downloaded = Status.objects.get(code='downloaded')
+    
     # for each lane...
     path = destdir
     for (flowcell, flowlane) in flowlanes:
@@ -189,7 +193,7 @@ class FlowCellProcess(object):
 
       # retrieve file
       fetcher = FQFileFetcher(destination=path, lims=self.lims,
-                              test_mode=self.test_mode, unprocessed_only=True)
+                              test_mode=self.test_mode, unprocessed_only=True, force_download=self.force_download)
       fetcher.fetch(flowcell, flowlane)
 
       if self.test_mode:
@@ -197,12 +201,14 @@ class FlowCellProcess(object):
                % (flowcell, flowlane, path))
         continue
 
+      failed_fnames = {}
       for fname in fetcher.targets:
         if len(fname) > 0:
 
           # Check file was retrieved.
           if not os.path.exists(fname):
             LOGGER.error("Can't seem to find expected file '%s'", fname)
+            failed_fnames[fname] = fname
           else:
             muxed_libs = multiplexed[flowlane]
             if len(muxed_libs) > 1:
@@ -221,6 +227,48 @@ class FlowCellProcess(object):
               LOGGER.info("File does not require demultiplexing: %s", fname)
               self.output_files.append(fname)
 
+    for fname in self.output_files:
+      if fname not in failed_fnames:               
+        (code, flowcell, flowlane, flowpair) = parse_incoming_fastq_name(os.path.basename(fname), ext='.fq.gz')
+        LOGGER.info("Changing code=%s, flowcell=%s, flowlane=%s, flowpair=%s to 'downloaded'", code, flowcell, flowlane, flowpair)
+        try:
+          lane = Lane.objects.get(flowcell=flowcell, flowlane=flowlane, library__code=code)
+          lane.status = downloaded
+          lane.save()
+        except Lane.DoesNotExist, _err:
+          try:
+            lib = Library.objects.search_by_name(code)
+          except Library.DoesNotExist, _err:
+            LOGGER.error("No library %s. Unable to register lane for the library.", code)
+            continue
+          LOGGER.info("Registering lane for %s.", fname)
+          facobj = Facility.objects.get(code='CRI')
+          machine_obj = Machine.objects.get(code__iexact=str('Unknown'))
+          lane = Lane(facility = facobj,
+                      library  = lib,
+                      flowcell = flowcell,
+                      flowlane = flowlane,
+                      lanenum  = Lane.objects.next_lane_number(lib),
+                      status   = downloaded,
+
+                      rundate =	'2008-01-01',
+		      paired = False,
+		      genomicssampleid = '',
+                      usersampleid = code,
+                      runnumber = '',
+                      seqsamplepf = '',
+                      seqsamplebad = '',
+                      failed = False,
+                      machine = machine_obj)
+          lane.save()
+
+    if len(failed_fnames) > 0:
+      subject = "[PIPELINE] cs_processFlowcell %s: File download failed!" % flowcell
+      body = "Following files failed to download:\n"
+      for fname in failed_fnames:
+        body += fname + "\n"
+      send_email(subject, body, self.conf.recipient)
+        
     os.chdir(pwd)
     LOGGER.info("Initial FlowCell processing complete.")
     return self.output_files
@@ -289,7 +337,8 @@ class FlowCellQuery(object):
       db_lanes = Lane.objects.filter(flowcell=lims_fc.fcid,
                                     flowlane=lane.lane,
                                     library=lib)
-      if db_lanes.count() == 1:
+      # Following if statement needs reivising as the list here is long and some status codes may be missed:
+      if db_lanes.count() == 1 and db_lanes[0].status.code != 'new' and db_lanes[0].status.code != 'downloaded' and db_lanes[0].status.code != 'downloading_failed' and db_lanes[0].status.code != 'failed' and db_lanes[0].status.code != 'downloading data':
         # if db_lane != None:
         db_lane = db_lanes[0]
         db_lib  = db_lane.library

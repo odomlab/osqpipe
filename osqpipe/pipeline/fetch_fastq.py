@@ -26,15 +26,16 @@ class FQFileFetcher(object):
   '''Class used to query the LIMS for fastq files associated with a
   given flowcell and download them to a destination directory.'''
 
-  __slots__ = ('destination', 'lims', 'targets', 'test_mode', 'conf', 'unprocessed_only')
+  __slots__ = ('destination', 'lims', 'targets', 'test_mode', 'conf', 'unprocessed_only','force_download')
 
-  def __init__(self, destination, lims=None, test_mode=False, unprocessed_only=False):
+  def __init__(self, destination, lims=None, test_mode=False, unprocessed_only=False, force_download=False):
 
     self.conf        = Config()
     self.test_mode   = test_mode
     self.unprocessed_only = unprocessed_only
     self.destination = destination
-    self.targets = set()
+    self.force_download = force_download
+    self.targets = set()    
     if lims is None:
       lims = Lims()
     if not lims.running():
@@ -199,8 +200,11 @@ class FQFileFetcher(object):
 
         if Lane.objects.filter(flowcell=lane.flowcell.fcid, flowlane=lane.lane, library__code__iexact=libname).exists():
           if self.unprocessed_only:
-            LOGGER.info("Skipping files for lane already existing in repository.")
-            continue
+            if not self.force_download:
+              LOGGER.info("Skipping files for lane already existing in repository.")
+              continue
+            else:
+              LOGGER.info("Forcing download. Lane already existing in repository.")
           else:
             LOGGER.warning("Downloading files for lane already existing in repository.")
 

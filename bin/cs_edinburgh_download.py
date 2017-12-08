@@ -24,14 +24,15 @@ from osqutil.config import Config
 from osqutil.cluster import ClusterJobSubmitter
 
 # Import some functions from utilities package
-from osqutil.utilities import call_subprocess, _checksum_fileobj # Note that for _checksum_fileobj this may not work as _ indicates that the function is not part of API!
+from osqutil.utilities import parse_repository_filename, sanitize_samplename, call_subprocess, _checksum_fileobj # Note that for _checksum_fileobj this may not work as _ indicates that the function is not part of API!
 
 # For insertion of lane info:
 import django
-from osqpipe.models import Lane, Status, Library, Facility, Machine, Adapter, ArchiveLocation
+from osqpipe.models import Lane, Status, Library, Facility, Machine, Adapter, ArchiveLocation, Genome
 
 # set up config
 DBCONF = Config()
+
 
 ## Note that the code depends on following variables defined in config:
 # acredfile - containing credentials for connecting to Edinburgh
@@ -148,6 +149,10 @@ class edFile(object):
             
         self.addFile(fname, md5, pair)
 
+        # Record associated reference genome file for short read mapping
+        self.genome = None
+        self.gfile = None
+
     def addFile(self, fname, md5, pair):
 
         if pair == 1:
@@ -170,7 +175,10 @@ class edFile(object):
 
 
 class ed_data_handler(object):
-    def __init__(self, project, maxattempts=5, threads=None, aname='ebiark'):
+    def __init__(self, project, maxattempts=5, threads=None, aname='ebiark', release=None, cleanup=False):
+
+        # Set cleanup
+        self.cleanup = cleanup
 
         # Set the Edinburgh aspera project directory.
         self.project = project
@@ -203,6 +211,16 @@ class ed_data_handler(object):
         LOGGER.info("Setting project directory to %s", self.destination)
         self.failedcommands = os.path.join(self.destination, DBCONF.faileddownloads)
 
+        # Create project work dir
+        self.workdir = os.path.join(DBCONF.clusterworkdir, self.project)
+        if not os.path.isdir(self.workdir):
+            try:
+                os.makedirs(self.workdir)
+            except OSError:
+                LOGGER.error("Failed to create project work directory %s", self.workdir)
+                sys.exit(1)
+        LOGGER.info("Setting project workdir directory %s", self.workdir)
+
         # Load aspera credentials
         self.credentials = read_credentials(DBCONF.acredfile)
         os.environ['ASPERA_SCP_PASS'] = self.credentials['password']        
@@ -214,6 +232,9 @@ class ed_data_handler(object):
         self.report_fn = 'project_%s_report.pdf' % self.project
         # Define lists to hold tri information about each edinburgh file: md5sum, filename and process status
         self.edfiles = dict()
+
+        # Define release date e.g. '2016-12-21'
+        self.release = release
 
     def _ed_parse_project_files(self):
         # If not yet downloaded, download files in project root
@@ -241,6 +262,11 @@ class ed_data_handler(object):
             for line in fh:
                 line = line.rstrip('\n')
                 (md5, fname) = line.split()
+
+                if self.release is not None:
+                    if not fname.startswith(self.release):
+                        continue
+
                 if fname.endswith('_R1.fastq.gz'):
                     edstem = fname.rstrip('_R1.fastq.gz')
                     pair = 1
@@ -267,7 +293,8 @@ class ed_data_handler(object):
     def create_lane(self, lib, flowcell, flowlane, facility, status, rundate, sampleid, runnumber, instrument, notes):
 
         try:
-            lane = Lane.objects.get(flowcell=flowcell, flowlane=flowlane, library=lib)    
+            lane = Lane.objects.get(flowcell=flowcell, flowlane=flowlane, library=lib)
+            LOGGER.info("Lane for flowcell=%s, flowlane=%s, library=%s found (id=%d)" % (flowcell, flowlane, lib.code, lane.id))
         except Lane.DoesNotExist, _err:            
             LOGGER.info("No lane with flowcell=%s, flowlane=%s, library=%s." % (flowcell, flowlane, lib.code))
             # Collect facility information
@@ -389,6 +416,21 @@ class ed_data_handler(object):
             self.edfiles[edstem].laneid = lane.id
             self.edfiles[edstem].status = lane.status.code
 
+            # Get genome file for lane.
+            # NB! Fix hard coded bwa-0.7.12 at some point as this is not good practice!
+            try:
+                genome = Genome.objects.filter(library__lane__id=lane.id)
+                fasta = genome[0].fasta
+                gfile_split = fasta.split('/')
+                self.edfiles[edstem].genome = genome[0].code
+                self.edfiles[edstem].gfile = os.path.join(DBCONF.clustergenomedir,gfile_split[0], gfile_split[1], 'bwa-0.7.12', gfile_split[2])
+            except Genome.DoesNotExist, _err:
+                LOGGER.info("No reference genome associating with lane=%s." % (lane.id))
+                sys.exit(1)
+            if not os.path.isfile(self.edfiles[edstem].gfile):
+                LOGGER.info("Reference genome index (%s) for short read mapping is missing! Exiting!" % (self.edfiles[edstem].gfile))
+                sys.exit(1)
+
             # Create repository file stem
             repfn = "%s_%s%02d" % (lib.filename_tag,
                                         facility,
@@ -400,9 +442,9 @@ class ed_data_handler(object):
             # Save repository filename for further processing        
             self.edfiles[edstem].repstem = repstem
 
-            LOGGER.info("%s\t%s\t%d\t%s", edstem, lane.status.code, lane.id, repstem)
+            LOGGER.info("%s\t%s\t%d\t%s\t%s", edstem, lane.status.code, lane.id, repstem, self.edfiles[edstem].genome)
 
-            print "communicateStatus.py --laneid %d --status complete" % lane.id
+            # print "communicateStatus.py --laneid %d --status complete" % lane.id
 
     def ed_download(self, print_download_commands_only=False):
         '''Downloads all project related files.'''
@@ -450,7 +492,7 @@ class ed_data_handler(object):
                 newids = []
                 tnr = 0
 
-    def ed_process(self, print_commands_only=False):        
+    def ed_process(self, print_commands_only=False):
         '''Process files that have been labeled as downloaded'''
         
         # Set some variables for submitting the download jobs to cluster.
@@ -529,6 +571,26 @@ class ed_data_handler(object):
             else:
                 jobid = submitter.submit_command(cmd=cmd, mem=1000, auto_requeue=False, mincpus=1)
             LOGGER.info("Submitting job with commands \'%s\' (jobid=%s)" % (cmd, jobid))
+
+            # Set cleanup
+            cleanup = ""
+            if self.cleanup:
+                cleanup = "--cleanup "
+            # Stage fastqc depenednet on jobid being completed.
+            qc_cmd = "cs_runFastQC.py %s--workdir %s --destination %s --register %s %s" % (cleanup, self.destination, apath, rfastq1, rfastq2)
+            sys.stdout.write("QC_CMD=\"%s\"\n" % qc_cmd)
+            qc_jobid = submitter.submit_command(cmd=qc_cmd, mem=4000, auto_requeue=False, depend_jobs=[jobid], mincpus=2)
+
+            # if fastq files are not in clusterworkdir (likely), symlink them first to workdir
+            bwa_cmd = ""
+#            if DBCONF.clusterworkdir.rstrip('/') != self.destination.rstrip('/'):
+            if self.workdir.rstrip('/') != self.destination.rstrip('/'):
+                bwa_cmd = "ln -s %s %s && ln -s %s %s && cd %s && " % (rfastq1, self.workdir, rfastq2, self.workdir, self.workdir)
+             # Stage alignments dependent on jobid being completed.
+            bwa_cmd += "cs_runBwaWithSplit.py %s--algorithm mem --no-split %s %s %s" % (cleanup,self.edfiles[edstem].gfile, rfastq1, rfastq2)
+            sys.stdout.write("BWA_CMD=\"%s\"\n" % bwa_cmd)
+            bwa_jobid = submitter.submit_command(cmd=bwa_cmd, mem=2000, auto_requeue=False, depend_jobs=[qc_jobid], mincpus=1)
+
             newids.append(int(jobid))
             tnr += 1
             if tnr == self.athreads:
@@ -538,18 +600,23 @@ class ed_data_handler(object):
 
     def ed_get_files_by_fastqfile(self, file1, file1_md5, laneid, file2=None, file2_md5=None):
         '''Downloads all files for the userid'''
-        # For each fastq file in Edinburgh Genomics, there is also a *_R1_fastqc.html file to download
+        # For each fastq file in Edinburgh Genomics, one could also download *_R1_fastqc.html file but these are little use of us
+        # and the code for this below has been commented off.
 
-        file1_fastqc = file1.rstrip('.fastq.gz') + '_fastqc.html'
-        rfiles = [file1, file1_fastqc]
-        rmd5s = [file1_md5, None]
+        # file1_fastqc = file1.rstrip('.fastq.gz') + '_fastqc.html'
+        # rfiles = [file1, file1_fastqc]
+        # rmd5s = [file1_md5, None]
+        rfiles = [file1]
+        rmd5s = [file1_md5]
 
         fail_command = 'cs_edinburgh_download.py -a --file1 %s --file1_md5 %s -p %s -l %d' % (file1, file1_md5, self.project, laneid)
 
         if file2 is not None:
-            file2_fastqc = file2.rstrip('.fastq.gz') + '_fastqc.html'
-            rfiles = rfiles + [file2, file2_fastqc]
-            rmd5s = rmd5s + [file2_md5, None]
+            # file2_fastqc = file2.rstrip('.fastq.gz') + '_fastqc.html'
+            # rfiles = rfiles + [file2, file2_fastqc]
+            # rmd5s = rmd5s + [file2_md5, None]
+            rfiles = rfiles + [file2]
+            rmd5s = rmd5s + [file2_md5]
 
             fail_command += " --file2 %s --file2_md5 %s" % (file2, file2_md5)
 
@@ -559,17 +626,18 @@ class ed_data_handler(object):
         for rfpath, md5sum in zip(rfiles, rmd5s):
             attempts = 0
             while attempts < self.maxattempts:
-                # Depending if the file to be downloaded is .html skip or download also associated .md5 file
-                if rfpath.endswith('.html'):                    
-                    res = self.ed_get_file_with_md5(rfpath, md5sum, download_md5=False)
-                else:
-                    res = self.ed_get_file_with_md5(rfpath, md5sum, download_md5=True)
+                ## Depending if the file to be downloaded is .html skip downloading .md5 as there won't be one.
+                #if rfpath.endswith('.html'):                    
+                #    res = self.ed_get_file_with_md5(rfpath, md5sum, download_md5=False)
+                #else:
+                #    res = self.ed_get_file_with_md5(rfpath, md5sum, download_md5=True)
+                res = self.ed_get_file_with_md5(rfpath, md5sum, download_md5=True)
                 if res == 0:
                     break
                 else:            
                     attempts += 1
                     if attempts == self.maxattempts:
-                        LOGGER.error("Giving up (after %d attempts) on trying to download %s" % rfpath)
+                        LOGGER.error("Giving up (after %d attempts) on trying to download %s" % (attempts, rfpath))
 
                         # Set download failed
                         cmd = 'communicateStatus.py --laneid %d --status downloading_failed' % laneid
@@ -668,6 +736,127 @@ class ed_data_handler(object):
 
         return retcode
 
+    def _ed_create_merged_bam_name(self, libcode):
+
+        try:
+            lib = Library.objects.get(code=libcode)
+        except Library.DoesNotExist, _err:
+            raise SystemExit("No library for code %s" % libcode)
+
+        merged_fn = "%s_%s.bam" % (libcode, sanitize_samplename(lib.sample.name),)
+
+        return merged_fn
+
+    def ed_run_post_process(self, merged_fn, bams, source_path, merged_path, compressed_path, print_commands_only=False):
+
+        # Setup cluster job submitter
+        submitter = ClusterJobSubmitter()
+        
+        cleanup = ""
+        if self.cleanup:
+            cleanup = " && rm %s" % (" ".join(bams))
+
+        # Execute merge job
+        merge_cmd = "cd %s && samtools merge -u -@ 8 %s %s%s" % (source_path, os.path.join(merged_path,merged_fn), " ".join(bams), cleanup)
+        print merge_cmd
+        if not print_commands_only:
+            jobid_merge = submitter.submit_command(cmd=merge_cmd, mem=8000, mincpus=8, auto_requeue=False)
+    
+        # Execute duplicate marking
+        if self.cleanup:
+            cleanup = " && rm %s" % merged_fn
+        dupmark_fn = merged_fn + "_dupmark.bam"
+        dupmark_log = merged_fn + "_dupmark.log"
+        d_cmd = "cd %s && picard --Xmx 32g MarkDuplicates I=%s O=%s M=%s VALIDATION_STRINGENCY=SILENT ASSUME_SORTED=True COMPRESSION_LEVEL=0 MAX_FILE_HANDLES_FOR_READ_ENDS_MAP=1024" % (merged_path, merged_fn, dupmark_fn, dupmark_log)
+        d_cmd = d_cmd + cleanup
+        print d_cmd
+        if not print_commands_only:
+            jobid_d = submitter.submit_command(cmd=d_cmd, mem=50000, auto_requeue=False, depend_jobs=[jobid_merge])
+
+        # Set up coverage and and flagstat computations for marked duplicate files
+        coverage_fn = dupmark_fn + ".coverage"
+        flagstat_fn = dupmark_fn + ".flagstat"
+
+        genome_size_fn = None
+        try:
+            genome = Genome.objects.filter(library__code=merged_fn.split('_')[0])
+            fasta = genome[0].fasta
+            genome_size_fn = os.path.join(DBCONF.clustergenomedir,fasta + '.size')
+        except Genome.DoesNotExist, _err:
+            LOGGER.info("No reference genome for %s." % (merged_fn))
+            sys.exit(1)
+        if not os.path.isfile(genome_size_fn):
+            LOGGER.info("Reference genome size file %s missing! Exiting!" % (genome_size_fn))
+            sys.exit(1)
+    
+        cmd_coverage = "cd %s && /homes/mlukk/software/bedtools2/bin/genomeCoverageBed -ibam -pc -i %s -g %s > %s && samtools flagstat %s > %s" % (merged_path, dupmark_fn, genome_size_fn, coverage_fn, dupmark_fn, flagstat_fn)
+        print cmd_coverage
+        if not print_commands_only:
+            jobid_cov = submitter.submit_command(cmd=cmd_coverage, mem=5000, mincpus=1, auto_requeue=False, depend_jobs=[jobid_d])
+
+        if self.cleanup:
+            cleanup = " && rm %s" % dupmark_fn
+
+        # Set up compress bam jobs
+        comp_fn = os.path.join(compressed_path, merged_fn)
+        cmd_compress = "cd %s && samtools view -b -@ 20 %s > %s" % (merged_path, dupmark_fn, comp_fn)
+        cmd_compress = cmd_compress + cleanup
+        print cmd_compress
+        if not print_commands_only:
+            jobid_com = submitter.submit_command(cmd=cmd_compress, mem=30000, mincpus=20, auto_requeue=False, depend_jobs=[jobid_cov])
+
+        # Set up compressed bam md5sum and bai generation
+        md5_fn = merged_fn + ".md5"
+        cmd_bai = "cd %s && samtools index -b %s && md5sum %s > %s" % (compressed_path, merged_fn, merged_fn, md5_fn)
+        print cmd_bai
+        if not print_commands_only:
+            jobid_bai = submitter.submit_command(cmd=cmd_bai, mem=4000, mincpus=1, auto_requeue=False, depend_jobs=[jobid_com])
+
+    def ed_postprocess(self, print_commands_only=False, source_path = None):
+        '''Post alignment processing of bam files. Identify files to be merged. 1. merge files, 2. run duplicate marking 3. compute coverage, check merged file integrity. 4. compress merged bams and index.'''
+
+        django.setup()
+
+        if source_path is None:
+            source_path = self.workdir
+        merged_path = os.path.join(source_path, 'merged_bams_uncompressed')
+        compressed_path = os.path.join(source_path, 'merged_bams_compressed')
+        if not os.path.isdir(merged_path):
+            try:
+                os.makedirs(merged_path)
+            except OSError:
+                LOGGER.error("Failed to create directory %s", merged_path)
+                sys.exit(1)
+        if not os.path.isdir(compressed_path):
+            try:
+                os.makedirs(compressed_path)
+            except OSError:
+                LOGGER.error("Failed to create directory %s", compressed_path)
+                sys.exit(1)
+
+        libcodes = dict()
+
+        files = os.listdir(source_path)
+        bamfiles = []
+        for fn in files:
+            if fn.endswith("bam"):
+                libcode = fn.split('_')[0]
+                if libcode in libcodes:
+                    libcodes[libcode] +=1
+                else:
+                    libcodes[libcode] = 1
+                bamfiles.append(fn)
+
+        for libcode in libcodes:
+            bams = []
+            for bam in bamfiles:
+                if bam.startswith(libcode + '_'):
+                    bams.append(bam)
+            # Sorting not really necessary but with so small list does not take much time.
+            bams.sort()
+
+            merged_fn = self._ed_create_merged_bam_name(libcode)
+            self.ed_run_post_process(merged_fn, bams, source_path, merged_path, compressed_path, print_commands_only=print_commands_only)
 
 ##################  M A I N   P R O G R A M  ######################
 
@@ -676,7 +865,9 @@ if __name__ == '__main__':
     from argparse import ArgumentParser
     
     PARSER = ArgumentParser(description='Submission of project related files to ENA')
-    PARSER.add_argument('-p', '--project', dest='project', type=str, help='Name of the project (subdirectory) in Edinburgh aspera server where the library files are located.', required=True, default='')
+    PARSER.add_argument('-p', '--project', dest='project', type=str, help='Name of the project (subdirectory) in Edinburgh aspera server where the library files are located.', required=False, default='X15060')
+    PARSER.add_argument('-r', '--release', dest='release', type=str, help='Limit processing to files with specific release date. E.g. 2016-07-12', required=False, default=None)
+
     PARSER.add_argument('--file1', dest='file1', type=str, help='Download file and file1.md5 in the project subdirectory. A file.done is created in file system on success. NB! This variable expects a full path to the file within the project subdirectory!')
     PARSER.add_argument('--file2', dest='file2', type=str, help='Download file and file2.md5 in the project subdirectory. A file.done is created in file system on success. NB! This variable expects a full path to the file within the project subdirectory!')
     PARSER.add_argument('-a', '--all-for-file', dest='allforfile', action='store_true', help='Downloads all files for a fastq file (fastq itself, its md5 and fastqc report.', default=False)
@@ -685,15 +876,16 @@ if __name__ == '__main__':
     PARSER.add_argument('--file1_md5', dest='file1_md5', type=str, help='Md5 sum for file1.', default=None)
     PARSER.add_argument('--file2_md5', dest='file2_md5', type=str, help='Md5 sum for file1.', default=None)
     PARSER.add_argument('-A', '--archive-name', dest='aname', type=str, help='Arhcive name where to save the fastq files.', default='ebiark')
-    PARSER.add_argument('--test', dest='print_commands_only', action='store_true', help='Only print the download commands of fastq files.', default=False)
+    PARSER.add_argument('--test', dest='print_commands_only', action='store_true', help='Only print commands to be executed without actually running any..', default=False)
     PARSER.add_argument('--process', dest='process', action='store_true', help='Process downloaded files.', default=False)
-
+    PARSER.add_argument('--post-process', dest='postprocess', action='store_true', help='Postprocess aligned files', default=False)
     PARSER.add_argument('--check', dest='check', action='store_true', help='Check if libraries for all files part of the project exist in repository. Where necessary, create new lanes and set the status \'new\'.', default=False)
     PARSER.add_argument('--download', dest='download', action='store_true', help='Download all files for which the lanes are marked \'new\'.', default=False)
-    PARSER.add_argument('-t', '--threads', dest='threads', type=int, help='Number of threads. Overrides default (athreads) from configuration.', default=10)
+    PARSER.add_argument('-t', '--threads', dest='threads', type=int, help='Number of parallel aspera threads. Overrides default (athreads) from configuration.', default=10)
+    PARSER.add_argument('--cleanup', dest='cleanup', action='store_true', help='Remove temporary files.', default=False)
 
     ARGS = PARSER.parse_args()
-    edd = ed_data_handler(ARGS.project, threads=ARGS.threads, aname=ARGS.aname)
+    edd = ed_data_handler(ARGS.project, threads=ARGS.threads, aname=ARGS.aname, release=ARGS.release, cleanup=ARGS.cleanup)
 
     # Check and register files that need to be downloaded
     if ARGS.check:
@@ -708,6 +900,11 @@ if __name__ == '__main__':
     # Process files successfully downloaded to incoming.
     if ARGS.process:
         edd.ed_process(print_commands_only=ARGS.print_commands_only)
+        sys.exit(0)
+
+    # Post-process aligned files
+    if ARGS.postprocess:
+        edd.ed_postprocess(print_commands_only=ARGS.print_commands_only)
         sys.exit(0)
 
     # Download for only one fastq file

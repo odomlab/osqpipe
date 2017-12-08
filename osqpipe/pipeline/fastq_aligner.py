@@ -10,7 +10,7 @@ import os
 from ..models import Library, Genome, Filetype
 from osqutil.config import Config
 from osqutil.utilities import determine_readlength
-from .bwa_runner import BwaClusterJobSubmitter, BwaDesktopJobSubmitter, TophatClusterJobSubmitter
+from .bwa_runner import BwaClusterJobSubmitter, BwaDesktopJobSubmitter, TophatClusterJobSubmitter, StarClusterJobSubmitter
 
 from osqutil.setup_logs import configure_logging
 from logging import INFO, DEBUG
@@ -119,7 +119,7 @@ class FastqAligner(object):
                         nocc=nocc, cleanup=(not nocleanup))
 
   def align_standalone(self, filepaths, genome, destnames=None,
-                       nocc=None, nocleanup=False):
+                       nocc=None, nocleanup=False, nosplit=False, rcp=None, lcp=None, fileshost=None):
 
     '''Align fastq file(s) against a genome recorded in the
     repository. Does not require the fastq files themselves to be
@@ -127,7 +127,7 @@ class FastqAligner(object):
 
     gobj = self._retrieve_genome(genome)
     self._call_aligner(filepaths, gobj, destnames=destnames,
-                      nocc=nocc, cleanup=(not nocleanup))
+                       nocc=nocc, cleanup=(not nocleanup), nosplit=nosplit, rcp=rcp, lcp=lcp, fileshost=fileshost)
 
 class FastqBwaAligner(FastqAligner):
   '''
@@ -152,7 +152,7 @@ class FastqBwaAligner(FastqAligner):
     return 'mem' if rlen >= 70 else 'aln'
 
   def _call_aligner(self, filepaths, genome, destnames=None,
-                    nocc=None, cleanup=True, *args, **kwargs):
+                    nocc=None, cleanup=True, nosplit=False, rcp=None, lcp=None, fileshost=None, *args, **kwargs):
     '''
     Method used to dispatch cs_runBwaWithSplit.py processes on the
     cluster.
@@ -198,7 +198,7 @@ class FastqBwaAligner(FastqAligner):
                     num_threads=num_threads)
     bsub.submit(filenames=filepaths, auto_requeue=False,
                 destnames=destnames, bwa_algorithm=self.bwa_algorithm,
-                is_paired=paired, cleanup=cleanup, nocc=nocc)
+                is_paired=paired, cleanup=cleanup, nocc=nocc, nosplit=nosplit, rcp=rcp, lcp=lcp, fileshost=fileshost)
 
     LOGGER.info("Jobs submitted.")
 
@@ -257,3 +257,57 @@ class FastqTophatAligner(FastqAligner):
 
     LOGGER.info("Jobs submitted.")
 
+class FastqStarAligner(FastqAligner):
+  '''
+  Class used to handle alignments using the STAR external
+  binary. This is currently coded to use STAR running on a cluster via
+  the StarClusterJobSubmitter class.
+  '''
+  def _call_aligner(self, filepaths, genome, destnames=None,
+                    nocc=None, cleanup=True, *args, **kwargs):
+    '''
+    Method used to dispatch cs_runStarWithSplit.py processes on the
+    cluster.
+    '''
+    if nocc is not None:
+      LOGGER.warning("Unsupported nocc argument passed to FastqStarAligner.")
+
+    if len(filepaths) == 1:
+      LOGGER.info("Launching single-end sequencing alignment.")
+      paired = False
+    elif len(filepaths) == 2:
+      LOGGER.info("Launching paired-end sequencing alignment.")
+      paired = True
+    else:
+      raise ValueError("Wrong number of files passed to aligner.")
+
+    if destnames is None:
+      destnames = [os.path.basename(x) for x in filepaths]
+
+    # The alternative alignment host mechanism is currently
+    # unsupported for STAR alignments (for lack of development time).
+    num_threads = 1
+    try:
+      althost = self.conf.althost
+      assert(althost != '')
+    except AttributeError, _err:
+      althost = None
+    if althost is None:
+      jobclass = StarClusterJobSubmitter
+    else:
+      raise ValueError("Currently unable to run STAR jobs via the"
+                       + " alternative alignment host mechanism.")
+
+    # Build path to genome index on the alignment host/cluster.
+    genome_path = jobclass.build_genome_index_path(genome)
+
+    bsub = jobclass(test_mode=self.test_mode,
+                    genome=genome_path,
+                    samplename=self.samplename,
+                    finaldir=self.finaldir,
+                    num_threads=num_threads, aligner='star')
+    bsub.submit(filenames=filepaths, auto_requeue=False,
+                destnames=destnames,
+                is_paired=paired, cleanup=cleanup)
+
+    LOGGER.info("Jobs submitted.")

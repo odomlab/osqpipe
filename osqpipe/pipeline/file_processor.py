@@ -15,11 +15,11 @@ from tempfile import mkstemp
 
 from osqutil.utilities import parse_incoming_fastq_name, call_subprocess, \
     checksum_file, parse_repository_filename, is_zipped, rezip_file, unzip_file, \
-    set_file_permissions, get_filename_libcode, bash_quote
+    set_file_permissions, get_filename_libcode, bash_quote, transfer_file, dostring_to_dorange
 from osqutil.config import Config
 from ..models import Filetype, Library, Lane, Lanefile, Facility, \
     Status, LibraryNameMap, Machine
-from .fastq_aligner import FastqBwaAligner, FastqTophatAligner
+from .fastq_aligner import FastqBwaAligner, FastqTophatAligner, FastqStarAligner
 from .upstream_lims import Lims
 from .fetch_mga import fetch_mga
 from .laneqc import LaneFastQCReport
@@ -119,7 +119,7 @@ class GenericFileProcessor(object):
   def __init__(self, fname, fname2, paired, facility,
                options=None, notes=None, test_mode=False,
                libcode=None, flowcell=None, flowlane=None,
-               bwa_algorithm=None):
+               bwa_algorithm=None, aligner=None):
     self.test_mode = test_mode
     self.incoming = fname
     self.paired = paired
@@ -133,6 +133,7 @@ class GenericFileProcessor(object):
     self.notes = notes
     self.library = None
     self.bwa_algorithm = bwa_algorithm
+    self.aligner = aligner
 
     if options is None:
       options = {}
@@ -433,7 +434,8 @@ class GenericFileProcessor(object):
     self.lane.machine = Machine.objects.get(code__iexact=str(self.lims_fc.instrument))
     lims_lane = self.lims_fc.get_sample_lane(self.flowlane, self.libcode)
     if lims_lane != None:
-      self.lane.usersampleid = lims_lane.user_sample_id
+      usersampleid = lims_lane.user_sample_id
+      self.lane.usersampleid = dostring_to_dorange(usersampleid)
       self.lane.genomicssampleid = lims_lane.genomics_sample_id
       self.lane.summaryurl = lims_lane.build_summary_url()
 
@@ -453,7 +455,8 @@ class GenericFileProcessor(object):
       self.lane.seqsamplebad = ''
       return
     lims_lane = self.lims_fc.get_sample_lane(self.flowlane, self.libcode)
-    self.lane.usersampleid = lims_lane.user_sample_id
+    usersampleid = lims_lane.user_sample_id
+    self.lane.usersampleid = dostring_to_dorange(usersampleid)
     self.lane.genomicssampleid = lims_lane.genomics_sample_id
     self.lane.rundate = self.lims_fc.finish_date
     self.lane.machine = Machine.objects.get(code__iexact=str(self.lims_fc.instrument))
@@ -469,7 +472,8 @@ class GenericFileProcessor(object):
     self.lane.qualmeanpf = [0.0]
     self.lane.qualstdevpf = [0.0]
     if lims_lane != None:
-      self.lane.usersampleid = lims_lane.user_sample_id
+      usersampleid = lims_lane.user_sample_id
+      self.lane.usersampleid = dostring_to_dorange(usersampleid)
       self.lane.genomicssampleid = lims_lane.genomics_sample_id
       self.lane.summaryurl = lims_lane.build_summary_url()
 
@@ -491,11 +495,19 @@ class GenericFileProcessor(object):
     # FIXME we ought to remove 'incoming' as hardcoded here.
     repo_incoming = os.path.join(CONFIG.repositorydir, 'incoming')
 
+    # FIXME - just testing if providing full path might help with files being pulled correctly
+    # FIXME - 
+    
     # If RNA-Seq, align using tophat2. If not, use our default bwa.
     if self.library.libtype.code == 'rnaseq':
-      aligner = FastqTophatAligner(test_mode=self.test_mode,
-                                   samplename=self.library.sample.name,
-                                   finaldir=repo_incoming)
+      if self.aligner == 'star':
+        aligner = FastqStarAligner(test_mode=self.test_mode,
+                                     samplename=self.library.sample.name,
+                                     finaldir=repo_incoming)
+      else:
+        aligner = FastqTophatAligner(test_mode=self.test_mode,
+                                     samplename=self.library.sample.name,
+                                     finaldir=repo_incoming)        
       if nocc is not None:
         LOGGER.warning("Unsupported attempt to run tophat2 with read reallocation.")
     else:
@@ -600,8 +612,11 @@ class GenericFileProcessor(object):
         # collisions between file classes, e.g. Lanefile vs. Alnfile
         # (Update: this is no longer the case now that both are
         # subtypes of Datafile).
-        move(disk_fname, dest)
-        set_file_permissions(CONFIG.group, dest)
+        # move(disk_fname, dest)
+        # set_file_permissions(CONFIG.group, dest)
+        transfer_file(disk_fname, "%s@%s:%s" % (CONFIG.user, CONFIG.datahost, dest))
+        # note that transfer_file exists should the the transfer fail, hence unlinking the file should be safe.
+        os.unlink(disk_fname)
 
         # Get the read length directly from the fastq file.
         if fobj.filetype.code == 'fq':
@@ -610,7 +625,7 @@ class GenericFileProcessor(object):
           except IOError:       # no file.
             LOGGER.warning("Unable to detect read length from fastq file.")
           except StopIteration: # no data in file.
-            LOGGER.warning("Unable to detect read length from fastq file.")
+            LOGGER.warning("Unable to detect read length from fastq file.")            
 
   def clean_up(self):
     '''
@@ -1034,10 +1049,10 @@ class FileProcessingManager(object):
   GenericFileProcessor subclasses.
   '''
   __slots__ = ('options', 'facility', 'force_paired_end',
-               'libtype2class', 'test_mode', 'bwa_algorithm')
+               'libtype2class', 'test_mode', 'bwa_algorithm', 'aligner')
 
   def __init__(self, options=None, facility='CRI', force_paired_end=None,
-               bwa_algorithm=None, test_mode=False):
+               bwa_algorithm=None, test_mode=False, aligner=None):
     
     self.test_mode = test_mode
     if not options:
@@ -1046,6 +1061,7 @@ class FileProcessingManager(object):
     self.facility = facility
     self.force_paired_end = force_paired_end
     self.bwa_algorithm    = bwa_algorithm
+    self.aligner = aligner
     if self.test_mode:
       LOGGER.setLevel(DEBUG)
     else:
@@ -1114,6 +1130,10 @@ class FileProcessingManager(object):
                    '.qseq': ChIPQseqFileProc,
                    '.map': ChIPMaqFileProc},
       'race': {'.fq': ChIPFastqFileProc,
+               '.export': ChIPExportFileProc,
+               '.qseq': ChIPQseqFileProc,
+               '.map': ChIPMaqFileProc},
+      'atacseq': {'.fq': ChIPFastqFileProc,
                '.export': ChIPExportFileProc,
                '.qseq': ChIPQseqFileProc,
                '.map': ChIPMaqFileProc}
@@ -1202,7 +1222,7 @@ class FileProcessingManager(object):
                                                facility=self.facility,
                                                bwa_algorithm=self.bwa_algorithm,
                                                notes=notes,
-                                               test_mode=self.test_mode)
+                                               test_mode=self.test_mode, aligner=self.aligner)
     else:
       LOGGER.warning(
         "No class for libtype '%s' and extension '%s'.  Skipping.",
@@ -1328,5 +1348,3 @@ class FileProcessingManager(object):
       # Delete temporary files, e.g. Sanger bam and metadata
       for tmpnam in tempfiles:
         os.unlink(tmpnam)
-
-
