@@ -719,7 +719,7 @@ if __name__ == '__main__':
 
   PARSER.add_argument('--memsize', dest='memsize', type=int, default=5,
                       help='The amount of memory, in megabytes, to request on'
-                      + ' the cluster (default=5000).')
+                      + ' the cluster (default=5).')
 
   PARSER.add_argument('--timelimit', dest='time_limit', type=int, default=48,
                       help='The length of time, in hours, to allow cluster'
