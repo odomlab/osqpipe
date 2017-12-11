@@ -205,7 +205,7 @@ if __name__ == '__main__':
   PARSER.add_argument('-M', dest='md5arguments', action='store_true', help='Assumes md5 sum is provided on command line following the file. (e.g. file1 md5sum1 file2 md5sum2 ...)', default=False)
   PARSER.add_argument('-s', '--file_summary', dest='summary_file', type=str, help='File created by summaryFile from a fastq file.', default=None)
   PARSER.add_argument('--archive', dest='archive', type=str, help='Archive (e.g. bamark, ebiark, ark) where the file has been saved. Deafult=none.', default=None)
-  PARSER.add_argument('--qcfile', dest='qcfile', action='store_true', help='Files should be inserted as QC files. NB! Function has property of also moving the files to repository at the same time!', default=False)
+  PARSER.add_argument('--qcfile', dest='qcfile', action='store_true', help='Files should be inserted as QC files.', default=False)
   PARSER.add_argument('--program_name', dest='program_name', type=str, help='Program name used for generating qc files. Default=\'fastqc\'.', default='fastqc')
 
   ARGS = PARSER.parse_args()

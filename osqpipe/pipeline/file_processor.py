@@ -521,6 +521,34 @@ class GenericFileProcessor(object):
                              nocc=nocc,
                              destnames=self.outfiles)
 
+  def kick_off_hicup_qc_report(self, tfiles):      
+    '''
+    Start hicup qc report generation of our fastq files given genome and restriction enzyme.
+    '''
+
+    fq1 = tfiles[0]
+    fq2 = None
+    if len(tfiles) == 2:
+      fq2 = tfiles[1]
+
+    code = fq1.split('_')[0]
+    try:
+      library = Library.objects.get(code=code)
+    except Library.DoesNotExist, _err:
+      LOGGER.warning("No library %s", code)
+      sys.exit("No library %s." % (code,))
+    return library
+  
+    enzyme = library.comment
+    if enzyme == None or enzyme == '':
+      LOGGER.error("Enzyme name used for digestion missing! (expected in comments field)")
+      sys.exit(1)
+    genome = library.genome.code    
+    
+    HC = HiCUP(fq1=fq1, genome=genome, enzyme=enzyme, fq2=fq2)
+    HC.write_hicup_config()
+    HC.run_hicup()
+    
   def post_process(self):
     '''
     Stub method standing in for the main processing steps to be
@@ -741,7 +769,32 @@ class ChIPFastqFileProc(ChIPQseqFileProc):
     self.collect_lane_info("-f")
     return Status.objects.get(code='alignment', authority=None)
 
+###############################################################################
 
+class HiCFastqFileProc(ChIPQseqFileProc):
+  '''
+  Processor for HiC fastq files.
+  '''
+  def post_process(self):
+    '''
+    Convert to phred scoring if required, trim fastq, align, collect metadata.
+    '''
+    self.outfiles = self.files[:]
+    if self.options.get('convert', False):
+      self.convert_solexa2phred()
+    else:
+      LOGGER.info("Assuming quality values in Sanger format.")
+    if 'trimhead' in self.options or 'trimtail' in self.options:
+      tfiles = self.trim_fastq()
+    else:
+      tfiles = self.outfiles[:]
+    for fname in tfiles:
+      set_file_permissions(CONFIG.group, fname)
+    self.kick_off_hicup_qc_report(tfiles)
+    self.collect_lims_info()
+    self.collect_lane_info("-f")
+    return Status.objects.get(code='alignment', authority=None)
+  
 ###############################################################################
 
 class ChIPMaqFileProc(GenericFileProcessor):
