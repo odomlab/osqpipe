@@ -1,5 +1,6 @@
 #!/bin/env python
-
+#
+# $id$
 import os
 import sys
 import datetime
@@ -108,13 +109,14 @@ class ExternalRecordManager(object):
       sys.exit(1)
     self.obj_type = 'library'
 
-  def add_sample_obj(self, sample_name):
-    try:
-      self.obj = Sample.objects.get(name=sample_name)
-    except Sample.DoesNotExist:
-      LOGGER.error("No sample with name \"%s\".", sample_name)
-      sys.exit(1)
-    self.obj_type = 'sample'
+#  Following has been deprecated as multiple samples may exist with same name but have different tissues associated. Use add_sample_obj_library(self, code) below instead!
+#  def add_sample_obj(self, sample_name):
+#    try:
+#      self.obj = Sample.objects.get(name=sample_name)
+#    except Sample.DoesNotExist:
+#      LOGGER.error("No sample with name \"%s\".", sample_name)
+#      sys.exit(1)
+#    self.obj_type = 'sample'
 
   def add_sample_obj_library(self, code):
     try:
@@ -149,6 +151,7 @@ class ExternalRecordManager(object):
         #  if gchild.tag == "EXT_ID":
         #    self.accession = gchild.get('accession')
       if child.tag == 'MESSAGES':
+        messages = child
         errors = messages.findall('ERROR')
         if len(errors) > 0:
           accession_in_error = False
@@ -193,7 +196,6 @@ class ExternalRecordManager(object):
     if self.receipt_type == 'EXPERIMENT':
       self.add_library_obj(code=alias)
     if self.receipt_type == 'SAMPLE':
-      # self.add_sample_obj(sample_name=alias)
       self.add_sample_obj_library(self.code)
 
 class EnaAnnotation(object):
@@ -256,7 +258,7 @@ class EnaAnnotation(object):
     if annotation_source == 'db':
       self.get_annotations_from_db(lane=lane)
     else:
-      sys.exit('Annotation source \'%s\' is not supported!\n\n')
+      sys.exit("Annotation source \"%s\" is not supported!\n\n")
 
     # Process primary annotation values to secondary required for ENA short read data submission
     self.process_annotations()
@@ -267,22 +269,22 @@ class EnaAnnotation(object):
     if not os.path.isfile(md5fn):
       base = os.path.basename(fn)
       md5fn = os.path.join(self.target_dir, base + '.md5')
+    
+      if not os.path.isfile(md5fn):
 
-    if not os.path.isfile(md5fn):
+        cmd = "md5sum %s > %s" % (fn, md5fn)
 
-      cmd = "md5sum %s > %s" % (fn, md5fn)
-
-      LOGGER.info("Creating %s ...\n", md5fn)
-      subproc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
-      (stdout, stderr) = subproc.communicate()
-      retcode = subproc.wait()
-      #if stdout is not None:
-      #  sys.stdout.write(stdout)                                                                                                                                                      
-      #if stderr is not None:
-      #  sys.stderr.write(stderr)
-      if retcode != 0:
-        LOGGER.error("%s\nFailed to create %s.\n\n", stderr, md5fn)
-        sys.exit(1)
+        LOGGER.info("Creating %s ...\n", md5fn)
+        subproc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+        (stdout, stderr) = subproc.communicate()
+        retcode = subproc.wait()
+        #if stdout is not None:
+        #  sys.stdout.write(stdout)
+        #if stderr is not None:
+        #  sys.stderr.write(stderr)
+        if retcode != 0:
+          LOGGER.error("%s\nFailed to create %s.\n\n", stderr, md5fn)
+          sys.exit(1)
 
     md5 = None
     LOGGER.info("Reading md5 sum from %s ...\n", md5fn)
@@ -339,10 +341,14 @@ class EnaAnnotation(object):
     self.taxon_id = self.library.genome.species.accession
     self.scientific_name = self.library.genome.species.scientific_name
     self.common_name = self.library.genome.species.common_name
-    if so:
+    if so is not None:
       self.treatments_agent.append(so.agent.name)
       self.treatments_dose.append(so.dose)
-      self.treatments_unit.append(so.dose_unit.name)
+      if so.dose_unit is not None:
+        self.treatments_unit.append(so.dose_unit.name)
+      else:
+        LOGGER.error("Dose unit for %s (sample %s) is missing. EXITING!\n" % (self.library.code, self.library.sample.name))
+        sys.exit(1)
       self.treatments_date.append(so.date) # so.date.strftime("%Y-%m-%d_%H:%M:%S.%f")
 
     self.annotations['tissue_type'] = self.library.sample.tissue
@@ -353,7 +359,10 @@ class EnaAnnotation(object):
     self.annotations['date of birth'] = self.library.sample.source.date_of_birth
     self.annotations['date of death'] = self.library.sample.source.date_of_death
     self.annotations['sample name'] = self.library.sample.name
-    self.annotations['sex'] = self.library.sample.source.sex.name
+    if self.library.sample.source.sex is None:
+      self.annotations['sex'] = 'NA'
+    else:
+      self.annotations['sex'] = self.library.sample.source.sex.name
 
     # Check if sample has diagnosis
     try:
@@ -466,7 +475,7 @@ class EnaAnnotation(object):
     elif self.library_strategy == 'WXS':
       self.experiment_library_construction_procotol = 'Library was constructed using Illumina TruSeq DNA PCR-Free Kit.'
     else:
-      sys.exit("Library strategy/type '%s' not supported!\n\n" % (self.library_strategy))
+      sys.exit("Library strategy/type \"%s\" not supported!\n\n" % (self.library_strategy))
 
     # Build experiment title.
     self.experiment_title = "%s %sbp %s end sequencing of sample %s." % (self.instrument_model, str(self.readlength), self.library_layout.lower(), self.annotations['sample name'])
@@ -490,10 +499,10 @@ class EnaAnnotation(object):
     except ExternalRecord.DoesNotExist:
       LOGGER.info("No external records for library \'%s\'.", self.experiment_alias)
     try:
-      ers = ExternalRecord.objects.get(samples__name=self.library.sample.name, repository__name=self.external_repository)
+      ers = ExternalRecord.objects.get(samples__id=self.library.sample.id, repository__name=self.external_repository)
       self.sample_external_record = ers.accession
     except ExternalRecord.DoesNotExist:
-      LOGGER.info("No external records for sample \'%s\'.", self.sample_alias)
+      LOGGER.info("No external records for sample \'%s\'.", self.sample_alias)      
 
 class EnaXmlObject(object):
   '''A class / container to keep info about generated XML file, its type, alias, validation, submission etc. state'''
@@ -581,8 +590,8 @@ class EnaXmlCreator(object):
     # Check if XML may have already been created
     if os.path.isfile(exo.filename):
       if self.modify:
-        LOGGER.info("XML for %s \'%s\' already exists: %s. Remove the file before XML update could be written!", exo.otype, exo.alias, exo.filename)
-        sys.exit(1)
+        LOGGER.info("XML for %s \'%s\' already exists: %s. Owerwriting XML!", exo.otype, exo.alias, exo.filename)
+        # sys.exit(1)
       else:
         LOGGER.info("XML for %s \'%s\' already exists: %s", exo.otype, exo.alias, exo.filename)
       return exo
@@ -597,6 +606,7 @@ class EnaXmlCreator(object):
     experiment.set('center_name',self.a.center_name)
     title = experiment.find('TITLE')
     title.text = self.a.experiment_title
+    # print "STUDY_REF=%s" % self.a.study_alias
     experiment.find('STUDY_REF').set('refname', self.a.study_alias)
     design = experiment.find('DESIGN')
     design.find('DESIGN_DESCRIPTION').text = self.a.experiment_design_description
@@ -690,7 +700,7 @@ class EnaXmlCreator(object):
       exo.submitted = True
       exo.accession = self.a.sample_external_record
 
-      LOGGER.info("Sample \'%s\' already submitted under accession \'%\'", self.a.sample_alias, self.a.sample_external_record)
+      LOGGER.info("Sample \'%s\' already submitted under accession \'%s\'", self.a.sample_alias, self.a.sample_external_record)
       if not self.modify:
         return exo
 
@@ -846,7 +856,12 @@ class enaXMLuploader(object):
     LOGGER.info(cmd)
     if os.path.isfile(r_fname):
       LOGGER.info("Skipping, already submitted.")
-      return ""
+      if os.path.isfile(r_fname):
+        LOGGER.info("Found submission receipt %s.", r_fname)
+        return r_fname
+      else:
+        LOGGER.error("%s expected but not found!\n\n", r_fname)
+        return ""
     subproc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
     (stdout, stderr) = subproc.communicate()
     retcode = subproc.wait()
@@ -1046,7 +1061,7 @@ class EnaSubmitter(object):
       experiment_xml = ex.write_experiment_xml()
     if create_run_xml:
       run_xml = ex.write_run_xml()
-    
+
     # Upload data files
     if self.upload_files:
       for datafile in run_xml.datafiles:
@@ -1067,38 +1082,34 @@ class EnaSubmitter(object):
         if self.submit_xml:
           receipt_file = ena_loader.upload_xml(sample_xml.submission_filename, sample_xml.filename, 'SAMPLE', validate=False)
           erm = ExternalRecordManager(sample_xml.otype, release_date = self.release_date_str, is_public = False, repository_name = self.external_repository, code=ex.a.code)
-          # erm.add_sample_obj(sample_xml.alias)
-          # erm.add_sample_obj_library(ex.a.code)
-          # erm.add_external_record_to_obj()
           # Extract assigned accession from receipt and insert it to repository
           erm.parse_xml_receipt(receipt_file)
+          erm.add_external_record_to_obj()
 
     if create_experiment_xml:
       if not experiment_xml.submitted or self.modify:
         # validate XML
         if self.validate_xml:
-          accession = ena_loader.upload_xml(experiment_xml.submission_filename, experiment_xml.filename, 'EXPERIMENT', validate=True)
+          receipt_file = ena_loader.upload_xml(experiment_xml.submission_filename, experiment_xml.filename, 'EXPERIMENT', validate=True)
         # submit XML
         if self.submit_xml:
           receipt_file = ena_loader.upload_xml(experiment_xml.submission_filename, experiment_xml.filename, 'EXPERIMENT', validate=False)
-          erm = ExternalRecordManager(experiment_xml.otype, accession = accession, release_date = self.release_date_str, is_public = False, repository_name = self.external_repository)
-          #erm.add_library_obj(experiment_xml.alias)
-          #erm.add_external_record_to_obj()
+          erm = ExternalRecordManager(experiment_xml.otype, release_date = self.release_date_str, is_public = False, repository_name = self.external_repository)
           # Extract assigned accession from receipt and insert it to repository
           erm.parse_xml_receipt(receipt_file)
+          erm.add_external_record_to_obj()
     if create_run_xml:
       if not run_xml.submitted or self.modify:
         # validate XML
         if self.validate_xml:
-          accession = ena_loader.upload_xml(run_xml.submission_filename, run_xml.filename, 'RUN', validate=True)
+          receipt_file = ena_loader.upload_xml(run_xml.submission_filename, run_xml.filename, 'RUN', validate=True)
         # submit XML
         if self.submit_xml:
           receipt_file = ena_loader.upload_xml(run_xml.submission_filename, run_xml.filename, 'RUN', validate=False)
-          erm = ExternalRecordManager(run_xml.otype, accession = accession, release_date = self.release_date_str, is_public = False, repository_name = self.external_repository)
-          #erm.add_lane_obj(lane.id)
-          #erm.add_external_record_to_obj()
+          erm = ExternalRecordManager(run_xml.otype, release_date = self.release_date_str, is_public = False, repository_name = self.external_repository)
           # Extract assigned accession from receipt and insert it to repository
           erm.parse_xml_receipt(receipt_file)
+          erm.add_external_record_to_obj()
 
   def submit_project(self, project):
     '''Submits data and meta-data for all lanes not yet been submitted for a project.'''

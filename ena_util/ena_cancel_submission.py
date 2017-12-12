@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+#
+# $id$
 import os
 import sys
 import xml.etree.ElementTree as ET

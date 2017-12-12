@@ -151,6 +151,21 @@ class Genome(ControlledVocab):
     db_table = u'genome'
     ordering = ['code']
 
+class Restrictome(ControlledVocab):
+  enzyme       = models.CharField(max_length=128)
+  sequence     = models.CharField(max_length=128, null=True, blank=True)
+  filename     = models.CharField(max_length=1024, unique=True)
+  date         = models.DateField(auto_now_add=True)
+  program      = models.ForeignKey(Program, on_delete=models.PROTECT, help_text="Program that was used for creating restrictome.")
+  genome       = models.ForeignKey(Genome, on_delete=models.PROTECT,
+                                   help_text="The genome against which the restrictome was generated.")
+  def __unicode__(self):
+    return "%s %s" % (self.enzyme, self.genome.code)
+
+  class Meta:
+    db_table = u'restrictome'
+    ordering = ['enzyme','genome']
+   
 class Tissue(ControlledVocab):
   name         = models.CharField(max_length=255, unique=True)
   description  = models.TextField(null=True, blank=True)
@@ -999,7 +1014,7 @@ def protect_frozen_m2m(sender, instance, action, reverse, model, pk_set, **kwarg
       if instance.is_frozen:
         raise ValidationError("Attempt to change a frozen project instance.")
 
-    else:
+    elif pk_set is not None:
 
       # instance is library; model is project.
       for pkid in list(pk_set):

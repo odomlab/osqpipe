@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SUBMISSION_SET>
+  <SUBMISSION alias="anCancel" center_name="YourCenterName">
+    <ACTIONS>
+      <ACTION>
+	<CANCEL target="YourAccessionNumber"/>
+      </ACTION>
+    </ACTIONS>
+  </SUBMISSION>
+</SUBMISSION_SET>
