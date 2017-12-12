@@ -15,6 +15,9 @@ from osqutil.cluster import ClusterJobSubmitter
 from osqutil.utilities import write_to_remote_file, transfer_file
 from osqutil.config import Config
 
+from osqutil.setup_logs import configure_logging
+from logging import INFO, DEBUG
+LOGGER = configure_logging('hicup')
 
 class HiCUP(object):
     
@@ -58,7 +61,7 @@ class HiCUP(object):
                 LOGGER.error("%s not found or accessible! Exiting!", fname)
                 sys.exit(1)
 
-    def _genome_index_path(self, genome_code):
+    def _genome_index_path(self, genome):
         '''Alternatively to the code below, one could use genome_fasta_path from .bwa_runner'''
         
         try:
@@ -81,21 +84,23 @@ class HiCUP(object):
             indexdir = "%s-%s" % (self.alignment_program, prog_obj.version)
 
         index_path = os.path.join(self.conf.clustergenomedir, sciname,
-                             genome.code, indexdir, genome.code)
+                                  genome_obj.code, indexdir, genome_obj.code)
 
         return index_path
 
-    def _restriction_file_path(genome, enzyme):
+    def _restriction_file_path(self, genome, enzyme):
 
+        program = 'hicup'
+        
         try:
             genome_obj = Genome.objects.get(code=genome)
         except Genome.DoesNotExist:
             LOGGER.error("Genome '%s' not found!", genome)
             sys.exit(1)
         try:
-            prog_obj = Program.objects.get(program='hicup', current=True)
+            prog_obj = Program.objects.get(program=program, current=True)
         except Program.DoesNotExist:
-            LOGGER.error("Program '%s' not found!", self.alignment_program)
+            LOGGER.error("Program '%s' not found!" % program)
             sys.exit(1)        
         try:
             r = Restrictome.objects.get(genome=genome_obj, enzyme=enzyme, program=prog_obj)
@@ -105,15 +110,15 @@ class HiCUP(object):
         sciname = genome_obj.species.scientific_name
         sciname = sciname.replace(" ", "_")
         sciname = sciname.lower()
-        indexdir = "%s-%s" % (self.alignment_program, prog_obj.version)    
+        indexdir = "%s-%s" % (program,prog_obj.version)
         # E.g. /scratchb/user/fnc-odompipe/genomes/mus_musculus/mm10/hicup-0.5.10/Digest_mm10_HindIII_None_16-49-06_29-11-2017.txt
-        rfile_path = os.path.join(self.conf.clustergenomedir, sciname, genome.code, indexdir, r.filename)
+        rfile_path = os.path.join(self.conf.clustergenomedir, sciname, genome_obj.code, indexdir, r.filename)
 
         return rfile_path
 
     def write_hicup_config(self):
 
-
+        LOGGER.info("Creating hicup config in cluster: %s" % self.hicup_conf_fname)
         threads = int(int(self.conf.num_threads)/2)
         if self.fq2 is None:
             threads = self.conf.num_threads
@@ -129,7 +134,7 @@ class HiCUP(object):
         conf_txt += "Format: Sanger\n"
         conf_txt += "Longest: 800\n"
         conf_txt += "Shortest: 150\n"
-        conf_txt += "%s" % self.fq1
+        conf_txt += "%s\n" % self.fq1
         if self.fq2 is not None:
             conf_txt += "%s\n" % self.fq2
 
@@ -139,28 +144,31 @@ class HiCUP(object):
             sshkey = None
             write_to_remote_file(conf_txt, self.hicup_conf_fname, self.conf.clusteruser,
                                  self.conf.cluster, append=False, sshkey=sshkey)
-            
-        return conf_fname
 
-    def run_hicup(self, hicup_config):
+    def run_hicup(self):
         
         # Copy files
         # NB! There is vulnerability in below as we asssume input file follows odom lab convention
         code = self.fq1.split('_')[0]
         destination = "%s@%s:%s" % (self.conf.user, self.conf.cluster, self.conf.clusterworkdir)
-        transfer_file(self.fq1, destination)
+        LOGGER.info("Copying %s to cluster ..." % self.fq1)
+        transfer_file(self.fq1, destination)        
         if self.fq2 is not None:
-            transfer_file(self.fq1, destination)
+            LOGGER.info("Copying %s to cluster ..." % self.fq2)
+            transfer_file(self.fq2, destination)
 
         # Send bsub for running hicup with correct number of thread request
         submitter = ClusterJobSubmitter()
-        cmd = "cd %s && hicup --config %s" % (self.conf.clusterworkdir,self.hicup_conf_fname)
-        jobid = submitter.submit_command(cmd=cmd, mem=self.conf.clustermem, auto_requeue=False, threads=self.conf.num_threads)
         
+        # FIX ME: Yes, its bad practice to hard code dependencies but this is a temporary fix as in some reason hicup can not be found even though in path
+        #         Moreover, in some reason softlinking hicup to bin does not seem to be enough, probably beacuse the way dependencies in hicup main program are implemented.
+        cmd = "mkdir %s && sleep 1 && cd %s && ~/software/external/hicup_v0.5.10/hicup --config %s" % (self.hicup_output_dir, self.conf.clusterworkdir, self.hicup_conf_fname)
+        jobid = submitter.submit_command(cmd=cmd, mem=self.conf.clustermem, auto_requeue=False, threads=self.conf.num_threads)
+        LOGGER.info("Hicup execution job id = %s" % jobid)
         #
-        cmd = "cs_run_hicup_postprocess.py --fq1" % (self.conf.clusterworkdir,self.fq1)
+        cmd = "cd %s && cs_run_hicup_postprocess.py --fq1 %s" % (self.conf.clusterworkdir, self.fq1)
         jobid = submitter.submit_command(cmd=cmd, mem=self.conf.clustermem, auto_requeue=False, threads=self.conf.num_threads, depend_jobs=[jobid])
-
+        LOGGER.info("Hicup post process job id = %s" % jobid)
         
     def postprocess_hicup(self):
         '''Post-processes hicup results. NB! The function is expected to run in cluster.'''

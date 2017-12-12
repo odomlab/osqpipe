@@ -5,6 +5,8 @@
 import os
 import sys
 
+from osqpipe.pipeline.hicup import HiCUP
+
 if __name__ == '__main__':
     
     import argparse

@@ -5,6 +5,8 @@
 import os
 import sys
 
+from osqpipe.pipeline.hicup import HiCUP
+
 if __name__ == '__main__':
     
     import argparse
@@ -13,7 +15,7 @@ if __name__ == '__main__':
         description='Runs HiCUP on read file or file pair. Note that the program leaves results in cluster. Use together with cs_run_hicup_postprocess.py.')
     PARSER.add_argument('--fq1', dest='fq1', type=str,
                         help='Fastq of pair1', required=True)
-    PARSER.add_argument('--fq2', dest='fq2', type=str, default=None
+    PARSER.add_argument('--fq2', dest='fq2', type=str, default=None,
                         help='Fastq of pair2')
     PARSER.add_argument('--genome', dest='genome', type=str, required=True,
                      help='Reference genome name.')
@@ -23,6 +25,6 @@ if __name__ == '__main__':
     ARGS = PARSER.parse_args()
 
 
-    HC = HiCUP(fq1=ARGS.fq1, genome=ARGS.genome, enzyme=ARGS.rfile, fq2=ARGS.fq2)
+    HC = HiCUP(fq1=ARGS.fq1, genome=ARGS.genome, enzyme=ARGS.enzyme, fq2=ARGS.fq2)
     HC.write_hicup_config()
     HC.run_hicup()
