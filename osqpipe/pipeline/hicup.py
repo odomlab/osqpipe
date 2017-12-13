@@ -12,7 +12,7 @@ import django
 django.setup()
 
 from osqutil.cluster import ClusterJobSubmitter
-from osqutil.utilities import write_to_remote_file, transfer_file
+from osqutil.utilities import write_to_remote_file, transfer_file, checksum_file
 from osqutil.config import Config
 
 from osqutil.setup_logs import configure_logging
@@ -39,6 +39,9 @@ class HiCUP(object):
 
         self.hicup_conf_fname = os.path.join(self.conf.clusterworkdir, os.path.basename(self.fq1) + "_hicup.conf")
         self.hicup_output_dir = os.path.join(self.conf.clusterworkdir, os.path.basename(self.fq1) + "_hicup")
+        report_name = self.fq1.rstrip('.gz')
+        report_name = report_name.rstrip('.fq')
+        self.hicup_report_fname = os.path.join(self.conf.clusterworkdir, report_name + ".hicup.html")
 
         # Get genome_file
         if self.genome is not None:
@@ -186,15 +189,18 @@ class HiCUP(object):
             LOGGER.error("No html report found in %s.", self.hicup_output_dir)
             sys.exit(1)
 
+        # Rename report file
+        os.rename(os.path.join(self.hicup_output_dir, report_file), self.hicup_report_fname)
+
         # Copy report to repository
         # NB! There is vulnerability in below as we asssume input file follows odom lab convention
         code = self.fq1.split('_')[0]
         destination = "%s@%s:%s/%s/" % (self.conf.user, self.conf.datahost, self.conf.repositorydir, code)
-        transfer_file(os.path.join(self.hicup_output_dir, report_file), destination)
+        transfer_file(self.hicup_report_fname, destination)
     
         # Register report in repository
-        md5 = checksum_file(report_file, unzip=False)
-        cmd = "cs_addFile.py --qcfile --program_name hicup -M %s %s" % (os.path.join(destination, f), md5)
+        md5 = checksum_file(self.hicup_report_fname, unzip=False)
+        cmd = "cs_addFile.py --qcfile --program_name hicup -M %s %s" % (os.path.basename(self.hicup_report_fname), md5)
 
         subproc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
         (stdout, stderr) = subproc.communicate()
