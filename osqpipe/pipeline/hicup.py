@@ -7,9 +7,10 @@ import sys
 from subprocess import Popen, PIPE
 import shutil
 
-from osqpipe.models import Restrictome, Genome, Program
 import django
 django.setup()
+
+from osqpipe.models import Restrictome, Genome, Program
 
 from osqutil.cluster import ClusterJobSubmitter
 from osqutil.utilities import write_to_remote_file, transfer_file, checksum_file
@@ -196,7 +197,7 @@ class HiCUP(object):
         # NB! There is vulnerability in below as we asssume input file follows odom lab convention
         code = self.fq1.split('_')[0]
         destination = "%s@%s:%s/%s/" % (self.conf.user, self.conf.datahost, self.conf.repositorydir, code)
-        transfer_file(self.hicup_report_fname, destination)
+        transfer_file(self.hicup_report_fname, destination, set_ownership=False)
     
         # Register report in repository
         md5 = checksum_file(self.hicup_report_fname, unzip=False)
@@ -217,3 +218,5 @@ class HiCUP(object):
         
         # Remove report dir
         shutil.rmtree(self.hicup_output_dir)
+        os.remove(self.fq1)
+        os.remove(self.fq2)

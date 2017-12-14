@@ -23,6 +23,7 @@ from .fastq_aligner import FastqBwaAligner, FastqTophatAligner, FastqStarAligner
 from .upstream_lims import Lims
 from .fetch_mga import fetch_mga
 from .laneqc import LaneFastQCReport
+from .hicup import HiCUP
 
 from django.db import transaction
 
@@ -521,34 +522,6 @@ class GenericFileProcessor(object):
                              nocc=nocc,
                              destnames=self.outfiles)
 
-  def kick_off_hicup_qc_report(self, tfiles):      
-    '''
-    Start hicup qc report generation of our fastq files given genome and restriction enzyme.
-    '''
-
-    fq1 = tfiles[0]
-    fq2 = None
-    if len(tfiles) == 2:
-      fq2 = tfiles[1]
-
-    code = fq1.split('_')[0]
-    try:
-      library = Library.objects.get(code=code)
-    except Library.DoesNotExist, _err:
-      LOGGER.warning("No library %s", code)
-      sys.exit("No library %s." % (code,))
-    return library
-  
-    enzyme = library.comment
-    if enzyme == None or enzyme == '':
-      LOGGER.error("Enzyme name used for digestion missing! (expected in comments field)")
-      sys.exit(1)
-    genome = library.genome.code    
-    
-    HC = HiCUP(fq1=fq1, genome=genome, enzyme=enzyme, fq2=fq2)
-    HC.write_hicup_config()
-    HC.run_hicup()
-    
   def post_process(self):
     '''
     Stub method standing in for the main processing steps to be
@@ -771,10 +744,40 @@ class ChIPFastqFileProc(ChIPQseqFileProc):
 
 ###############################################################################
 
-class HiCFastqFileProc(ChIPQseqFileProc):
+class HiCFastqFileProc(GenericFileProcessor):
   '''
   Processor for HiC fastq files.
   '''
+
+  def kick_off_hicup_qc_report(self, tfiles):
+    '''
+    Start hicup qc report generation of our fastq files given genome and restriction enzyme.
+    
+    '''
+    fq1 = tfiles[0]
+    fq2 = None
+    if len(tfiles) == 2:
+      fq2 = tfiles[1]
+    code = fq1.split('_')[0]
+    try:
+      library = Library.objects.get(code=code)
+    except Library.DoesNotExist, _err:
+      LOGGER.warning("No library %s", code)
+      sys.exit("No library %s." % (code,))
+  
+    enzyme = library.comment
+    if enzyme == None or enzyme == '':
+      LOGGER.error("Enzyme name used for digestion missing! (expected in comments field)")
+      sys.exit(1)
+    genome = library.genome.code
+
+    LOGGER.info("Installing HiCUP class.")
+    HC = HiCUP(fq1=fq1, genome=genome, enzyme=enzyme, fq2=fq2)
+    LOGGER.info("Creating HiCUP config file.")
+    HC.write_hicup_config()
+    LOGGER.info("Executing HiCUP")
+    HC.run_hicup()
+
   def post_process(self):
     '''
     Convert to phred scoring if required, trim fastq, align, collect metadata.
@@ -783,13 +786,15 @@ class HiCFastqFileProc(ChIPQseqFileProc):
     if self.options.get('convert', False):
       self.convert_solexa2phred()
     else:
-      LOGGER.info("Assuming quality values in Sanger format.")
+      LOGGER.info("Assuming quality values in Sanger format. HiC.")
     if 'trimhead' in self.options or 'trimtail' in self.options:
       tfiles = self.trim_fastq()
     else:
       tfiles = self.outfiles[:]
     for fname in tfiles:
       set_file_permissions(CONFIG.group, fname)
+
+    LOGGER.info("Kicking off hicup report generation.")    
     self.kick_off_hicup_qc_report(tfiles)
     self.collect_lims_info()
     self.collect_lane_info("-f")
@@ -1156,10 +1161,7 @@ class FileProcessingManager(object):
                  '.export': ChIPExportFileProc,
                  '.qseq': ChIPQseqFileProc,
                  '.map': ChIPMaqFileProc},
-      'hic': {'.fq': HiCFastqFileProc,
-              '.export': ChIPExportFileProc,
-              '.qseq': ChIPQseqFileProc,
-              '.map': ChIPMaqFileProc},
+      'hic': {'.fq': HiCFastqFileProc},
       'mirna': {'.fq': MiRFastqFileProc,
                 '.export': MiRExportFileProc,
                 '.qseq': MiRQseqFileProc},
