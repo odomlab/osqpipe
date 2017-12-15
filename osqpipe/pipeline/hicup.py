@@ -165,8 +165,8 @@ class HiCUP(object):
         submitter = ClusterJobSubmitter()
         
         # FIX ME: Yes, its bad practice to hard code dependencies but this is a temporary fix as in some reason hicup can not be found even though in path
-        #         Moreover, in some reason softlinking hicup to bin does not seem to be enough, probably beacuse the way dependencies in hicup main program are implemented.
-        cmd = "mkdir %s && sleep 1 && cd %s && ~/software/external/hicup_v0.5.10/hicup --config %s && rm %s && rm %s" % (self.hicup_output_dir, self.conf.clusterworkdir, self.hicup_conf_fname, self.fq1, self.fq2)
+        #         Moreover, in some reason softlinking hicup to bin does not seem to be enough, probably beacuse the way dependencies in hicup main program are implemented.        
+        cmd = "mkdir %s && sleep 1 && cd %s && ~/software/external/hicup_v0.5.10/hicup --config %s && rm %s" % (self.hicup_output_dir, self.conf.clusterworkdir, self.hicup_conf_fname, self.fq2)
         jobid = submitter.submit_command(cmd=cmd, mem=self.conf.clustermem, auto_requeue=False, threads=self.conf.num_threads)
         LOGGER.info("Hicup execution job id = %s" % jobid)
         #
@@ -196,6 +196,7 @@ class HiCUP(object):
         # Copy report to repository
         # NB! There is vulnerability in below as we asssume input file follows odom lab convention
         code = self.fq1.split('_')[0]
+        dest_file = os.path.join(self.conf.repositorydir, code, os.path.basename(self.hicup_report_fname))
         destination = "%s@%s:%s/%s/" % (self.conf.user, self.conf.datahost, self.conf.repositorydir, code)
         transfer_file(self.hicup_report_fname, destination, set_ownership=False)
     
@@ -206,17 +207,33 @@ class HiCUP(object):
         subproc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
         (stdout, stderr) = subproc.communicate()
         retcode = subproc.wait()
-        if stdout is not None:
+        if stdout is not None or stdout != "":
             LOGGER.info("STDOUT:")
             LOGGER.info(sys.stdout.write(stdout))
-        if stderr is not None:
+        if stderr is not None or stderr != "":
             LOGGER.error("STDERR:")
             LOGGER.error(sys.stderr.write(stderr))
         if retcode != 0:
             LOGGER.error("Failed to execute '%s'\n\n" % cmd)
             sys.exit(1)
-        
+
+        # Set chgrp for the report file
+        cmd2 = "ssh -o StrictHostKeyChecking=no %s@%s 'chgrp %s %s'" % (self.conf.user, self.conf.datahost, self.conf.group, dest_file)
+        subproc = Popen(cmd2, stdout=PIPE, stderr=PIPE, shell=True)
+        (stdout, stderr) = subproc.communicate()
+        retcode = subproc.wait()
+        if stdout is not None or stdout != "":
+            LOGGER.info("STDOUT:")
+            LOGGER.info(sys.stdout.write(stdout))
+        if stderr is not None or stderr != "":
+            LOGGER.error("STDERR:")
+            LOGGER.error(sys.stderr.write(stderr))
+        if retcode != 0:
+            LOGGER.error("Failed to execute '%s'\n\n" % cmd)
+            sys.exit(1)
+    
         # Remove report dir
         shutil.rmtree(self.hicup_output_dir)
         # Remove hicup report
         os.remove(self.hicup_report_fname)
+        os.remove(self.fq1)
