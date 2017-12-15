@@ -166,7 +166,7 @@ class HiCUP(object):
         
         # FIX ME: Yes, its bad practice to hard code dependencies but this is a temporary fix as in some reason hicup can not be found even though in path
         #         Moreover, in some reason softlinking hicup to bin does not seem to be enough, probably beacuse the way dependencies in hicup main program are implemented.        
-        cmd = "mkdir %s && sleep 1 && cd %s && ~/software/external/hicup_v0.5.10/hicup --config %s && rm %s" % (self.hicup_output_dir, self.conf.clusterworkdir, self.hicup_conf_fname, self.fq2)
+        cmd = "mkdir %s && sleep 1 && cd %s && ~/software/external/hicup_v0.5.10/hicup --config %s && rm %s && rm %s" % (self.hicup_output_dir, self.conf.clusterworkdir, self.hicup_conf_fname, self.fq2, self.hicup_conf_fname)
         jobid = submitter.submit_command(cmd=cmd, mem=self.conf.clustermem, auto_requeue=False, threads=self.conf.num_threads)
         LOGGER.info("Hicup execution job id = %s" % jobid)
         #
