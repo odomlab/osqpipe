@@ -1149,6 +1149,7 @@ class FileProcessingManager(object):
                  '.export': ChIPExportFileProc,
                  '.qseq': ChIPQseqFileProc,
                  '.map': ChIPMaqFileProc},
+      'tla':   {'.fq': ChIPFastqFileProc},
       'exome': {'.fq': ChIPFastqFileProc,
                 '.export': ChIPExportFileProc,
                 '.qseq': ChIPQseqFileProc,
