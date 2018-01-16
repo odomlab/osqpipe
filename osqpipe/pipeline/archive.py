@@ -429,11 +429,11 @@ class ArchiveManager(object):
             os.unlink(repopath)
             files_deleted += 1
         else:
-          raise ValueError(\
-            "Error: File %s recorded to be in archive but missing on disk."
-            % archpath)
+          LOGGER.error("File %s recorded to be in archive but missing on disk.", archpath)
+          continue
+
     if files_deleted == 0:
-      LOGGER.info("No files to delete from repository.")
+      LOGGER.info("Zero files deleted from repository.")
     else:
       LOGGER.warning("%d files removed from repository.", files_deleted)
 
