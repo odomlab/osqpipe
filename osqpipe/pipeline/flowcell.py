@@ -10,7 +10,7 @@ import os
 import os.path
 import re
 
-from osqutil.utilities import parse_incoming_fastq_name, checksum_file, \
+from osqutil.utilities import checksum_file, \
     build_incoming_fastq_name, parse_incoming_fastq_name, call_subprocess, set_file_permissions, \
     munge_cruk_emails, unzip_file, rezip_file, is_zipped
 from .upstream_lims import Lims
@@ -228,8 +228,9 @@ class FlowCellProcess(object):
               self.output_files.append(fname)
 
     for fname in self.output_files:
-      if fname not in failed_fnames:               
-        (code, flowcell, flowlane, flowpair) = parse_incoming_fastq_name(os.path.basename(fname), ext='.fq.gz')
+      if fname not in failed_fnames:
+        # The next line will parse regular Fastq filenames or the 10X tarball filenames.
+        (code, flowcell, flowlane, flowpair) = parse_incoming_fastq_name(os.path.basename(fname), ext=r'.(fq.gz|tar)')
         LOGGER.info("Changing code=%s, flowcell=%s, flowlane=%s, flowpair=%s to 'downloaded'", code, flowcell, flowlane, flowpair)
         try:
           lane = Lane.objects.get(flowcell=flowcell, flowlane=flowlane, library__code=code)
