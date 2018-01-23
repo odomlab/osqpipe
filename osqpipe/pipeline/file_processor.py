@@ -615,7 +615,7 @@ class GenericFileProcessor(object):
         # subtypes of Datafile).
         # move(disk_fname, dest)
         # set_file_permissions(CONFIG.group, dest)
-        transfer_file(disk_fname, "%s@%s:%s" % (CONFIG.user, CONFIG.datahost, dest))
+        transfer_file(disk_fname, "%s@%s:%s" % (CONFIG.user, CONFIG.datahost, dest), set_ownership=True)
         # note that transfer_file exists should the the transfer fail, hence unlinking the file should be safe.
         os.unlink(disk_fname)
 
