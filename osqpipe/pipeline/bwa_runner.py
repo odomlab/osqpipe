@@ -516,7 +516,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
                fq_1,
                sai_1))
     cmd += ((" && bwa sampe %s %s %s %s %s %s | samtools view -b -S -u -@ %d"
-                                        + " - | samtools sort -@ %d - %s")
+                                        + " - | samtools sort -@ %d -o %s.bam -")
             % (noccflag,
                self.genome,
                sai_0,
@@ -535,7 +535,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
     fnlist = quote(destnames[0])
     cmd  = (("bwa aln -t %d %s %s | bwa samse %s %s - %s"
                               + " | samtools view -b -S -u -@ %d -"
-                              + " | samtools sort -@ %d - %s")
+                              + " | samtools sort -@ %d -o %s.bam -")
             % (num_threads,
                self.genome,
                fnlist,
@@ -559,7 +559,7 @@ class BwaDesktopJobSubmitter(AlignmentJobRunner):
       raise StandardError("Incorrect number of files passed to bwa mem: %d" % nfq)
     
     num_threads = max(1, int(self.num_threads))
-    sortstr = "samtools sort -@ %d - %s"
+    sortstr = "samtools sort -@ %d -o %s.bam -"
     fnlist = " ".join([quote(fqname) for fqname in destnames ])
     cmd  = (("bwa mem -t %d %s %s | samtools view -b -S -u -@ %d -"
              + " | %s")
