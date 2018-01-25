@@ -8,7 +8,6 @@
 # - Password free login to target scp server
 # - scp
 # - sed
-# - /home/fnc-odompipe/software/external/bin/xsltproc
 # - /home/fnc-odompipe/software/external/bin/wkhtmltopdf-amd64
 #
 #
