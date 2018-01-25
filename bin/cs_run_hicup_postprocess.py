@@ -20,5 +20,5 @@ if __name__ == '__main__':
 
 
     HC = HiCUP(fq1=ARGS.fq1)
-    HC.write_hicup_config()
-    HC.run_hicup()
+    HC.postprocess_hicup()
+

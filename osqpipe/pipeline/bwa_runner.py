@@ -193,7 +193,7 @@ class BwaClusterJobSubmitter(AlignmentJobRunner):
       cpflag = '--rcp %s' % rcp
     # If lcp has been specified, override default
     if lcp is not None:
-      cpflag = '--lcp %s' % rcp
+      cpflag = '--lcp %s' % lcp
     # If nosplit has been set, forward the value
     splitflag = ''
     if nosplit is not None:

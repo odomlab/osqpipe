@@ -113,12 +113,13 @@ class RepoFileHandler(object):
   @staticmethod
   def add_qc_files(fnames, program_name, md5sums=None):
     '''Adds QC files to repository'''
+
     # Assume first file is representative of lane for all
     l = get_lane_for_file(fnames[0])
 
     LOGGER.info("Inserting QC files for lane=%d", l.id)
 
-    with LaneFastQCReport(lane=l, program_name=program_name, workdir='/some/dir/', move_files=False) as rep:
+    with LaneFastQCReport(target=l, program_name=program_name, workdir='/some/dir/', move_files=False) as rep:
       # set output_files and corresponding md5s
       rep.output_files = fnames
       if md5sums is not None:

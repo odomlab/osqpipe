@@ -140,7 +140,7 @@ class QCReport(object):
           # set_file_permissions(CONFIG.group, dest)
           if os.path.isabs(dest):
             dest = os.path.split(dest)[0] + '/'
-          transfer_file(fpath, "%s@%s:%s" % (CONFIG.user, CONFIG.datahost, dest)) # note that transfer_file sets destination file permissions as in CONF
+          transfer_file(fpath, "%s@%s:%s" % (CONFIG.user, CONFIG.datahost, dest), set_ownership=True) # note that transfer_file sets destination file permissions as in CONF
 
   def __exit__(self, exctype, excvalue, traceback):
     if self._delete_workdir:
