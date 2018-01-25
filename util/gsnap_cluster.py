@@ -106,7 +106,7 @@ class GsnapManager(ClusterJobManager):
       samfile = r'%s.%s_%s' % (prefix, keeptype, tag)
 
       # Sort here rather than later as it's more efficient.
-      cmd += (r' && samtools view -b -S -o - %s | samtools sort - %s'
+      cmd += (r' && samtools view -b -S -o - %s | samtools sort -o %s.bam -'
               % (samfile, samfile))
 
     # Clean up the sam files.

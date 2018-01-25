@@ -76,7 +76,7 @@ class AlignProcessingManager(object):
 
     # Re-sort output bam
     LOGGER.info("Sorting temporary file %s back to %s.", tmpfile, in_fn)
-    cmd = (self.conf.read_sorter, 'sort', '-m', self.conf.meminbytes, tmpfile, splitext(in_fn)[0])
+    cmd = (self.conf.read_sorter, 'sort', '-m', self.conf.meminbytes, '-o', in_fn, tmpfile)
     LOGGER.debug(cmd)
     call_subprocess(cmd, path=self.conf.hostpath)
 
