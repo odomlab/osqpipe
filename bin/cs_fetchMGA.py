@@ -13,7 +13,6 @@ __credits__ = "Exploits cs_* libraries implemented by Gordon Brown."
 # - Password free login to target scp server
 # - scp
 # - sed
-# - /home/fnc-odompipe/software/external/bin/xsltproc
 # - /home/fnc-odompipe/software/external/bin/wkhtmltopdf-amd64
 
 import sys
