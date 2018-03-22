@@ -479,6 +479,7 @@ class Library(models.Model):
   factor       = models.ForeignKey(Factor, on_delete=models.PROTECT, null=True, blank=True)
   condition    = models.ForeignKey(Condition, on_delete=models.PROTECT, null=True, blank=True)
   bad          = models.BooleanField(default=False)
+  release_worthy = models.BooleanField(default=False)
   projects     = models.ManyToManyField(Project, db_table='library_project', related_name='libraries')
   libtype      = models.ForeignKey(Libtype, on_delete=models.PROTECT)
   barcode      = models.CharField(max_length=32, null=True, blank=True)

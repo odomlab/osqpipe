@@ -707,7 +707,7 @@ class ClusterJobManager(object):
   (e.g. GsnapManager, LastzManager).
   '''
   __slots__ = ('namespace', 'submitter', 'runner', 'config',
-               'throttle', 'memsize', 'ssh_key', 'local_workdir')
+               'throttle', 'memsize', 'ssh_key', 'local_workdir', 'time_limit')
 
   def __init__(self, namespace=None, throttle=0, memsize=20, time_limit=48,
                ssh_key=None, local_workdir='.'):
