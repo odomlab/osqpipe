@@ -1129,6 +1129,7 @@ class FileProcessingManager(object):
                   '.export': ChIPExportFileProc,
                   '.qseq': ChIPQseqFileProc,
                   '.map': ChIPMaqFileProc},
+      'cutandrun': {'.fq': ChIPFastqFileProc},
       'ripseq': {'.fq': ChIPFastqFileProc,
                  '.export': ChIPExportFileProc,
                  '.qseq': ChIPQseqFileProc,
