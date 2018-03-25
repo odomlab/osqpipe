@@ -93,6 +93,15 @@ class GenomeAdmin(admin.ModelAdmin):
             'fasta_md5sum', 'url', 'notes', 'version', 'blastdb')
 
 #############################################
+@admin.register(Restrictome)
+class RestrictomeAdmin(admin.ModelAdmin):
+  list_display  = ('enzyme', 'genome')
+  
+  search_fields = ('enzyme', 'genome__code', 'sequence')
+
+  fields = ('genome', 'enzyme', 'sequence', 'program', 'filename')
+
+#############################################
 @admin.register(Species)
 class SpeciesAdmin(admin.ModelAdmin):
   list_display  = ('scientific_name', 'common_name', 'accession')

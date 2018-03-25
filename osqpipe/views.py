@@ -492,7 +492,7 @@ class FileDownloadMixin(object):
     fname = fobj.filename
     if fobj.filetype.gzip:
       fname += ".gz"
-    if fobj.filetype.code in ('pdf','jpg') and not fobj.filetype.gzip:
+    if fobj.filetype.code in ('pdf','jpg','html') and not fobj.filetype.gzip:
       mtype    = guess_type(fname)
       response = HttpResponse(content_type=mtype[0])
     else:
