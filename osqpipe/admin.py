@@ -232,7 +232,7 @@ class LibraryAdmin(admin.ModelAdmin):
      {'fields': ['factor', 'antibody'] }),
     ('Technical Info',
      {'fields': ['libtype', 'genome', 'paired',
-                 'adapter', 'linkerset', 'barcode', 'bad']}),
+                 'adapter', 'adapter2', 'linkerset', 'barcode', 'bad']}),
     ('Project Info',
      {'fields': ['projects', 'chipsample', 'comment']})
     ]
