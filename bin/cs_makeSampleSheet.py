@@ -43,7 +43,10 @@ class DemuxSheetMaker(object):
       if not lib.adapter:
         raise StandardError("Library has no adapter associated: %s." % code)
       fname = build_incoming_fastq_name(code.lower(), flowCellID, lane, 1)
-      fdesc.write("%s %s\n" % (lib.adapter.sequence, fname))
+      if lib.adapter2 is None:
+        fdesc.write("%s\t%s\t%s\n" % (lib.adapter.sequence, fname, lib.code))
+      else:
+        fdesc.write("%s\t%s\t%s\t%s\n" % (lib.adapter.sequence, lib.adapter2.sequence, fname, lib.code))
 
     fdesc.close()
 
